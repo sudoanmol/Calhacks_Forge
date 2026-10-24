@@ -3,7 +3,16 @@ import { htmlToText } from './text.js';
 const BLOCK_MARKERS = [/captcha/i, /access denied/i, /are you a robot/i, /verify you are human/i, /cf-chl-/i];
 const DEFAULTS = { countries: ['us', 'gb'], timeoutMs: 45_000, minTextChars: 500, markers: [] };
 
-export const classify = ({ status, body }, opts) => {
+// Bright Data reports its own failures (compliance blocks, tunnel errors) as HTTP 200 with an
+// empty body and the reason in x-brd-error. A compliance block can't be fixed by another rung.
+const isComplianceBlock = (brdError) => /compliance policy|requires special permission|kyc/i.test(brdError);
+
+export const classify = ({ status, body, brdError }, opts) => {
+  if (brdError) {
+    return isComplianceBlock(brdError)
+      ? { ok: false, kind: 'compliance', reason: `bright data compliance block: ${brdError.slice(0, 160)}` }
+      : { ok: false, kind: 'blocked', reason: `bright data error: ${brdError.slice(0, 160)}` };
+  }
   if (status === 403 || status === 429) return { ok: false, kind: 'blocked', reason: `http ${status}` };
   if (status >= 400) return { ok: false, kind: 'error', reason: `http ${status}` };
   const raw = body ?? '';
@@ -24,7 +33,7 @@ export const unlockerRequest = async ({ url, country, apiKey, zone, timeoutMs, f
     body: JSON.stringify({ zone, url, format: 'raw', country }),
     signal: AbortSignal.timeout(timeoutMs),
   });
-  return { status: res.status, body: await res.text() };
+  return { status: res.status, body: await res.text(), brdError: res.headers.get('x-brd-error') ?? undefined };
 };
 
 const timed = async (fn) => {

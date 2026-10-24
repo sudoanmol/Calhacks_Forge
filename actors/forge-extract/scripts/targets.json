@@ -1,7 +1,7 @@
 [
   {
-    "name": "open-roles (Greenhouse board)",
-    "url": "https://boards.greenhouse.io/stripe",
+    "name": "open-roles (Greenhouse job-board API)",
+    "url": "https://boards-api.greenhouse.io/v1/boards/stripe/jobs",
     "instructions": "Each open job posting: its title, team/department and location.",
     "outputSchema": { "type": "object", "properties": { "title": { "type": "string" }, "team": { "type": "string" }, "location": { "type": "string" } } }
   },

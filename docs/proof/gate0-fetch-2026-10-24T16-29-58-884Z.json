@@ -1,0 +1,68 @@
+{
+  "measuredAt": "2026-10-24T16:29:58.886Z",
+  "results": [
+    {
+      "name": "open-roles (Greenhouse job-board API)",
+      "url": "https://boards-api.greenhouse.io/v1/boards/stripe/jobs",
+      "status": "ok",
+      "method": "unlocker",
+      "country": "us",
+      "chars": 448764,
+      "hash": "af0ce3f1e282e83b",
+      "reason": null,
+      "attempts": [
+        {
+          "method": "unlocker",
+          "country": "us",
+          "status": 200,
+          "ms": 5725,
+          "ok": true,
+          "reason": null
+        }
+      ],
+      "head": "{\"jobs\":[{\"absolute_url\":\"https://stripe.com/jobs/search?gh_jid=8172487\",\"data_compliance\":[{\"type\":\"gdpr\",\"requires_consent\":false,\"requires_processing_consent\":false,\"requires_retention_consent\":false,\"retention_period\":null,\"demographic_data_consent_applies\":false}],\"education\":\"education_require"
+    },
+    {
+      "name": "yc-directory (YC company page)",
+      "url": "https://www.ycombinator.com/companies/airbnb",
+      "status": "ok",
+      "method": "unlocker",
+      "country": "us",
+      "chars": 5609,
+      "hash": "7046acbf2bc4cdfd",
+      "reason": null,
+      "attempts": [
+        {
+          "method": "unlocker",
+          "country": "us",
+          "status": 200,
+          "ms": 2565,
+          "ok": true,
+          "reason": null
+        }
+      ],
+      "head": "Airbnb: Book accommodations around the world. | Y Combinator\nOpen menu About What Happens at YC? Apply YC Interview Guide FAQ People YC Blog\nCompanies Startup Directory Founder Directory Launch YC\nLibrary\nPartners\nResources Startup School Newsletter Requests for Startups For Investors Verify Founder"
+    },
+    {
+      "name": "gpu-listings (Newegg search)",
+      "url": "https://www.newegg.com/p/pl?d=rtx+5080",
+      "status": "ok",
+      "method": "unlocker",
+      "country": "us",
+      "chars": 20047,
+      "hash": "4bb54df5f4a1b910",
+      "reason": null,
+      "attempts": [
+        {
+          "method": "unlocker",
+          "country": "us",
+          "status": 200,
+          "ms": 13288,
+          "ok": true,
+          "reason": null
+        }
+      ],
+      "head": "GeForce RTX 5080 GPU / Video Graphics Cards | Newegg\nSkip to main content\nMenu ×\nAll Categories Build Tools & Resources\nNew & Trending\nOffers for You\nTrending\nShell Shocker PC Builder Newegg Card Games Trade-In Free Gift w/ AMD Newegg Business\nBuild Tools & Resources\nHelp me build\nDesktop PC with PC"
+    }
+  ]
+}

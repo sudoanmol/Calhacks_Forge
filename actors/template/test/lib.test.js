@@ -66,6 +66,25 @@ test('ladder: everything fails → unverifiable with reason', async () => {
   assert.deepEqual(r.attempts.map((a) => [a.method, a.country]), [['unlocker', 'us'], ['browser', 'us'], ['browser', 'gb']]);
 });
 
+test('ladder: Bright Data compliance block stops the ladder with its reason', async () => {
+  const brdError = 'Navigation failed: Failed to open proxy tunnel (reason = "Forbidden: target site requires special permission. You are trying to access a target site which is not permitted by our compliance policy.")';
+  const r = await fetchWithLadder('https://boards.greenhouse.io/stripe', {
+    unlocker: async () => ({ status: 200, body: '', brdError }),
+    browser: async () => { throw new Error('browser must not run'); },
+  });
+  assert.equal(r.status, 'unverifiable');
+  assert.match(r.reason, /compliance block/);
+  assert.equal(r.attempts.length, 1);
+});
+
+test('ladder: other Bright Data errors retry from another country', async () => {
+  const r = await fetchWithLadder('https://x.test', {
+    unlocker: async (_u, c) => (c === 'us' ? { status: 200, body: '', brdError: 'Proxy tunnel timeout' } : { status: 200, body: big }),
+  });
+  assert.equal(r.status, 'ok');
+  assert.equal(r.country, 'gb');
+});
+
 test('ladder: missing marker counts as a shell', async () => {
   const r = await fetchWithLadder('https://x.test', {
     unlocker: async () => ({ status: 200, body: big }),

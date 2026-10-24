@@ -516,6 +516,10 @@ Authorization: Bearer <key>
 3. If blocked (403/429/CAPTCHA page) or timed out: repeat the failed step once from another country.
 4. Still failing: `unverifiable`, with the reason. Never invent a value.
 
+Bright Data reports its own failures as **HTTP 200 with an empty body** and the reason in the `x-brd-error` response header. A compliance block ("target site requires special permission … compliance policy", e.g. `boards.greenhouse.io` and `job-boards.greenhouse.io` without KYC) ends the ladder at once: no Browser API, no country retry. Other `x-brd-error` values are treated as blocked (country retry). Measured Oct 24: `boards-api.greenhouse.io` (the public Greenhouse JSON API) is allowed, so `open-roles` uses it.
+
+Zones are created with `POST https://api.brightdata.com/zone` (needs an Admin/Ops API key): Web Unlocker `{zone: {name, type: "unblocker"}, plan: {type: "unblocker"}}`, SERP `{zone: {name, type: "serp"}, plan: {type: "unblocker", serp: true}}`. Project zones: `forge_unlocker`, `forge_serp`.
+
 Log every rung to `evidence`: method (`unlocker`/`browser`), status, country, ms, and why the ladder moved up.
 
 ### Coinbase (only if eligible; first to cut)
@@ -708,7 +712,7 @@ Never cut: the admission gate, `forge-extract` with the quote anchor, a real exi
 | Fetch | Is data delivered in chat with a dataset link fine? Do delayed messages show in ASI:One? Which payment method renders? | |
 | SpacetimeDB | Are procedures and HTTP routes stable on Maincloud this weekend? | |
 | Apify | Does an LLM-based generic extractor (with quote verification) qualify for Best Actor? Do Droid-compiled Actors and later edits affect eligibility? Are Tasks a good fit for "an API per request"? | |
-| Bright Data | Do the promo credits cover the Browser API? Is a gate that rejects login/paywall/personal-data requests the right reading of your rules? | |
+| Bright Data | Do the promo credits cover the Browser API? Is a gate that rejects login/paywall/personal-data requests the right reading of your rules? Can our account get KYC for Greenhouse HTML boards? | Greenhouse HTML boards are blocked by Bright Data compliance without KYC (measured Oct 24); the JSON API works. |
 | Coinbase | Does the founder (a visa holder living in the US) qualify? | |
 
 ### Event facts (checked Fri Oct 23, ~10 PM PT)

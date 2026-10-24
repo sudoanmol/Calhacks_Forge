@@ -1,0 +1,76 @@
+{
+  "measuredAt": "2026-10-24T16:27:57.662Z",
+  "results": [
+    {
+      "name": "open-roles (Greenhouse board)",
+      "url": "https://boards.greenhouse.io/stripe",
+      "status": "unverifiable",
+      "method": null,
+      "country": null,
+      "chars": 0,
+      "hash": null,
+      "reason": "browser rung not configured",
+      "attempts": [
+        {
+          "method": "unlocker",
+          "country": "us",
+          "status": 200,
+          "ms": 26997,
+          "ok": false,
+          "reason": "text too short (0 chars)"
+        },
+        {
+          "method": "browser",
+          "country": null,
+          "status": 0,
+          "ms": 0,
+          "ok": false,
+          "reason": "browser rung not configured"
+        }
+      ],
+      "head": null
+    },
+    {
+      "name": "yc-directory (YC company page)",
+      "url": "https://www.ycombinator.com/companies/airbnb",
+      "status": "ok",
+      "method": "unlocker",
+      "country": "us",
+      "chars": 5609,
+      "hash": "7046acbf2bc4cdfd",
+      "reason": null,
+      "attempts": [
+        {
+          "method": "unlocker",
+          "country": "us",
+          "status": 200,
+          "ms": 6834,
+          "ok": true,
+          "reason": null
+        }
+      ],
+      "head": "Airbnb: Book accommodations around the world. | Y Combinator\nOpen menu About What Happens at YC? Apply YC Interview Guide FAQ People YC Blog\nCompanies Startup Directory Founder Directory Launch YC\nLibrary\nPartners\nResources Startup School Newsletter Requests for Startups For Investors Verify Founder"
+    },
+    {
+      "name": "gpu-listings (Newegg search)",
+      "url": "https://www.newegg.com/p/pl?d=rtx+5080",
+      "status": "ok",
+      "method": "unlocker",
+      "country": "us",
+      "chars": 20047,
+      "hash": "4bb54df5f4a1b910",
+      "reason": null,
+      "attempts": [
+        {
+          "method": "unlocker",
+          "country": "us",
+          "status": 200,
+          "ms": 35571,
+          "ok": true,
+          "reason": null
+        }
+      ],
+      "head": "GeForce RTX 5080 GPU / Video Graphics Cards | Newegg\nSkip to main content\nMenu ×\nAll Categories Build Tools & Resources\nNew & Trending\nOffers for You\nTrending\nShell Shocker PC Builder Newegg Card Games Trade-In Free Gift w/ AMD Newegg Business\nBuild Tools & Resources\nHelp me build\nDesktop PC with PC"
+    }
+  ]
+}
