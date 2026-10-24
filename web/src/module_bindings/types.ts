@@ -29,6 +29,22 @@ export const Api = __t.object("Api", {
 });
 export type Api = __Infer<typeof Api>;
 
+export const ApiCost = __t.object("ApiCost", {
+  apiId: __t.u64(),
+  costPerCallMicros: __t.u64(),
+  runs: __t.u32(),
+  updatedAt: __t.timestamp(),
+});
+export type ApiCost = __Infer<typeof ApiCost>;
+
+export const ApiRetired = __t.object("ApiRetired", {
+  apiId: __t.u64(),
+  name: __t.string(),
+  reason: __t.string(),
+  retiredAt: __t.timestamp(),
+});
+export type ApiRetired = __Infer<typeof ApiRetired>;
+
 export const ApiRunSchedule = __t.object("ApiRunSchedule", {
   scheduledId: __t.u64(),
   scheduledAt: __t.scheduleAt(),
@@ -97,6 +113,12 @@ export const CallbackToken = __t.object("CallbackToken", {
 });
 export type CallbackToken = __Infer<typeof CallbackToken>;
 
+export const CanaryOrder = __t.object("CanaryOrder", {
+  orderId: __t.u64(),
+  markedAt: __t.timestamp(),
+});
+export type CanaryOrder = __Infer<typeof CanaryOrder>;
+
 export const Challenge = __t.object("Challenge", {
   id: __t.u64(),
   orderId: __t.u64(),
@@ -116,6 +138,13 @@ export const Config = __t.object("Config", {
   updatedAt: __t.timestamp(),
 });
 export type Config = __Infer<typeof Config>;
+
+export const CostSettleSchedule = __t.object("CostSettleSchedule", {
+  scheduledId: __t.u64(),
+  scheduledAt: __t.scheduleAt(),
+  runRef: __t.u64(),
+});
+export type CostSettleSchedule = __Infer<typeof CostSettleSchedule>;
 
 export const Customer = __t.object("Customer", {
   id: __t.u64(),
@@ -221,6 +250,23 @@ export const Run = __t.object("Run", {
   endedAt: __t.option(__t.timestamp()),
 });
 export type Run = __Infer<typeof Run>;
+
+export const RunCost = __t.object("RunCost", {
+  runId: __t.u64(),
+  orderId: __t.u64(),
+  apiId: __t.u64(),
+  apifyMicros: __t.u64(),
+  llmMicros: __t.u64(),
+  brightdataMicros: __t.u64(),
+  totalMicros: __t.u64(),
+  llmInputTokens: __t.u64(),
+  llmOutputTokens: __t.u64(),
+  actorUnlockerRequests: __t.u32(),
+  verifyUnlockerRequests: __t.u32(),
+  finalized: __t.bool(),
+  at: __t.timestamp(),
+});
+export type RunCost = __Infer<typeof RunCost>;
 
 export const Staff = __t.object("Staff", {
   identity: __t.identity(),

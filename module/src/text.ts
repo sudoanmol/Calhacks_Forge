@@ -33,6 +33,99 @@ export const anchored = (pageText: string, excerpt: string, value: string) => {
   return norm(pageText).includes(e) && e.includes(v);
 };
 
+// Volatile re-check (AGENTS.md §3 Addition 1): when the saved excerpt is gone from the fresh page,
+// find the value that now sits in the same place. Deterministic, no LLM:
+//   1. context: the text just before and/or after the old value in the excerpt, located on the fresh page;
+//   2. entity: for numeric values, the first value of the same shape within ENTITY_WINDOW chars after the row's entity.
+// Returns the fresh value only when every match agrees on one candidate; otherwise null.
+const CONTEXT_CHARS = 40;
+const MIN_CONTEXT = 4;
+const ENTITY_WINDOW = 300;
+
+const collapse = (s: string) => String(s).replace(/\s+/g, ' ').trim();
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// "$1,199.99" -> /\$\d[\d.,]*/ : digits may change, the surrounding symbols may not.
+const shapeOf = (value: string) =>
+  new RegExp(value.split(/(\d[\d.,]*)/).map((part, i) => (i % 2 ? '\\d[\\d.,]*' : escapeRe(part))).join(''));
+
+const indexesOf = (hay: string, needle: string) => {
+  const out: number[] = [];
+  for (let i = hay.indexOf(needle); i >= 0; i = hay.indexOf(needle, i + 1)) out.push(i);
+  return out;
+};
+
+export const reanchor = (pageText: string, excerpt: string, value: string, entity = ''): string | null => {
+  const orig = collapse(pageText);
+  const low = orig.toLowerCase();
+  // Case-preserving output needs index parity between the two strings.
+  const pick = (a: number, b: number) => (low.length === orig.length ? orig : low).slice(a, b).trim();
+  const e = norm(excerpt);
+  const v = norm(value);
+  if (!v) return null;
+  const maxLen = Math.max(40, v.length * 3);
+  const vTokens = v.split(' ').length;
+  const numeric = /\d/.test(v);
+  const found = new Set<string>();
+  const accept = (c: string) => {
+    if (c && c.length <= maxLen && (!numeric || /\d/.test(c))) found.add(c);
+  };
+
+  const at = e.indexOf(v);
+  const before = at >= 0 ? e.slice(0, at).slice(-CONTEXT_CHARS) : '';
+  const after = at >= 0 ? e.slice(at + v.length).slice(0, CONTEXT_CHARS) : '';
+  const hasBefore = before.trim().length >= MIN_CONTEXT;
+  const hasAfter = after.trim().length >= MIN_CONTEXT;
+  if (hasBefore && hasAfter) {
+    for (const i of indexesOf(low, before)) {
+      const s = i + before.length;
+      const j = low.indexOf(after, s);
+      if (j > s && j - s <= maxLen) accept(pick(s, j));
+    }
+  } else if (hasBefore) {
+    for (const i of indexesOf(low, before)) {
+      const s = i + before.length;
+      const rest = low.slice(s).trimStart();
+      const lead = low.length - s - rest.length;
+      const tokens = rest.split(' ').slice(0, vTokens).join(' ');
+      accept(pick(s + lead, s + lead + tokens.length));
+    }
+  } else if (hasAfter) {
+    for (const j of indexesOf(low, after)) {
+      const head = low.slice(0, j).trimEnd();
+      const tokens = head.split(' ').slice(-vTokens).join(' ');
+      accept(pick(head.length - tokens.length, head.length));
+    }
+  }
+
+  const ent = norm(entity);
+  if (!found.size && numeric && ent.length >= MIN_CONTEXT) {
+    const shape = shapeOf(v);
+    for (const i of indexesOf(low, ent)) {
+      const s = i + ent.length;
+      const m = shape.exec(low.slice(s, s + ENTITY_WINDOW));
+      if (m) accept(pick(s + m.index, s + m.index + m[0].length));
+    }
+  }
+  return found.size === 1 ? [...found][0]! : null;
+};
+
+export type Verification = { status: 'verified' | 'stale' | 'mismatch' | 'unverifiable'; freshValue: string };
+
+// The per-value rule shared by verify_values and verify_probe.
+export const verifyValue = (
+  page: { ok: boolean; text: string } | undefined,
+  rec: { excerpt: string; value: string; entity: string },
+  volatility: string,
+): Verification => {
+  if (!page?.ok) return { status: 'unverifiable', freshValue: '' };
+  if (anchored(page.text, rec.excerpt, rec.value)) return { status: 'verified', freshValue: '' };
+  if (volatility !== 'volatile') return { status: 'mismatch', freshValue: '' };
+  const fresh = reanchor(page.text, rec.excerpt, rec.value, rec.entity);
+  if (fresh === null) return { status: 'mismatch', freshValue: '' };
+  if (norm(fresh) === norm(rec.value)) return { status: 'verified', freshValue: '' };
+  return { status: 'stale', freshValue: fresh };
+};
 const BLOCK_MARKERS = [/captcha/i, /access denied/i, /are you a robot/i, /verify you are human/i, /cf-chl-/i];
 const MIN_TEXT_CHARS = 500;
 

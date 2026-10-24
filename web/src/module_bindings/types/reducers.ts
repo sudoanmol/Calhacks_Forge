@@ -7,6 +7,7 @@ import { type Infer as __Infer } from "spacetimedb";
 
 // Import all reducer arg schemas
 import AuditVerdictReducer from "../audit_verdict_reducer";
+import BackfillCanaryOrdersReducer from "../backfill_canary_orders_reducer";
 import ClaimTaskReducer from "../claim_task_reducer";
 import CompleteTaskReducer from "../complete_task_reducer";
 import CooDecideReducer from "../coo_decide_reducer";
@@ -16,10 +17,14 @@ import EnqueueTaskReducer from "../enqueue_task_reducer";
 import EnsureDefaultsReducer from "../ensure_defaults_reducer";
 import RecordPaymentReducer from "../record_payment_reducer";
 import RejectAtDeskReducer from "../reject_at_desk_reducer";
+import RetireApiReducer from "../retire_api_reducer";
 import SetConfigReducer from "../set_config_reducer";
+import SetOrderParamsReducer from "../set_order_params_reducer";
 import SetStaffReducer from "../set_staff_reducer";
+import UpdateApiReducer from "../update_api_reducer";
 
 export type AuditVerdictParams = __Infer<typeof AuditVerdictReducer>;
+export type BackfillCanaryOrdersParams = __Infer<typeof BackfillCanaryOrdersReducer>;
 export type ClaimTaskParams = __Infer<typeof ClaimTaskReducer>;
 export type CompleteTaskParams = __Infer<typeof CompleteTaskReducer>;
 export type CooDecideParams = __Infer<typeof CooDecideReducer>;
@@ -29,6 +34,9 @@ export type EnqueueTaskParams = __Infer<typeof EnqueueTaskReducer>;
 export type EnsureDefaultsParams = __Infer<typeof EnsureDefaultsReducer>;
 export type RecordPaymentParams = __Infer<typeof RecordPaymentReducer>;
 export type RejectAtDeskParams = __Infer<typeof RejectAtDeskReducer>;
+export type RetireApiParams = __Infer<typeof RetireApiReducer>;
 export type SetConfigParams = __Infer<typeof SetConfigReducer>;
+export type SetOrderParamsParams = __Infer<typeof SetOrderParamsReducer>;
 export type SetStaffParams = __Infer<typeof SetStaffReducer>;
+export type UpdateApiParams = __Infer<typeof UpdateApiReducer>;
 

@@ -47,6 +47,18 @@ test('catalog lists yc-directory with its fields', async () => {
   assert.ok(Array.isArray(yc.sources));
 });
 
+test('catalog hides retired APIs and shows params and micro-USD cost per call', async () => {
+  const r = await forge(seat('coo'), 'catalog');
+  assert.equal(r.code, 0, JSON.stringify(r.err));
+  const retired = (await sqlRows(seat('coo'), 'SELECT name FROM api_retired')).map((x) => x[0]);
+  assert.ok(retired.includes('test-1792875081507'), 'the leftover test API is retired');
+  for (const name of retired) assert.ok(!r.out.some((a) => a.name === name), `${name} is hidden`);
+  const roles = r.out.find((a) => a.name === 'open-roles');
+  assert.equal(roles.params.board.default, 'discord');
+  assert.deepEqual(roles.sources, ['https://boards-api.greenhouse.io/v1/boards/{board}/departments']);
+  assert.ok(roles.costPerCallMicroUsd > 0, 'open-roles has a measured cost per call');
+});
+
 test('order <id> reads a real order with decoded columns', async () => {
   const rows = await sqlRows(seat('auditor'), "SELECT id FROM orders WHERE status = 'auditing'");
   assert.ok(rows.length, 'an order in auditing exists');

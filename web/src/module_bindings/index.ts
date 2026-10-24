@@ -35,6 +35,7 @@ import {
 
 // Import all reducer arg schemas
 import AuditVerdictReducer from "./audit_verdict_reducer";
+import BackfillCanaryOrdersReducer from "./backfill_canary_orders_reducer";
 import ClaimTaskReducer from "./claim_task_reducer";
 import CompleteTaskReducer from "./complete_task_reducer";
 import CooDecideReducer from "./coo_decide_reducer";
@@ -44,22 +45,29 @@ import EnqueueTaskReducer from "./enqueue_task_reducer";
 import EnsureDefaultsReducer from "./ensure_defaults_reducer";
 import RecordPaymentReducer from "./record_payment_reducer";
 import RejectAtDeskReducer from "./reject_at_desk_reducer";
+import RetireApiReducer from "./retire_api_reducer";
 import SetConfigReducer from "./set_config_reducer";
+import SetOrderParamsReducer from "./set_order_params_reducer";
 import SetStaffReducer from "./set_staff_reducer";
+import UpdateApiReducer from "./update_api_reducer";
 
 // Import all procedure arg schemas
 import * as ApifyPollProcedure from "./apify_poll_procedure";
 import * as CreaoPollProcedure from "./creao_poll_procedure";
 import * as CreaoStartProcedure from "./creao_start_procedure";
 import * as HttpSmokeProcedure from "./http_smoke_procedure";
+import * as VerifyProbeProcedure from "./verify_probe_procedure";
 
 // Import all table schema definitions
 import ApiRow from "./api_table";
+import ApiCostRow from "./api_cost_table";
+import ApiRetiredRow from "./api_retired_table";
 import ApiVersionRow from "./api_version_table";
 import ApprovalRow from "./approval_table";
 import BonusRow from "./bonus_table";
 import BooksRow from "./books_table";
 import BudgetRow from "./budget_table";
+import CanaryOrderRow from "./canary_order_table";
 import ChallengeRow from "./challenge_table";
 import ConfigRow from "./config_table";
 import CustomerRow from "./customer_table";
@@ -68,6 +76,7 @@ import EvidenceRow from "./evidence_table";
 import GateCheckRow from "./gate_check_table";
 import OrdersRow from "./orders_table";
 import RunRow from "./run_table";
+import RunCostRow from "./run_cost_table";
 import StaffRow from "./staff_table";
 import TaskRow from "./task_table";
 import TicketRow from "./ticket_table";
@@ -92,6 +101,28 @@ const tablesSchema = __schema({
       { name: 'api_name_key', constraint: 'unique', columns: ['name'] },
     ],
   }, ApiRow),
+  apiCost: __table({
+    name: 'api_cost',
+    indexes: [
+      { accessor: 'apiId', name: 'api_cost_api_id_idx_btree', algorithm: 'btree', columns: [
+        'apiId',
+      ] },
+    ],
+    constraints: [
+      { name: 'api_cost_api_id_key', constraint: 'unique', columns: ['apiId'] },
+    ],
+  }, ApiCostRow),
+  apiRetired: __table({
+    name: 'api_retired',
+    indexes: [
+      { accessor: 'apiId', name: 'api_retired_api_id_idx_btree', algorithm: 'btree', columns: [
+        'apiId',
+      ] },
+    ],
+    constraints: [
+      { name: 'api_retired_api_id_key', constraint: 'unique', columns: ['apiId'] },
+    ],
+  }, ApiRetiredRow),
   apiVersion: __table({
     name: 'api_version',
     indexes: [
@@ -150,6 +181,17 @@ const tablesSchema = __schema({
       { name: 'budget_name_key', constraint: 'unique', columns: ['name'] },
     ],
   }, BudgetRow),
+  canaryOrder: __table({
+    name: 'canary_order',
+    indexes: [
+      { accessor: 'orderId', name: 'canary_order_order_id_idx_btree', algorithm: 'btree', columns: [
+        'orderId',
+      ] },
+    ],
+    constraints: [
+      { name: 'canary_order_order_id_key', constraint: 'unique', columns: ['orderId'] },
+    ],
+  }, CanaryOrderRow),
   challenge: __table({
     name: 'challenge',
     indexes: [
@@ -252,6 +294,23 @@ const tablesSchema = __schema({
       { name: 'run_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, RunRow),
+  runCost: __table({
+    name: 'run_cost',
+    indexes: [
+      { accessor: 'apiId', name: 'run_cost_api_id_idx_btree', algorithm: 'btree', columns: [
+        'apiId',
+      ] },
+      { accessor: 'orderId', name: 'run_cost_order_id_idx_btree', algorithm: 'btree', columns: [
+        'orderId',
+      ] },
+      { accessor: 'runId', name: 'run_cost_run_id_idx_btree', algorithm: 'btree', columns: [
+        'runId',
+      ] },
+    ],
+    constraints: [
+      { name: 'run_cost_run_id_key', constraint: 'unique', columns: ['runId'] },
+    ],
+  }, RunCostRow),
   staff: __table({
     name: 'staff',
     indexes: [
@@ -307,6 +366,7 @@ const tablesSchema = __schema({
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
   __reducerSchema("audit_verdict", AuditVerdictReducer),
+  __reducerSchema("backfill_canary_orders", BackfillCanaryOrdersReducer),
   __reducerSchema("claim_task", ClaimTaskReducer),
   __reducerSchema("complete_task", CompleteTaskReducer),
   __reducerSchema("coo_decide", CooDecideReducer),
@@ -316,8 +376,11 @@ const reducersSchema = __reducers(
   __reducerSchema("ensure_defaults", EnsureDefaultsReducer),
   __reducerSchema("record_payment", RecordPaymentReducer),
   __reducerSchema("reject_at_desk", RejectAtDeskReducer),
+  __reducerSchema("retire_api", RetireApiReducer),
   __reducerSchema("set_config", SetConfigReducer),
+  __reducerSchema("set_order_params", SetOrderParamsReducer),
   __reducerSchema("set_staff", SetStaffReducer),
+  __reducerSchema("update_api", UpdateApiReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */
@@ -326,6 +389,7 @@ const proceduresSchema = __procedures(
   __procedureSchema("creao_poll", CreaoPollProcedure.params, CreaoPollProcedure.returnType),
   __procedureSchema("creao_start", CreaoStartProcedure.params, CreaoStartProcedure.returnType),
   __procedureSchema("http_smoke", HttpSmokeProcedure.params, HttpSmokeProcedure.returnType),
+  __procedureSchema("verify_probe", VerifyProbeProcedure.params, VerifyProbeProcedure.returnType),
 );
 
 /** The remote SpacetimeDB module schema, both runtime and type information. */

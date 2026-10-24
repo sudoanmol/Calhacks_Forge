@@ -1,6 +1,7 @@
 import { schema, table, t, SenderError, Router, SyncResponse, type InferSchema, type ReducerCtx, type ProcedureCtx } from 'spacetimedb/server';
 import { ScheduleAt, TimeDuration, Timestamp, type Identity } from 'spacetimedb';
-import { anchored, base64, classify } from './text';
+import { base64, classify, verifyValue } from './text';
+import { parseParams, resolveSources, validateApiInputs } from './params';
 
 const LEASE_MS = 10 * 60 * 1000;
 const LEASE_SWEEP_EVERY_MICROS = 15_000_000n;
@@ -23,6 +24,10 @@ const CONFIG_DEFAULTS: Record<string, string> = {
   'bonus_rate.cfo': '5',
   'bonus_rate.auditor': '5',
   'bonus_rate.droid_runner': '10',
+  // Vendor prices for micro-USD cost per call. 1 USD per million tokens is 1 micro-USD per token.
+  'price.llm_input_usd_per_mtok': '1',
+  'price.llm_output_usd_per_mtok': '5',
+  'price.brightdata_unlocker_usd_per_1k': '1.5',
 };
 
 const config = table(
@@ -361,11 +366,76 @@ const dispatchSchedule = table(
     scheduledAt: t.scheduleAt(),
   },
 );
+// ---- Additions after the Gate 1 freeze (new tables only) ----
+
+// Orders created by the canary seat. They run and verify for real but are never audited,
+// never delivered and never count as buyers.
+const canaryOrder = table(
+  { name: 'canary_order', public: true },
+  {
+    orderId: t.u64().primaryKey(),
+    markedAt: t.timestamp(),
+  },
+);
+
+// A retired API stays in the api table for history but is hidden from the catalog and cannot be accepted.
+const apiRetired = table(
+  { name: 'api_retired', public: true },
+  {
+    apiId: t.u64().primaryKey(),
+    name: t.string(),
+    reason: t.string(),
+    retiredAt: t.timestamp(),
+  },
+);
+
+// Exact vendor cost of one Apify run of an API, in micro-USD (the ledger keeps rounded cents).
+const runCost = table(
+  { name: 'run_cost', public: true },
+  {
+    runId: t.u64().primaryKey(), // run.id of the Apify run
+    orderId: t.u64().index('btree'),
+    apiId: t.u64().index('btree'),
+    apifyMicros: t.u64(),
+    llmMicros: t.u64(),
+    brightdataMicros: t.u64(),
+    totalMicros: t.u64(),
+    llmInputTokens: t.u64(),
+    llmOutputTokens: t.u64(),
+    actorUnlockerRequests: t.u32(), // successful Unlocker requests made by the Actor
+    verifyUnlockerRequests: t.u32(), // successful Unlocker requests made by verify_values
+    finalized: t.bool(), // true once verification is done and the vendor entries are booked
+    at: t.timestamp(),
+  },
+);
+
+// Average total cost per call over the API's last compile_window_runs finalized runs.
+const apiCost = table(
+  { name: 'api_cost', public: true },
+  {
+    apiId: t.u64().primaryKey(),
+    costPerCallMicros: t.u64(),
+    runs: t.u32(),
+    updatedAt: t.timestamp(),
+  },
+);
+
+// Apify's usageTotalUsd can still grow after a run ends; settle_run_cost re-reads it once later.
+const costSettleSchedule = table(
+  { name: 'cost_settle_schedule' },
+  {
+    scheduledId: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+    runRef: t.u64(),
+  },
+);
+
 const spacetimedb = schema(
   {
     config, staff, task, event, run, callbackToken, leaseSweepSchedule,
     customer, api, apiVersion, gateCheck, orders, ticket, valueRecord, evidence, challenge,
     approval, budget, bonus, ledger, books, apiRunSchedule, verifySchedule, dispatchSchedule,
+    canaryOrder, apiRetired, runCost, apiCost, costSettleSchedule,
   },
   // Set at publish time from the shell environment (spacetime publish reads declared names).
   {
@@ -520,6 +590,13 @@ function cfgInt(ctx: Ctx, key: string): number {
   return v;
 }
 
+function cfgNum(ctx: Ctx, key: string, fallback: number): number {
+  const v = Number(ctx.db.config.key.find(key)?.value);
+  return Number.isFinite(v) ? v : fallback;
+}
+
+const isCanary = (ctx: Ctx, orderId: bigint) => Boolean(ctx.db.canaryOrder.orderId.find(orderId));
+
 // ---- Orders (flow A, AGENTS.md §6) ----
 
 type Order = NonNullable<ReturnType<Ctx['db']['orders']['id']['find']>>;
@@ -566,7 +643,7 @@ function closeTasks(ctx: Ctx, orderId: bigint, kind: string, output: unknown) {
 export const create_order = spacetimedb.reducer(
   { ref: t.string(), asiSender: t.string(), requestText: t.string(), intent: t.string(), priceCents: t.u32() },
   (ctx, { ref, asiSender, requestText, intent, priceCents }) => {
-    requireRole(ctx, 'front_desk', 'canary');
+    const role = requireRole(ctx, 'front_desk', 'canary');
     if (ctx.db.orders.ref.find(ref)) throw new SenderError(`order ref ${ref} exists`);
     const c = customerFor(ctx, asiSender);
     const o = ctx.db.orders.insert({
@@ -575,7 +652,22 @@ export const create_order = spacetimedb.reducer(
       createdAt: ctx.timestamp, updatedAt: ctx.timestamp,
     });
     ctx.db.gateCheck.insert({ id: 0n, orderId: o.id, ticketId: undefined, check: 'layer2', result: 'pass', citationUrl: '', citationText: '', at: ctx.timestamp });
-    logEvent(ctx, 'front_desk', 'order_quoted', 'order', o.id, { priceCents, customerId: c.id.toString() });
+    if (role === 'canary') ctx.db.canaryOrder.insert({ orderId: o.id, markedAt: ctx.timestamp });
+    logEvent(ctx, role, 'order_quoted', 'order', o.id, { priceCents, customerId: c.id.toString(), canary: role === 'canary' });
+  },
+);
+
+// Params for a templated API (contract in params.ts and above start_api_run). Set before the COO decides.
+export const set_order_params = spacetimedb.reducer(
+  { ref: t.string(), params: t.string() },
+  (ctx, { ref, params }) => {
+    const role = requireRole(ctx, 'front_desk', 'canary');
+    const o = ctx.db.orders.ref.find(ref);
+    if (!o) throw new SenderError(`no order ref ${ref}`);
+    if (!['quoted', 'paid', 'triaging'].includes(o.status)) throw new SenderError(`order ${o.id} is ${o.status}; params are fixed`);
+    let parsed: Record<string, string>;
+    try { parsed = parseParams(params); } catch (err) { throw new SenderError((err as Error).message); }
+    setOrder(ctx, o, { params: JSON.stringify(parsed) }, role, 'order_params_set', { params: parsed });
   },
 );
 
@@ -622,6 +714,7 @@ export const create_api = spacetimedb.reducer(
     if (ctx.db.api.name.find(s.name)) throw new SenderError(`api ${s.name} exists`);
     if (!['stable', 'volatile'].includes(s.volatility)) throw new SenderError('volatility must be stable or volatile');
     if (!['task', 'actor'].includes(engine)) throw new SenderError('engine must be task or actor');
+    try { validateApiInputs(JSON.stringify(s.inputs ?? {}), JSON.stringify(s.sources)); } catch (err) { throw new SenderError((err as Error).message); }
     const a = ctx.db.api.insert({
       id: 0n, name: s.name, description: s.description, inputs: JSON.stringify(s.inputs ?? {}), sources: JSON.stringify(s.sources),
       outputSchema: JSON.stringify(s.outputSchema), volatility: s.volatility, freshnessWindowMin: s.freshnessWindowMin ?? 0,
@@ -651,6 +744,10 @@ export const coo_decide = spacetimedb.reducer(
     if (decision === 'ACCEPT') {
       const a = ctx.db.api.name.find(apiName);
       if (!a) throw new SenderError(`no api ${apiName}; use REQUEST_RESEARCH for a new API`);
+      if (ctx.db.apiRetired.apiId.find(a.id)) throw new SenderError(`api ${apiName} is retired`);
+      try { resolveSources(a.inputs, a.sources, o.params); } catch (err) {
+        throw new SenderError(`order params do not fit api ${apiName}: ${(err as Error).message}`);
+      }
       setOrder(ctx, o, { status: 'accepted', apiId: a.id, apiVersionId: a.currentVersionId, decisionReason: reason }, 'coo', 'coo_accepted', { api: apiName, reason });
       ctx.db.apiRunSchedule.insert({ scheduledId: 0n, scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch), orderId });
     } else if (decision === 'REQUEST_RESEARCH') {
@@ -671,6 +768,7 @@ export const audit_verdict = spacetimedb.reducer(
     if (!reason.trim()) throw new SenderError('a reason is required');
     const o = findOrder(ctx, orderId);
     if (o.status !== 'auditing') throw new SenderError(`order ${orderId} is ${o.status}, not auditing`);
+    if (isCanary(ctx, orderId)) throw new SenderError(`order ${orderId} is a canary order; canary orders are not audited`);
     closeTasks(ctx, orderId, 'audit', { verdict, reason });
     if (verdict === 'REJECT') {
       setOrder(ctx, o, { status: 'audit_rejected', decisionReason: reason }, 'auditor', 'audit_rejected', { reason });
@@ -686,11 +784,84 @@ export const audit_verdict = spacetimedb.reducer(
     }
     if (o.apiId !== undefined) {
       const a = ctx.db.api.id.find(o.apiId);
-      const priorBuyer = [...ctx.db.orders.iter()].some((x) => x.id !== o.id && x.apiId === o.apiId && x.customerId === o.customerId && x.status === 'delivered');
+      const priorBuyer = [...ctx.db.orders.iter()].some((x) => x.id !== o.id && x.apiId === o.apiId && x.customerId === o.customerId
+        && x.status === 'delivered' && !isCanary(ctx, x.id));
       if (a && !priorBuyer) ctx.db.api.id.update({ ...a, buyerCount: a.buyerCount + 1 });
     }
   },
 );
+// Founder: change an API's params, sources or page cap. The output schema, name and volatility
+// never change here (versions are additive only, AGENTS.md §2 rule 10).
+export const update_api = spacetimedb.reducer(
+  { name: t.string(), patch: t.string() },
+  (ctx, { name, patch }) => {
+    requireRole(ctx, 'founder');
+    const a = ctx.db.api.name.find(name);
+    if (!a) throw new SenderError(`no api ${name}`);
+    let p: { description?: unknown; inputs?: unknown; sources?: unknown; pageCap?: unknown };
+    try { p = JSON.parse(patch); } catch { throw new SenderError('patch is not valid JSON'); }
+    const allowed = ['description', 'inputs', 'sources', 'pageCap'];
+    const extra = Object.keys(p).filter((k) => !allowed.includes(k));
+    if (extra.length) throw new SenderError(`patch may only set ${allowed.join(', ')}; got ${extra.join(', ')}`);
+    const next = { ...a };
+    if (p.description !== undefined) {
+      if (typeof p.description !== 'string' || !p.description.trim()) throw new SenderError('description must be a non-empty string');
+      next.description = p.description;
+    }
+    if (p.inputs !== undefined) next.inputs = JSON.stringify(p.inputs);
+    if (p.sources !== undefined) {
+      if (!Array.isArray(p.sources) || !p.sources.length) throw new SenderError('sources must be a non-empty array');
+      next.sources = JSON.stringify(p.sources);
+    }
+    if (p.pageCap !== undefined) {
+      if (!Number.isInteger(p.pageCap) || (p.pageCap as number) < 1 || (p.pageCap as number) > 50) throw new SenderError('pageCap must be an integer 1-50');
+      next.pageCap = p.pageCap as number;
+    }
+    try { validateApiInputs(next.inputs, next.sources); } catch (err) { throw new SenderError((err as Error).message); }
+    ctx.db.api.id.update(next);
+    const from = { description: a.description, inputs: a.inputs, sources: a.sources, pageCap: a.pageCap };
+    logEvent(ctx, 'founder', 'api_updated', 'api', a.id, { name, from, to: { description: next.description, inputs: next.inputs, sources: next.sources, pageCap: next.pageCap } });
+  },
+);
+
+// Founder: retire an API nobody real has bought (only canary orders or none delivered).
+export const retire_api = spacetimedb.reducer(
+  { name: t.string(), reason: t.string() },
+  (ctx, { name, reason }) => {
+    requireRole(ctx, 'founder');
+    if (!reason.trim()) throw new SenderError('a reason is required');
+    const a = ctx.db.api.name.find(name);
+    if (!a) throw new SenderError(`no api ${name}`);
+    if (ctx.db.apiRetired.apiId.find(a.id)) throw new SenderError(`api ${name} is already retired`);
+    const buyers = [...ctx.db.orders.iter()].filter((o) => o.apiId === a.id && o.status === 'delivered' && !isCanary(ctx, o.id));
+    if (a.buyerCount > 0 || buyers.length) throw new SenderError(`api ${name} has buyers; it cannot be retired`);
+    const open = [...ctx.db.orders.iter()].filter((o) => o.apiId === a.id && ['accepted', 'running', 'verifying'].includes(o.status));
+    if (open.length) throw new SenderError(`api ${name} has ${open.length} order(s) in flight`);
+    ctx.db.apiRetired.insert({ apiId: a.id, name, reason, retiredAt: ctx.timestamp });
+    logEvent(ctx, 'founder', 'api_retired', 'api', a.id, { name, reason });
+  },
+);
+
+// Founder, one-off: mark canary orders created before canary_order existed and close their audit tasks.
+export const backfill_canary_orders = spacetimedb.reducer((ctx) => {
+  requireRole(ctx, 'founder');
+  const canaryCustomer = ctx.db.customer.asiSender.find('canary');
+  let marked = 0;
+  let closed = 0;
+  if (canaryCustomer) {
+    for (const o of ctx.db.orders.customerId.filter(canaryCustomer.id)) {
+      if (!isCanary(ctx, o.id)) { ctx.db.canaryOrder.insert({ orderId: o.id, markedAt: ctx.timestamp }); marked++; }
+    }
+  }
+  for (const row of ctx.db.task.kind.filter('audit')) {
+    if (row.orderId !== undefined && isCanary(ctx, row.orderId) && ['queued', 'claimed', 'dispatched'].includes(row.status)) {
+      ctx.db.task.id.update({ ...row, status: 'cancelled', output: JSON.stringify({ reason: 'canary orders are not audited' }), leaseOwner: undefined, leaseUntil: undefined, updatedAt: ctx.timestamp });
+      closed++;
+    }
+  }
+  logEvent(ctx, 'founder', 'canary_orders_backfilled', 'order', 0n, { marked, auditTasksCancelled: closed });
+});
+
 // Gate 0 smoke test: a procedure that calls the outside world with no transaction open.
 export const http_smoke = spacetimedb.procedure({ url: t.string() }, t.unit(), (ctx, { url }) => {
   ctx.withTx((tx) => requireRole(tx, 'founder', 'canary'));
@@ -863,6 +1034,13 @@ function failOrder(tx: Ctx, orderId: bigint, actor: string, reason: string) {
   if (o) setOrder(tx, o, { status: 'failed', decisionReason: reason }, actor, 'order_failed', { reason });
 }
 
+// Param contract (see params.ts). An API declares params in api.inputs and uses them as {name} in
+// api.sources; the Front Desk sends values with set_order_params as a JSON object of strings:
+//   open-roles: {"board":"<greenhouse board token>"}  (default "discord"), e.g. {"board":"lattice"}
+//   yc-directory, gpu-listings: {} (no params)
+// Values must match /^[a-z0-9-]{1,60}$/ and may not change a source's host. The run posts an input
+// override of {pageCap: api.pageCap} plus {sources: <resolved>} when any source is templated (always
+// for an Actor engine); everything else (outputSchema, instructions, markers) comes from the saved Task input.
 export const start_api_run = spacetimedb.procedure(
   { onSchedule: apiRunSchedule },
   { arg: apiRunSchedule.rowType },
@@ -874,12 +1052,21 @@ export const start_api_run = spacetimedb.procedure(
       if (!o || o.status !== 'accepted') return null;
       const v = o.apiVersionId !== undefined ? tx.db.apiVersion.id.find(o.apiVersionId) : undefined;
       if (!v || !v.apifyId) { failOrder(tx, o.id, 'procedure', 'api has no runnable version'); return null; }
+      const a = o.apiId !== undefined ? tx.db.api.id.find(o.apiId) : undefined;
+      if (!a) { failOrder(tx, o.id, 'procedure', 'order has no api'); return null; }
+      let resolved;
+      try { resolved = resolveSources(a.inputs, a.sources, o.params); } catch (err) {
+        failOrder(tx, o.id, 'procedure', `params: ${(err as Error).message}`);
+        return null;
+      }
+      // A Task merges the body into its saved input; an Actor run takes the body as its whole input.
+      const input: Record<string, unknown> = { pageCap: a.pageCap, ...(resolved.templated || v.engine !== 'task' ? { sources: resolved.sources } : {}) };
       const run = tx.db.run.insert({
         id: 0n, provider: 'apify', externalId: '', appId: v.apifyId, taskId: undefined, threadId: o.id.toString(), status: 'starting',
         resultText: '', shareUrl: '', costCents: 0, startedAt: tx.timestamp, endedAt: undefined,
       });
       tx.db.callbackToken.insert({ token, provider: 'apify', runRef: run.id, usedAt: undefined });
-      return { orderId: o.id, apifyId: v.apifyId, engine: v.engine, runRef: run.id };
+      return { orderId: o.id, apifyId: v.apifyId, engine: v.engine, runRef: run.id, input, params: resolved.params };
     });
     if (!job) return {};
     const base = ctx.env.get('PUBLIC_ROUTE_BASE');
@@ -891,7 +1078,7 @@ export const start_api_run = spacetimedb.procedure(
       const res = ctx.http.fetch(`${APIFY_BASE}/${path}/runs?webhooks=${encodeURIComponent(base64(JSON.stringify(hooks)))}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${envOrThrow(ctx.env, 'APIFY_TOKEN')}`, 'Content-Type': 'application/json' },
-        body: '{}',
+        body: JSON.stringify(job.input),
       });
       status = res.status;
       text = res.text();
@@ -910,7 +1097,7 @@ export const start_api_run = spacetimedb.procedure(
       tx.db.run.id.update({ ...run, externalId: data.id, status: data.status ?? 'READY',
         shareUrl: `https://console.apify.com/view/runs/${data.id}` });
       const o = tx.db.orders.id.find(job.orderId)!;
-      setOrder(tx, o, { status: 'running', apifyRunId: data.id }, 'procedure', 'api_run_started', { apifyRunId: data.id, engine: job.engine });
+      setOrder(tx, o, { status: 'running', apifyRunId: data.id }, 'procedure', 'api_run_started', { apifyRunId: data.id, engine: job.engine, input: job.input, params: job.params });
     });
     return {};
   },
@@ -920,6 +1107,111 @@ type ApifyItem = {
   row?: number; entity?: string; metric?: string; value?: string | null; excerpt?: string | null; sourceUrl?: string;
   snapshotKey?: string; snapshotHash?: string; observedAt?: string; method?: string; status?: string; reason?: string;
 };
+
+// RUN_SUMMARY written by forge-extract to the run's key-value store.
+type RunSummary = { usage?: { inputTokens?: number; outputTokens?: number }; pages?: { attempts?: { method?: string; ok?: boolean }[] }[] };
+type RunCost = NonNullable<ReturnType<Ctx['db']['runCost']['runId']['find']>>;
+
+const usdToMicros = (usd: number) => BigInt(Math.max(0, Math.round(usd * 1_000_000)));
+const microsToCents = (m: bigint) => (m + 5_000n) / 10_000n;
+
+// Bright Data bills Web Unlocker per successful request, so only successful requests are counted.
+function priceRunCost(tx: Ctx, r: RunCost): RunCost {
+  const llm = Math.round(Number(r.llmInputTokens) * cfgNum(tx, 'price.llm_input_usd_per_mtok', 0)
+    + Number(r.llmOutputTokens) * cfgNum(tx, 'price.llm_output_usd_per_mtok', 0));
+  const bd = Math.round((r.actorUnlockerRequests + r.verifyUnlockerRequests) * cfgNum(tx, 'price.brightdata_unlocker_usd_per_1k', 0) * 1000);
+  const llmMicros = BigInt(Math.max(0, llm));
+  const brightdataMicros = BigInt(Math.max(0, bd));
+  return { ...r, llmMicros, brightdataMicros, totalMicros: r.apifyMicros + llmMicros + brightdataMicros };
+}
+
+function recordRunCost(tx: Ctx, runRef: bigint, orderId: bigint, apiId: bigint, apifyUsd: number, summary: RunSummary | null) {
+  if (tx.db.runCost.runId.find(runRef)) return;
+  const tokens = (n: number | undefined) => BigInt(Math.max(0, Math.round(n ?? 0)));
+  const actorUnlockerRequests = (summary?.pages ?? []).flatMap((pg) => pg.attempts ?? []).filter((a) => a.method === 'unlocker' && a.ok).length;
+  tx.db.runCost.insert(priceRunCost(tx, {
+    runId: runRef, orderId, apiId, apifyMicros: usdToMicros(apifyUsd), llmMicros: 0n, brightdataMicros: 0n, totalMicros: 0n,
+    llmInputTokens: tokens(summary?.usage?.inputTokens), llmOutputTokens: tokens(summary?.usage?.outputTokens),
+    actorUnlockerRequests, verifyUnlockerRequests: 0, finalized: false, at: tx.timestamp,
+  }));
+}
+
+// Books the run's vendor costs once (rounded cents in the ledger, exact micro-USD in run_cost) and
+// refreshes the API's average cost per call.
+function finalizeRunCost(tx: Ctx, runRef: bigint, apifyUsd: number | undefined, verifyUnlockerRequests: number) {
+  const cur = tx.db.runCost.runId.find(runRef);
+  if (!cur || cur.finalized) return;
+  const r = priceRunCost(tx, {
+    ...cur, verifyUnlockerRequests, finalized: true, at: tx.timestamp,
+    ...(apifyUsd !== undefined ? { apifyMicros: usdToMicros(apifyUsd) } : {}),
+  });
+  tx.db.runCost.runId.update(r);
+  const run = tx.db.run.id.find(runRef);
+  if (run) tx.db.run.id.update({ ...run, costCents: Number(microsToCents(r.apifyMicros)) });
+  for (const [account, micros] of [['vendor:apify', r.apifyMicros], ['vendor:llm', r.llmMicros], ['vendor:brightdata', r.brightdataMicros]] as const) {
+    const cents = microsToCents(micros);
+    if (cents > 0n) postTx(tx, `${account} run ${runRef}`, [[account, cents], ['treasury', -cents]]);
+  }
+  const avg = refreshApiCost(tx, r.apiId);
+  tx.db.costSettleSchedule.insert({ scheduledId: 0n, scheduledAt: ScheduleAt.time(addMs(tx.timestamp, APIFY_SETTLE_MS).microsSinceUnixEpoch), runRef });
+  logEvent(tx, 'treasurer', 'run_cost_booked', 'run', runRef, {
+    apiId: r.apiId.toString(), apifyMicros: r.apifyMicros.toString(), llmMicros: r.llmMicros.toString(),
+    brightdataMicros: r.brightdataMicros.toString(), totalMicros: r.totalMicros.toString(), apiCostPerCallMicros: avg.toString(),
+  });
+}
+
+const APIFY_SETTLE_MS = 60_000;
+
+function refreshApiCost(tx: Ctx, apiId: bigint): bigint {
+  const window = Math.max(1, cfgInt(tx, 'compile_window_runs'));
+  const recent = [...tx.db.runCost.apiId.filter(apiId)].filter((x) => x.finalized)
+    .sort((a, b) => (a.runId < b.runId ? 1 : -1)).slice(0, window);
+  if (!recent.length) return 0n;
+  const avg = recent.reduce((s, x) => s + x.totalMicros, 0n) / BigInt(recent.length);
+  const row = { apiId, costPerCallMicros: avg, runs: recent.length, updatedAt: tx.timestamp };
+  if (tx.db.apiCost.apiId.find(apiId)) tx.db.apiCost.apiId.update(row); else tx.db.apiCost.insert(row);
+  const a = tx.db.api.id.find(apiId);
+  if (a) tx.db.api.id.update({ ...a, costPerCallCents: Number(microsToCents(avg)) });
+  return avg;
+}
+
+export const settle_run_cost = spacetimedb.procedure(
+  { onSchedule: costSettleSchedule },
+  { arg: costSettleSchedule.rowType },
+  t.unit(),
+  (ctx, { arg }) => {
+    const externalId = ctx.withTx((tx) => {
+      const cost = tx.db.runCost.runId.find(arg.runRef);
+      const run = tx.db.run.id.find(arg.runRef);
+      return cost?.finalized && run?.externalId ? run.externalId : null;
+    });
+    if (!externalId) return {};
+    const res = ctx.http.fetch(`${APIFY_BASE}/actor-runs/${externalId}`, { headers: { Authorization: `Bearer ${envOrThrow(ctx.env, 'APIFY_TOKEN')}` } });
+    if (res.status !== 200) {
+      ctx.withTx((tx) => logEvent(tx, 'procedure', 'run_cost_settle_failed', 'run', arg.runRef, { httpStatus: res.status }));
+      return {};
+    }
+    const usd = (JSON.parse(res.text()) as { data: { usageTotalUsd?: number } }).data.usageTotalUsd;
+    if (usd === undefined) return {};
+    ctx.withTx((tx) => {
+      const cur = tx.db.runCost.runId.find(arg.runRef);
+      if (!cur) return;
+      const apifyMicros = usdToMicros(usd);
+      if (apifyMicros === cur.apifyMicros) return;
+      const r = priceRunCost(tx, { ...cur, apifyMicros });
+      tx.db.runCost.runId.update(r);
+      const run = tx.db.run.id.find(arg.runRef);
+      if (run) tx.db.run.id.update({ ...run, costCents: Number(microsToCents(apifyMicros)) });
+      const delta = microsToCents(apifyMicros) - microsToCents(cur.apifyMicros);
+      if (delta !== 0n) postTx(tx, `vendor:apify settle run ${arg.runRef}`, [['vendor:apify', delta], ['treasury', -delta]]);
+      const avg = refreshApiCost(tx, r.apiId);
+      logEvent(tx, 'treasurer', 'run_cost_settled', 'run', arg.runRef, {
+        apifyMicrosFrom: cur.apifyMicros.toString(), apifyMicros: apifyMicros.toString(), totalMicros: r.totalMicros.toString(), apiCostPerCallMicros: avg.toString(),
+      });
+    });
+    return {};
+  },
+);
 
 // Re-fetches an Apify run with our key and ingests its dataset once. Webhook bodies are never trusted.
 function refreshApifyRun(ctx: IoCtx, runRef: bigint, actor: string): string {
@@ -932,7 +1224,7 @@ function refreshApifyRun(ctx: IoCtx, runRef: bigint, actor: string): string {
     ctx.withTx((tx) => logEvent(tx, actor, 'apify_refresh_failed', 'run', runRef, { httpStatus: res.status }));
     return row.status;
   }
-  const run = (JSON.parse(res.text()) as { data: { status: string; defaultDatasetId: string; usageTotalUsd?: number } }).data;
+  const run = (JSON.parse(res.text()) as { data: { status: string; defaultDatasetId: string; defaultKeyValueStoreId?: string; usageTotalUsd?: number } }).data;
   if (!APIFY_TERMINAL.includes(run.status)) {
     ctx.withTx((tx) => { const cur = tx.db.run.id.find(runRef)!; if (cur.status !== run.status) tx.db.run.id.update({ ...cur, status: run.status }); });
     return run.status;
@@ -941,6 +1233,11 @@ function refreshApifyRun(ctx: IoCtx, runRef: bigint, actor: string): string {
   if (run.status === 'SUCCEEDED') {
     const r = ctx.http.fetch(`${APIFY_BASE}/datasets/${run.defaultDatasetId}/items?clean=1&format=json`, { headers: { Authorization: `Bearer ${key}` } });
     if (r.status === 200) items = JSON.parse(r.text()) as ApifyItem[];
+  }
+  let summary: RunSummary | null = null;
+  if (run.defaultKeyValueStoreId) {
+    const r = ctx.http.fetch(`${APIFY_BASE}/key-value-stores/${run.defaultKeyValueStoreId}/records/RUN_SUMMARY`, { headers: { Authorization: `Bearer ${key}` } });
+    if (r.status === 200) { try { summary = JSON.parse(r.text()) as RunSummary; } catch { /* no summary */ } }
   }
   const datasetUrl = `${APIFY_BASE}/datasets/${run.defaultDatasetId}/items?clean=1&format=json`;
   ctx.withTx((tx) => {
@@ -951,8 +1248,12 @@ function refreshApifyRun(ctx: IoCtx, runRef: bigint, actor: string): string {
     const orderId = BigInt(cur.threadId);
     const o = tx.db.orders.id.find(orderId);
     if (!o || o.status !== 'running') return;
-    if (costCents > 0) postTx(tx, `apify run ${cur.externalId}`, [['vendor:apify', BigInt(costCents)], ['treasury', -BigInt(costCents)]]);
-    if (run.status !== 'SUCCEEDED') { failOrder(tx, orderId, actor, `apify run ${run.status}`); return; }
+    recordRunCost(tx, runRef, orderId, o.apiId ?? 0n, run.usageTotalUsd ?? 0, summary);
+    if (run.status !== 'SUCCEEDED') {
+      finalizeRunCost(tx, runRef, undefined, 0);
+      failOrder(tx, orderId, actor, `apify run ${run.status}`);
+      return;
+    }
     const v = o.apiVersionId !== undefined ? tx.db.apiVersion.id.find(o.apiVersionId) : undefined;
     const rows = new Map<string, number>();
     let extracted = 0;
@@ -1004,7 +1305,7 @@ export const apify_callback = spacetimedb.httpHandler((ctx, req) => {
 
 // Bright Data Web Unlocker with one retry from another country on a block or timeout
 // (the module cannot drive the Browser API rung; a JS shell stays unverifiable here).
-function unlockerFetch(ctx: IoCtx, url: string, orderId: bigint): { ok: boolean; text: string; reason: string } {
+function unlockerFetch(ctx: IoCtx, url: string, orderId: bigint | undefined): { ok: boolean; text: string; reason: string } {
   let last = { ok: false, text: '', reason: 'not fetched' };
   let attempt = 0;
   for (const country of ['us', 'gb']) {
@@ -1050,32 +1351,56 @@ export const verify_values = spacetimedb.procedure(
       if (!o || o.status !== 'verifying') return null;
       const a = o.apiId !== undefined ? tx.db.api.id.find(o.apiId) : undefined;
       const recs = [...tx.db.valueRecord.orderId.filter(o.id)].filter((r) => r.status === 'extracted');
-      return { orderId: o.id, volatility: a?.volatility ?? 'stable', urls: [...new Set(recs.map((r) => r.sourceUrl))] };
+      const apifyRun = o.apifyRunId ? [...tx.db.run.externalId.filter(o.apifyRunId)].find((r) => r.provider === 'apify') : undefined;
+      return { orderId: o.id, volatility: a?.volatility ?? 'stable', urls: [...new Set(recs.map((r) => r.sourceUrl))], apifyRun };
     });
     if (!job) return {};
     const pages = new Map<string, { ok: boolean; text: string; reason: string }>();
     for (const url of job.urls) pages.set(url, unlockerFetch(ctx, url, job.orderId));
+    // usageTotalUsd can be preliminary when the run ends; by now it has had the verification time to settle.
+    let apifyUsd: number | undefined;
+    if (job.apifyRun) {
+      try {
+        const res = ctx.http.fetch(`${APIFY_BASE}/actor-runs/${job.apifyRun.externalId}`, { headers: { Authorization: `Bearer ${envOrThrow(ctx.env, 'APIFY_TOKEN')}` } });
+        if (res.status === 200) apifyUsd = (JSON.parse(res.text()) as { data: { usageTotalUsd?: number } }).data.usageTotalUsd;
+      } catch { /* keep the usage recorded at ingest */ }
+    }
     ctx.withTx((tx) => {
       const o = tx.db.orders.id.find(job.orderId);
       if (!o || o.status !== 'verifying') return;
       const counts: Record<string, number> = {};
       for (const r of tx.db.valueRecord.orderId.filter(o.id)) {
         if (r.status !== 'extracted') { counts[r.status] = (counts[r.status] ?? 0) + 1; continue; }
-        const page = pages.get(r.sourceUrl);
-        const status = !page?.ok ? 'unverifiable'
-          : anchored(page.text, r.excerpt, r.value) ? 'verified'
-          : job.volatility === 'volatile' ? 'stale' : 'mismatch';
+        const { status, freshValue } = verifyValue(pages.get(r.sourceUrl), r, job.volatility);
         counts[status] = (counts[status] ?? 0) + 1;
-        tx.db.valueRecord.id.update({ ...r, status, verifiedAt: status === 'verified' ? tx.timestamp : undefined });
+        tx.db.valueRecord.id.update({ ...r, status, freshValue, verifiedAt: status === 'verified' ? tx.timestamp : undefined });
       }
+      if (job.apifyRun) finalizeRunCost(tx, job.apifyRun.id, apifyUsd, [...pages.values()].filter((pg) => pg.ok).length);
       const total = Object.values(counts).reduce((s, n) => s + n, 0);
       if (o.apiId !== undefined) {
         const a = tx.db.api.id.find(o.apiId);
         if (a && total) tx.db.api.id.update({ ...a, verifiedRateBp: Math.round(((counts.verified ?? 0) / total) * 10_000) });
       }
-      setOrder(tx, o, { status: 'auditing' }, 'procedure', 'values_verified', { counts, pages: pages.size });
-      queueTask(tx, 'audit', 'auditor', o.id, { orderId: o.id.toString(), counts });
+      const canary = isCanary(tx, o.id);
+      setOrder(tx, o, { status: 'auditing' }, 'procedure', 'values_verified', { counts, pages: pages.size, canary });
+      // A canary order stops here: no paid Auditor run, no delivery, no buyer.
+      if (canary) logEvent(tx, 'rules', 'audit_skipped_canary', 'order', o.id, { counts });
+      else queueTask(tx, 'audit', 'auditor', o.id, { orderId: o.id.toString(), counts });
     });
+    return {};
+  },
+);
+
+// Founder/canary diagnostic: runs the verify_values rule for one value against a live Bright Data fetch
+// and logs the outcome as a verify_probe event. Writes no value records.
+export const verify_probe = spacetimedb.procedure(
+  { url: t.string(), excerpt: t.string(), value: t.string(), entity: t.string(), volatility: t.string(), marker: t.string() },
+  t.unit(),
+  (ctx, { url, excerpt, value, entity, volatility, marker }) => {
+    ctx.withTx((tx) => requireRole(tx, 'founder', 'canary'));
+    const page = unlockerFetch(ctx, url, undefined);
+    const result = verifyValue(page, { excerpt, value, entity }, volatility);
+    ctx.withTx((tx) => logEvent(tx, 'procedure', 'verify_probe', 'url', 0n, { marker, url, pageOk: page.ok, reason: page.reason, ...result }));
     return {};
   },
 );

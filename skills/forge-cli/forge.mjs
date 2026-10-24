@@ -9,7 +9,7 @@
 const USAGE = `usage:
   forge task [<task JSON>]                       what to do for this run (default: $FORGE_TASK)
   forge order <id>                               order, gate checks, values, status counts, evidence
-  forge catalog                                  APIs with current version, tier, fields, rates
+  forge catalog                                  live APIs with params, version, tier, fields, rates, cost
   forge decide <orderId> <ACCEPT|COUNTEROFFER|REQUEST_RESEARCH|REJECT> <apiName|-> <reason...>
   forge verdict <orderId> <ACCEPT|REJECT> <reason...>
 env: FORGE_DB_URL, FORGE_SEAT_TOKEN_<SEAT> (decide uses COO, verdict uses AUDITOR) or FORGE_SEAT_TOKEN`;
@@ -99,7 +99,7 @@ async function order(orderId) {
   return {
     order: {
       id: o.id, ref: o.ref, status: o.status, requestText: o.requestText, intent: parseJson(o.intent, o.intent),
-      priceCents: o.priceCents, api: apis[0]?.name ?? null, apiVersionId: o.apiVersionId, datasetUrl: o.datasetUrl,
+      params: parseJson(o.params, {}), priceCents: o.priceCents, api: apis[0]?.name ?? null, apiVersionId: o.apiVersionId, datasetUrl: o.datasetUrl,
       decisionReason: o.decisionReason, createdAt: o.createdAt, updatedAt: o.updatedAt,
     },
     gateChecks: gates.filter((g) => g.orderId === orderId)
@@ -121,16 +121,22 @@ async function order(orderId) {
   };
 }
 
+// Retired APIs are hidden: the COO cannot accept them.
 async function catalog() {
-  const [apis, versions] = await Promise.all([sql('SELECT * FROM api'), sql('SELECT * FROM api_version')]);
-  return apis.map((a) => {
+  const [apis, versions, retired, costs] = await Promise.all([
+    sql('SELECT * FROM api'), sql('SELECT * FROM api_version'), sql('SELECT * FROM api_retired'), sql('SELECT * FROM api_cost'),
+  ]);
+  const retiredIds = new Set(retired.map((r) => r.apiId));
+  return apis.filter((a) => !retiredIds.has(a.id)).map((a) => {
     const v = versions.find((x) => x.id === a.currentVersionId);
+    const cost = costs.find((c) => c.apiId === a.id);
     return {
       name: a.name, description: a.description, tier: a.tier, volatility: a.volatility,
       freshnessWindowMin: a.freshnessWindowMin, pageCap: a.pageCap,
-      sources: parseJson(a.sources, a.sources), fields: v ? parseJson(v.fields, []) : [],
+      params: parseJson(a.inputs, {}), sources: parseJson(a.sources, a.sources), fields: v ? parseJson(v.fields, []) : [],
       currentVersion: v ? { version: v.version, engine: v.engine, runnable: Boolean(v.apifyId) } : null,
       verifiedRate: a.verifiedRateBp / 10_000, buyers: a.buyerCount, costPerCallCents: a.costPerCallCents,
+      costPerCallMicroUsd: cost ? cost.costPerCallMicros : null,
     };
   });
 }

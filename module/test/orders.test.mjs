@@ -83,6 +83,7 @@ test('ACCEPT on an API with no runnable version fails the order instead of hangi
     await new Promise((r) => setTimeout(r, 500));
   }
   assert.equal(status, 'failed', 'the scheduled run procedure fails it');
+  ok(await call(founder, 'retire_api', [name, 'Test API from orders.test.mjs.']));
 });
 
 test('desk rejection records the failed gate check without a task', async () => {
