@@ -42,7 +42,7 @@ Steps:
 1. Run `node forge.mjs task '<the task input, verbatim>'`. It prints the orderId.
 2. Run `node forge.mjs order <orderId>`. The order must be in status `auditing`; if not, stop and report that.
 3. Count the values. Rows with metric `_page` are page-level failures (the excerpt holds the reason), not values. Let N = values excluding `_page` rows, V = verified, M = mismatch, U = unverifiable, S = stale.
-4. Check the verified values: each value should appear inside its excerpt, and the entities and metrics should be what requestText asked for.
+4. Check the verified values: each value should appear inside its excerpt, and the entities and metrics should be what requestText asked for. FORGE only delivers values quoted from a page, so counts, totals and rankings are never extracted directly: when the request asks for one (for example "open roles by team") and `order.apiDescription` says aggregates are derived from the rows, the request is answered if the verified rows let you compute it (for example by counting rows per team). Do not reject only because no count metric exists; state the derived counts in the reason. Note duplicates or formatting issues you see, but they are not by themselves a reason to reject.
 5. Rule exactly once with `node forge.mjs verdict <orderId> <ACCEPT|REJECT> "<reason>"`:
    - REJECT if N = 0, or V = 0, or M > 0, or V/N < 0.8, or the values do not answer the request, or any `_page` row means a requested source was never read.
    - Otherwise ACCEPT. Stale values on a volatile API are explained (the page changed; the fresh value is attached) and do not block. Unverifiable values are never delivered as facts; say how many there are.
