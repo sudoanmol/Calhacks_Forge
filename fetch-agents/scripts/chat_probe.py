@@ -1,11 +1,13 @@
 """Live probe: a throwaway uAgent talks to the Front Desk through Agentverse like a customer would.
 
-Checks: chat reply with a quote, the unprompted follow-up ~60s later, and a Stripe RequestPayment
-after "pay". Usage: uv run --env-file ../.env python scripts/chat_probe.py <front-desk-address>
+Checks: a quote that names a real order, a Stripe RequestPayment after "pay" (the probe rejects it; it
+can't complete checkout), the cancellation reply, and a `status` reply that names the same order.
+Usage: uv run --env-file ../.env python scripts/chat_probe.py <front-desk-address>
 """
 
 import json
 import os
+import re
 import secrets
 import sys
 import time
@@ -25,7 +27,7 @@ probe = Agent(name="forge-chat-probe", seed=secrets.token_hex(32), port=8012,
               endpoint=["http://127.0.0.1:8012/submit"])
 chat = Protocol(spec=chat_protocol_spec)
 pay = Protocol(spec=payment_protocol_spec, role="buyer")
-seen: dict = {"replies": [], "acks": 0, "payment": None, "t0": time.time()}
+seen: dict = {"replies": [], "acks": 0, "payment": None, "order_id": None, "status_ok": False, "t0": time.time()}
 
 
 def msg(text: str) -> ChatMessage:
@@ -38,19 +40,33 @@ def finish(ok: bool, why: str) -> None:
     os._exit(0 if ok else 1)  # sys.exit inside a uAgents handler leaves the event loop spewing shutdown errors
 
 
+async def say(ctx: Context, text: str) -> None:
+    seen["replies"].append({"sent": text})
+    await ctx.send(FRONT_DESK, msg(text))
+
+
+def sent(text: str) -> bool:
+    return any(r.get("sent") == text for r in seen["replies"])
+
+
 @probe.on_event("startup")
 async def start(ctx: Context) -> None:
-    await ctx.send(FRONT_DESK, msg(REQUEST))
+    await say(ctx, REQUEST)
 
 
 @chat.on_message(ChatMessage)
 async def on_chat(ctx: Context, sender: str, m: ChatMessage) -> None:
     await ctx.send(sender, ChatAcknowledgement(timestamp=datetime.now(timezone.utc), acknowledged_msg_id=m.msg_id))
     text = " ".join(c.text for c in m.content if isinstance(c, TextContent))
-    seen["replies"].append({"s": round(time.time() - seen["t0"]), "text": text[:300]})
-    if "Reply **pay**" in text and not any("pay" == r.get("sent") for r in seen["replies"]):
-        seen["replies"].append({"sent": "pay"})
-        await ctx.send(FRONT_DESK, msg("pay"))
+    seen["replies"].append({"s": round(time.time() - seen["t0"]), "text": text[:600]})
+    if "Reply **pay**" in text and not sent("pay"):
+        if found := re.search(r"Order #(\d+)", text):
+            seen["order_id"] = int(found.group(1))
+        await say(ctx, "pay")
+    elif "Payment cancelled" in text and not sent("status"):
+        await say(ctx, "status")
+    elif sent("status") and seen["order_id"] and f"Order #{seen['order_id']}**" in text:
+        seen["status_ok"] = "waiting for payment" in text
 
 
 @chat.on_message(ChatAcknowledgement)
@@ -62,7 +78,8 @@ async def on_ack(ctx: Context, sender: str, m: ChatAcknowledgement) -> None:
 async def on_request(ctx: Context, sender: str, m: RequestPayment) -> None:
     stripe = (m.metadata or {}).get("stripe", {})
     seen["payment"] = {"funds": [f.model_dump() for f in m.accepted_funds], "has_client_secret": bool(stripe.get("client_secret")),
-                       "session": str(stripe.get("checkout_session_id", ""))[:12], "has_secret_key": any(str(v).startswith("sk_") for v in stripe.values())}
+                       "session": str(stripe.get("checkout_session_id", ""))[:12], "reference": m.reference,
+                       "has_secret_key": any(str(v).startswith("sk_") for v in stripe.values())}
     await ctx.send(sender, RejectPayment(reason="probe does not pay"))
 
 
@@ -78,10 +95,8 @@ async def on_cancel(ctx: Context, sender: str, m: CancelPayment) -> None:
 
 @probe.on_interval(period=5.0)
 async def check(ctx: Context) -> None:
-    unprompted = any("sent on my own" in r.get("text", "") for r in seen["replies"])
-    rejected_ack = any("Payment cancelled" in r.get("text", "") for r in seen["replies"])
-    if seen["payment"] and unprompted and rejected_ack:
-        finish(True, "quote, payment request, reject acknowledgement and unprompted follow-up all arrived")
+    if seen["payment"] and seen["status_ok"]:
+        finish(True, "quote with order number, payment request, reject acknowledgement and status reply naming the order")
     if time.time() - seen["t0"] > DEADLINE_S:
         finish(False, "timed out")
 
