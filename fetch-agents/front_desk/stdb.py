@@ -92,6 +92,17 @@ def value_records(order_id: int) -> list[dict]:
     return sorted((r for r in rows if r["id"] not in superseded), key=lambda r: (r["row"], r["id"]))
 
 
+def set_order_params(ref: str, params: dict[str, str]) -> None:
+    _call("set_order_params", ref, json.dumps(params))
+
+
+def catalog() -> list[dict]:
+    """Non-retired APIs with `inputs` and `sources` parsed from JSON."""
+    retired = {int(r["api_id"]) for r in _sql("SELECT * FROM api_retired")}
+    return [{**r, "inputs": json.loads(r["inputs"] or "{}"), "sources": json.loads(r["sources"] or "[]")}
+            for r in _sql("SELECT * FROM api") if int(r["id"]) not in retired]
+
+
 def api_name(api_id: int) -> str | None:
     rows = _sql(f"SELECT * FROM api WHERE id = {int(api_id)}")
     return rows[0]["name"] if rows else None

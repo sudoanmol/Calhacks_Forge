@@ -36,6 +36,18 @@ def test_order_is_created_read_back_and_paid():
     _coo_reject(paid["id"])
 
 
+def test_order_params_are_set_and_checked():
+    ref, sender = ids()
+    stdb.create_order(ref, sender, "open roles by team at Lattice", INTENT, 100)
+    stdb.set_order_params(ref, {"board": "lattice"})
+    assert stdb.order_by_ref(ref)["params"] == '{"board":"lattice"}'
+    with pytest.raises(stdb.StdbError) as err:
+        stdb.set_order_params(ref, {"board": "Not A Slug!"})
+    assert err.value.status == 530
+    stdb.record_payment(ref, "cs_test_pytest_params")
+    _coo_reject(stdb.order_by_ref(ref)["id"])
+
+
 def _coo_reject(order_id: int) -> None:
     # A paid order queues a coo_triage task; close it now so dispatch doesn't spend a real CREAO run on test data.
     token = os.environ.get("SPACETIME_TOKEN_COO")

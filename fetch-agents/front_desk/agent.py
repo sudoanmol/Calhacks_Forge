@@ -31,6 +31,7 @@ from uagents_core.contrib.protocols.payment import (
 from front_desk import stdb
 from front_desk.gate import run_layer2
 from front_desk.intent import NotARequest, parse_intent, strip_mentions
+from front_desk.params import Resolution, resolve as resolve_params
 from front_desk.payments import create_checkout, is_paid
 from front_desk.status import format_status, is_status_request
 
@@ -80,6 +81,10 @@ def _status_text(sender: str) -> str:
     values = stdb.value_records(latest["id"])
     api = stdb.api_name(latest["api_id"]) if latest["api_id"] is not None else None
     return format_status(orders, values, api)
+
+
+def _resolve_params(text: str) -> Resolution:
+    return resolve_params(text, stdb.catalog())
 
 
 async def reply_status(ctx: Context, sender: str) -> None:
@@ -142,6 +147,13 @@ async def on_chat(ctx: Context, sender: str, msg: ChatMessage) -> None:
         return
 
     try:
+        resolved = await asyncio.to_thread(_resolve_params, text)
+    except Exception:  # noqa: BLE001 - without params the COO still decides on the order
+        ctx.logger.exception("param resolution failed")
+        resolved = Resolution()
+    ctx.logger.info(f"params {sender[:16]} api={resolved.api} params={resolved.params}")
+
+    try:
         await asyncio.to_thread(stdb.create_order, ref, sender, text, intent_json, QUOTE_CENTS)
         order = await asyncio.to_thread(stdb.order_by_ref, ref)
         if order is None:
@@ -150,13 +162,20 @@ async def on_chat(ctx: Context, sender: str, msg: ChatMessage) -> None:
         ctx.logger.exception("create_order failed")
         await reply(ctx, sender, f"Sorry, I couldn't open an order right now ({type(err).__name__}). Please try again.")
         return
+    if resolved.params:
+        try:
+            await asyncio.to_thread(stdb.set_order_params, ref, resolved.params)
+        except Exception:  # noqa: BLE001 - the quote must not claim a source the order doesn't carry
+            ctx.logger.exception("set_order_params failed")
+            resolved = Resolution()
     scope = f"top {result.counteroffer_pages} pages" if result.counteroffer_pages else f"{intent.estimated_pages} page(s)"
     quote = {"ref": ref, "order_id": order["id"], "summary": intent.summary, "sources": intent.sources,
-             "fields": intent.fields, "pages": intent_json["pages"], "cents": QUOTE_CENTS}
+             "fields": intent.fields, "pages": intent_json["pages"], "cents": QUOTE_CENTS, "params": resolved.params}
     ctx.storage.set(f"quote:{sender}", quote)
     lines = [
         f"**Order #{order['id']}: {intent.summary}**",
         f"Sources: {', '.join(intent.sources) or 'to be researched'} · Fields: {', '.join(intent.fields) or 'to be confirmed'}",
+        *([resolved.note] if resolved.note else []),
         f"Scope: {scope}." + (f" {result.reason}" if result.counteroffer_pages else ""),
         "Every value will come with a verbatim quote from the source page.",
         f"Quote: ${QUOTE_CENTS / 100:.2f} (TEST MODE). Reply **pay** to accept.",
