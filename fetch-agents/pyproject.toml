@@ -8,6 +8,7 @@ dependencies = [
   "openai>=1.0",
   "stripe>=10.0",
   "httpx>=0.28",
+  "cosmpy>=0.12",
 ]
 
 [dependency-groups]

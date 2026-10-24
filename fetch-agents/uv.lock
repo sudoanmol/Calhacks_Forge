@@ -3,7 +3,7 @@ revision = 3
 requires-python = "==3.12.*"
 
 [options]
-exclude-newer = "2026-10-17T15:13:27.867079Z"
+exclude-newer = "2026-10-17T22:11:13.711877Z"
 exclude-newer-span = "P7D"
 
 [[package]]
@@ -302,6 +302,7 @@ name = "forge-fetch-agents"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "cosmpy" },
     { name = "httpx" },
     { name = "openai" },
     { name = "stripe" },
@@ -315,6 +316,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "cosmpy", specifier = ">=0.12" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "openai", specifier = ">=1.0" },
     { name = "stripe", specifier = ">=10.0" },

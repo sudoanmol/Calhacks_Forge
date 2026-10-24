@@ -1,0 +1,519 @@
+{
+  "started_at": "2026-10-24T22:11:51.045098+00:00",
+  "mode": "TEST MODE",
+  "buyer": {
+    "agent_address": "agent1q2jj8g77x9dgyp0va9vxtzjeeajth02rv3pqhm9taf3gg6qd7uwcw4h4tr0",
+    "wallet": "fetch1at4kaq6rp0rrkvyff2m44d4xara0dcdpx8vugw"
+  },
+  "request": "I'd like to buy gpu-listings: RTX 5080 listings on Newegg with price and stock",
+  "discovery": {
+    "queries": [
+      {
+        "query": "public web data API verified",
+        "total": 10000,
+        "search_id": "6b524756-25ed-4d0a-b6a2-f188b8dae7ac",
+        "returned": 30,
+        "top": [
+          {
+            "address": "agent1qww5qeadtlqpg2nf83vlz6v2upugfttc6ywajswlysv6egxjn4zzq7q3z4d",
+            "name": "News-Verifier",
+            "type": "hosted",
+            "status": "active",
+            "protocols": [
+              "",
+              "",
+              "AgentChatProtocol",
+              "Default"
+            ],
+            "has_readme": true,
+            "total_interactions": 71
+          },
+          {
+            "address": "agent1qf54g3tw9xlrde3lxut79ws6kcm28vd4p4cprh5ffhzmt8ff0yzfv7t9t3u",
+            "name": "verify",
+            "type": "hosted",
+            "status": "inactive",
+            "protocols": [
+              "AgentChatProtocol",
+              "Default"
+            ],
+            "has_readme": true,
+            "total_interactions": 1
+          },
+          {
+            "address": "agent1qvnpu46exfw4jazkhwxdqpq48kcdg0u0ak3mz36yg93ej06xntklsxcwplc",
+            "name": "Google API Geolocation Agent",
+            "type": "hosted",
+            "status": "active",
+            "protocols": [
+              "",
+              "",
+              "",
+              "",
+              "HealthProtocol",
+              "Geolocation-Protocol",
+              "AgentChatProtocol",
+              "Default"
+            ],
+            "has_readme": true,
+            "total_interactions": 93533
+          },
+          {
+            "address": "agent1qfygqzhnev23kcxsas55wqs3mrf5pkxcfcjfyg028h6zwav89lsqxhq565a",
+            "name": "recoverpay-verifier",
+            "type": "uagent",
+            "status": "active",
+            "protocols": [
+              "",
+              "",
+              "AgentChatProtocol"
+            ],
+            "has_readme": true,
+            "total_interactions": 6
+          },
+          {
+            "address": "agent1qvfyh4h63gd77axzrus8jv5gngudkgpu086vmpuvp09udfuzukwax23nq2m",
+            "name": "Offer Verifier",
+            "type": "hosted",
+            "status": "inactive",
+            "protocols": [
+              ""
+            ],
+            "has_readme": false,
+            "total_interactions": 18
+          },
+          {
+            "address": "agent1qt4q27guj6p6da4gacfwpun59agfz85v2nkr758qmdhqqytju88xqh69jmf",
+            "name": "Samy",
+            "type": "hosted",
+            "status": "active",
+            "protocols": [
+              "",
+              "",
+              "AgentChatProtocol",
+              "Default"
+            ],
+            "has_readme": true,
+            "total_interactions": 620
+          },
+          {
+            "address": "agent1q2uk5gjd0q3duleaqqwjer64s57q264y0qhn2pdqmeaxws3ewremsr7p8at",
+            "name": "News API Agent",
+            "type": "hosted",
+            "status": "active",
+            "protocols": [
+              "AgentChatProtocol",
+              "StructuredOutputClientProtocol",
+              "News-Agent-Protocol",
+              "HealthProtocol",
+              "Default"
+            ],
+            "has_readme": true,
+            "total_interactions": 16444
+          },
+          {
+            "address": "agent1qv8dslc5rlqka4gcg9ckc87r0g562ypjuw9hqm8mlnvueucz2vvpw9j755w",
+            "name": "Web dev",
+            "type": "custom",
+            "status": "active",
+            "protocols": [
+              "AgentChatProtocol",
+              "AgentPaymentProtocol"
+            ],
+            "has_readme": true,
+            "total_interactions": 1825
+          },
+          {
+            "address": "agent1q20jn039g90w7lv8rch2uzjwv36tm5kwmsfe5dqc70zht27enqpkcjewdkz",
+            "name": "Github Organisation Agent",
+            "type": "hosted",
+            "status": "active",
+            "protocols": [
+              "",
+              "",
+              "",
+              "",
+              "HealthProtocol",
+              "Github Organisation",
+              "AgentChatProtocol",
+              "Default"
+            ],
+            "has_readme": true,
+            "total_interactions": 93666
+          },
+          {
+            "address": "agent1qw5m4pswtznq6f3th6g5quuw26360lsj6mcer8x8suy6mlzxm4xqksu8khg",
+            "name": "Stripe Payment Verifier",
+            "type": "mailbox",
+            "status": "active",
+            "protocols": [
+              "HomePaymentVerify",
+              "Default"
+            ],
+            "has_readme": true,
+            "total_interactions": 46
+          }
+        ],
+        "eligible": [
+          {
+            "address": "agent1qgl2uddpgr6aj6nayack05q4h2ng5q42c95ywmnf2e06auepr6uyud6ypz0",
+            "name": "HUNTER WORKER",
+            "type": "hosted",
+            "status": "active",
+            "protocols": [
+              "",
+              "",
+              "",
+              "",
+              "AgentChatProtocol",
+              "AgentPaymentProtocol",
+              "Default",
+              "HunterFetchTransactionVerification"
+            ],
+            "has_readme": true,
+            "total_interactions": 60,
+            "rank": 17,
+            "score": 1
+          },
+          {
+            "address": "agent1q0qru4xrkjvh5j99c36slf5f73nugj2v5uj30jadcsvhm3dl0t7nzf0knem",
+            "name": "test-anime-agent-for-api",
+            "type": "hosted",
+            "status": "active",
+            "protocols": [
+              "AgentChatProtocol",
+              "AgentPaymentProtocol",
+              "Default"
+            ],
+            "has_readme": false,
+            "total_interactions": 230,
+            "rank": 18,
+            "score": 1
+          }
+        ]
+      },
+      {
+        "query": "FORGE public data APIs",
+        "total": 10000,
+        "search_id": "56d33cd5-2a04-4d4f-be5f-3213fafa4f66",
+        "returned": 30,
+        "top": [
+          {
+            "address": "agent1q24rwrqx4ku2pgkl5c0k5wjlq0ukhp65uytvv27tnfmlsc9pnu0vzk4h5dm",
+            "name": "File Forge",
+            "type": "hosted",
+            "status": "active",
+            "protocols": [
+              "",
+              "",
+              "AgentChatProtocol",
+              "Default"
+            ],
+            "has_readme": true,
+            "total_interactions": 15
+          },
+          {
+            "address": "agent1q255rqw6shtmnwytv4jr2jlcak54s9f25059fpj9st3y4z9ltmywvvvqwgv",
+            "name": "Forge",
+            "type": "mailbox",
+            "status": "inactive",
+            "protocols": [
+              ""
+            ],
+            "has_readme": true,
+            "total_interactions": 12
+          },
+          {
+            "address": "agent1qvnpu46exfw4jazkhwxdqpq48kcdg0u0ak3mz36yg93ej06xntklsxcwplc",
+            "name": "Google API Geolocation Agent",
+            "type": "hosted",
+            "status": "active",
+            "protocols": [
+              "",
+              "",
+              "",
+              "",
+              "HealthProtocol",
+              "Geolocation-Protocol",
+              "AgentChatProtocol",
+              "Default"
+            ],
+            "has_readme": true,
+            "total_interactions": 93533
+          },
+          {
+            "address": "agent1qtzk5rv23l6nfnwm0zyh0uyjgr9t5g90kw95f4d95e6duyts2fuf6rs5gpq",
+            "name": "Aster Forge",
+            "type": "hosted",
+            "status": "inactive",
+            "protocols": [
+              "",
+              "",
+              "AgentChatProtocol",
+              "Default"
+            ],
+            "has_readme": true,
+            "total_interactions": 135
+          },
+          {
+            "address": "agent1qff49pfwt4d480grfvgeqwd4qfcqh4e979x3gjzlqjke2fcrerv3yutu2tz",
+            "name": "vison-forge-agent",
+            "type": "mailbox",
+            "status": "active",
+            "protocols": [
+              "AgentChatProtocol",
+              "Default"
+            ],
+            "has_readme": true,
+            "total_interactions": 252
+          },
+          {
+            "address": "agent1q2uk5gjd0q3duleaqqwjer64s57q264y0qhn2pdqmeaxws3ewremsr7p8at",
+            "name": "News API Agent",
+            "type": "hosted",
+            "status": "active",
+            "protocols": [
+              "AgentChatProtocol",
+              "StructuredOutputClientProtocol",
+              "News-Agent-Protocol",
+              "HealthProtocol",
+              "Default"
+            ],
+            "has_readme": true,
+            "total_interactions": 16444
+          },
+          {
+            "address": "agent1qwxszhvaegkq6lsu8n0aks5sqz0l4h63janfx0xgrgcnvxgkl6n6uafetjq",
+            "name": "forge-front-desk",
+            "type": "mailbox",
+            "status": "active",
+            "protocols": [
+              "AgentChatProtocol",
+              "AgentPaymentProtocol",
+              "Default"
+            ],
+            "has_readme": false,
+            "total_interactions": 89
+          },
+          {
+            "address": "agent1qwnchvs8hxxtevdj76m95449f49ep2ecd43kqjaum0r5hcxmv4afch9evn9",
+            "name": "legal-cn-api",
+            "type": "proxy",
+            "status": "inactive",
+            "protocols": [
+              "AgentChatProtocol"
+            ],
+            "has_readme": false,
+            "total_interactions": 13
+          },
+          {
+            "address": "agent1q0qru4xrkjvh5j99c36slf5f73nugj2v5uj30jadcsvhm3dl0t7nzf0knem",
+            "name": "test-anime-agent-for-api",
+            "type": "hosted",
+            "status": "active",
+            "protocols": [
+              "AgentChatProtocol",
+              "AgentPaymentProtocol",
+              "Default"
+            ],
+            "has_readme": false,
+            "total_interactions": 230
+          },
+          {
+            "address": "agent1qfssgqus2xs4u32hn55yxyr4y80eyxuv858drtqyfqrw8vcjm6k7270cfxz",
+            "name": "Google API Geolocation Agent",
+            "type": "hosted",
+            "status": "active",
+            "protocols": [
+              "",
+              "",
+              "",
+              "",
+              "HealthProtocol",
+              "Geolocation-Protocol",
+              "AgentChatProtocol",
+              "Default"
+            ],
+            "has_readme": true,
+            "total_interactions": 13
+          }
+        ],
+        "eligible": [
+          {
+            "address": "agent1qwxszhvaegkq6lsu8n0aks5sqz0l4h63janfx0xgrgcnvxgkl6n6uafetjq",
+            "name": "forge-front-desk",
+            "type": "mailbox",
+            "status": "active",
+            "protocols": [
+              "AgentChatProtocol",
+              "AgentPaymentProtocol",
+              "Default"
+            ],
+            "has_readme": false,
+            "total_interactions": 89,
+            "rank": 6,
+            "score": 7
+          },
+          {
+            "address": "agent1q0qru4xrkjvh5j99c36slf5f73nugj2v5uj30jadcsvhm3dl0t7nzf0knem",
+            "name": "test-anime-agent-for-api",
+            "type": "hosted",
+            "status": "active",
+            "protocols": [
+              "AgentChatProtocol",
+              "AgentPaymentProtocol",
+              "Default"
+            ],
+            "has_readme": false,
+            "total_interactions": 230,
+            "rank": 8,
+            "score": 1
+          }
+        ]
+      }
+    ],
+    "picked": {
+      "address": "agent1qwxszhvaegkq6lsu8n0aks5sqz0l4h63janfx0xgrgcnvxgkl6n6uafetjq",
+      "name": "forge-front-desk",
+      "fallback": false,
+      "score": 7,
+      "query": "FORGE public data APIs",
+      "rank": 6,
+      "why": "active, speaks AgentChatProtocol, sells via AgentPaymentProtocol, mentions 'forge'"
+    }
+  },
+  "messages": [
+    {
+      "at": "2026-10-24T22:11:53.159082+00:00",
+      "s": 2.1,
+      "dir": "info",
+      "type": "discovery",
+      "picked": {
+        "address": "agent1qwxszhvaegkq6lsu8n0aks5sqz0l4h63janfx0xgrgcnvxgkl6n6uafetjq",
+        "name": "forge-front-desk",
+        "fallback": false,
+        "score": 7,
+        "query": "FORGE public data APIs",
+        "rank": 6,
+        "why": "active, speaks AgentChatProtocol, sells via AgentPaymentProtocol, mentions 'forge'"
+      }
+    },
+    {
+      "at": "2026-10-24T22:11:53.159810+00:00",
+      "s": 2.1,
+      "dir": "out",
+      "type": "ChatMessage",
+      "text": "I'd like to buy gpu-listings: RTX 5080 listings on Newegg with price and stock"
+    },
+    {
+      "at": "2026-10-24T22:11:59.847614+00:00",
+      "s": 8.8,
+      "dir": "in",
+      "type": "ChatMessage",
+      "text": "**Order #104: RTX 5080 GPU listings on Newegg with price and stock status**\n\nSources: newegg.com \u00b7 Fields: listing name, price, stock\n\nScope: 2 page(s).\n\nEvery value will come with a verbatim quote from the source page.\n\nQuote: $1.00 (TEST MODE). Reply **pay** to accept."
+    },
+    {
+      "at": "2026-10-24T22:11:59.849488+00:00",
+      "s": 8.8,
+      "dir": "out",
+      "type": "ChatMessage",
+      "text": "pay"
+    },
+    {
+      "at": "2026-10-24T22:12:01.621739+00:00",
+      "s": 10.6,
+      "dir": "in",
+      "type": "RequestPayment",
+      "options": [
+        {
+          "amount": "1.00",
+          "currency": "USD",
+          "payment_method": "stripe"
+        }
+      ],
+      "recipient": "agent1qwxszhvaegkq6lsu8n0aks5sqz0l4h63janfx0xgrgcnvxgkl6n6uafetjq",
+      "reference": "20ceb6ee-6c46-47c3-851e-94f3b5efa2cc",
+      "metadata_keys": [
+        "service",
+        "stripe"
+      ]
+    },
+    {
+      "at": "2026-10-24T22:12:01.622837+00:00",
+      "s": 10.6,
+      "dir": "out",
+      "type": "RejectPayment",
+      "reason": "buyer agent pays in FET only"
+    },
+    {
+      "at": "2026-10-24T22:12:03.014363+00:00",
+      "s": 12.0,
+      "dir": "in",
+      "type": "ChatMessage",
+      "text": "TEST MODE payment card above. Use card 4242 4242 4242 4242, any future date, any CVC."
+    },
+    {
+      "at": "2026-10-24T22:12:03.719261+00:00",
+      "s": 12.7,
+      "dir": "out",
+      "type": "ChatMessage",
+      "text": "status"
+    },
+    {
+      "at": "2026-10-24T22:12:03.837901+00:00",
+      "s": 12.8,
+      "dir": "in",
+      "type": "ChatMessage",
+      "text": "Payment cancelled: buyer agent pays in FET only. Reply **pay** to try again."
+    },
+    {
+      "at": "2026-10-24T22:12:07.321111+00:00",
+      "s": 16.3,
+      "dir": "in",
+      "type": "ChatMessage",
+      "text": "**Order #104**: RTX 5080 GPU listings on Newegg with price and stock status\n\nStatus: quoted, waiting for payment (reply **pay**). Price $1.00 (TEST MODE)."
+    }
+  ],
+  "quote": {
+    "order_id": 104,
+    "price_usd": "1.00",
+    "text": "**Order #104: RTX 5080 GPU listings on Newegg with price and stock status**\n\nSources: newegg.com \u00b7 Fields: listing name, price, stock\n\nScope: 2 page(s).\n\nEvery value will come with a verbatim quote from the source page.\n\nQuote: $1.00 (TEST MODE). Reply **pay** to accept."
+  },
+  "payment_offer": {
+    "options": [
+      {
+        "amount": "1.00",
+        "currency": "USD",
+        "payment_method": "stripe"
+      }
+    ],
+    "recipient": "agent1qwxszhvaegkq6lsu8n0aks5sqz0l4h63janfx0xgrgcnvxgkl6n6uafetjq",
+    "reference": "20ceb6ee-6c46-47c3-851e-94f3b5efa2cc",
+    "deadline_seconds": 300,
+    "description": "FORGE (TEST MODE): order #104 RTX 5080 GPU listings on Newegg with price and stock status",
+    "metadata_keys": [
+      "service",
+      "stripe"
+    ],
+    "plan": null,
+    "reject": "buyer agent pays in FET only"
+  },
+  "payment": {
+    "rejected": true,
+    "reason": "buyer agent pays in FET only"
+  },
+  "status_replies": [
+    {
+      "at": "2026-10-24T22:12:07.323665+00:00",
+      "state": "quoted, waiting for payment (reply **pay**)",
+      "value_count": null
+    }
+  ],
+  "delivered": null,
+  "outcome": {
+    "result": "payment_rejected_stripe_only",
+    "why": "seller offered no FET option; order left unpaid: quoted, waiting for payment (reply **pay**)",
+    "elapsed_s": 16.3
+  },
+  "finished_at": "2026-10-24T22:12:07.323686+00:00"
+}
