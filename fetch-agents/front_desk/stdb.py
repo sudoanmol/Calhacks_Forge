@@ -75,6 +75,11 @@ def order_by_ref(ref: str) -> dict | None:
     return _order(rows[0]) if rows else None
 
 
+def orders_for_payment(payment_id: str) -> list[dict]:
+    """Orders recorded as paid with this payment id (a Stripe checkout session or a testnet FET tx hash)."""
+    return [_order(r) for r in _sql(f"SELECT * FROM orders WHERE stripe_session_id = {_q(payment_id)}")]
+
+
 def orders_for_sender(asi_sender: str) -> list[dict]:
     """The customer's orders, newest first."""
     customers = _sql(f"SELECT * FROM customer WHERE asi_sender = {_q(asi_sender)}")

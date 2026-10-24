@@ -1,8 +1,8 @@
 """FORGE Front Desk: the customer's whole journey in ASI:One.
 
 Chat text -> ASI-1 intent parse -> layer-2 gate -> an order in SpacetimeDB (quoted or rejected_at_desk)
--> TEST MODE Stripe payment -> record_payment, after which the module drives the order. ASI:One doesn't
-show agent-initiated messages, so progress is a `status` reply the customer asks for.
+-> TEST MODE payment (Stripe test card, or FET on the Fetch stable testnet) -> record_payment, after which
+the module drives the order. ASI:One doesn't show agent-initiated messages, so progress is a `status` reply the customer asks for.
 """
 
 import asyncio
@@ -20,20 +20,19 @@ from uagents_core.contrib.protocols.chat import (
     chat_protocol_spec,
 )
 from uagents_core.contrib.protocols.payment import (
+    CancelPayment,
     CommitPayment,
     CompletePayment,
-    Funds,
     RejectPayment,
-    RequestPayment,
     payment_protocol_spec,
 )
 
-from front_desk import stdb
+from front_desk import fet, stdb
 from front_desk.challenge import Challenge, format_challenge, parse_challenge, pick_metric
 from front_desk.gate import run_layer2
 from front_desk.intent import NotARequest, parse_intent, strip_mentions
 from front_desk.params import Resolution, resolve as resolve_params
-from front_desk.payments import create_checkout, is_paid
+from front_desk.payments import create_checkout, is_paid, payment_request
 from front_desk.status import format_status, is_status_request
 
 QUOTE_CENTS = 100  # Flat test price until the COO prices orders.
@@ -48,6 +47,8 @@ agent = Agent(
     mailbox=True,
     publish_agent_details=True,
 )
+# ctx.agent in a handler is an AgentRepresentation, which has no wallet.
+WALLET = str(agent.wallet.address())
 chat = Protocol(spec=chat_protocol_spec)
 pay = Protocol(spec=payment_protocol_spec, role="seller")
 
@@ -261,17 +262,14 @@ async def request_payment(ctx: Context, sender: str, quote: dict) -> None:
     reference = quote["ref"]
     checkout = await asyncio.to_thread(
         create_checkout, amount_cents=quote["cents"], description=quote["summary"], reference=reference, customer=sender)
-    ctx.storage.set(f"checkout:{checkout['checkout_session_id']}", {"sender": sender, "quote": quote, "reference": reference})
+    record = {"sender": sender, "quote": quote, "reference": reference,
+              "fet_amount": fet.PRICE_FET, "fet_atestfet": fet.to_atestfet(fet.PRICE_FET)}
+    ctx.storage.set(f"checkout:{checkout['checkout_session_id']}", record)
+    ctx.storage.set(f"payreq:{reference}", record)
     # ASI:One renders the card from RequestPayment, so it goes before the chat text.
-    await send(ctx, sender, RequestPayment(
-        accepted_funds=[Funds(currency="USD", amount=f"{quote['cents'] / 100:.2f}", payment_method="stripe")],
-        recipient=str(ctx.agent.address),
-        deadline_seconds=300,
-        reference=reference,
-        description=f"FORGE (TEST MODE): order #{quote['order_id']} {quote['summary']}",
-        metadata={"stripe": checkout, "service": "forge_data_api"},
-    ), "RequestPayment")
-    await reply(ctx, sender, "TEST MODE payment card above. Use card 4242 4242 4242 4242, any future date, any CVC.")
+    await send(ctx, sender, payment_request(quote=quote, checkout=checkout, wallet=WALLET), "RequestPayment")
+    await reply(ctx, sender, "TEST MODE payment card above. Use card 4242 4242 4242 4242, any future date, any CVC. "
+                             f"Agents can pay {fet.PRICE_FET} testnet FET ({fet.NETWORK}) to {WALLET} instead.")
 
 
 async def _record_payment(ref: str, session_id: str) -> None:
@@ -284,8 +282,28 @@ async def _record_payment(ref: str, session_id: str) -> None:
             raise
 
 
+async def _settle(ctx: Context, sender: str, record: dict, payment_id: str, how: str) -> None:
+    """The payment is proven: record it on the order exactly once, complete it, and tell the customer."""
+    quote = record["quote"]
+    try:
+        await _record_payment(record["reference"], payment_id)
+    except Exception:  # noqa: BLE001 - the money has moved, so complete the payment and say what went wrong
+        ctx.logger.exception(f"record_payment failed for {record['reference']}")
+        await send(ctx, sender, CompletePayment(transaction_id=payment_id), "CompletePayment")
+        await reply(ctx, sender, f"Payment received ({how}), but recording order #{quote['order_id']} failed. "
+                                 f"Please pass this reference to the FORGE founder: {record['reference']}.")
+        return
+    await send(ctx, sender, CompletePayment(transaction_id=payment_id), "CompletePayment")
+    ctx.storage.remove(f"quote:{sender}")
+    await reply(ctx, sender, f"Payment confirmed ({how}). **Order #{quote['order_id']}** ({quote['summary']}) is queued "
+                             "for the COO. Reply **status** any time to see where it is.")
+
+
 @pay.on_message(CommitPayment)
 async def on_commit(ctx: Context, sender: str, msg: CommitPayment) -> None:
+    if msg.funds.payment_method == fet.METHOD:
+        await on_commit_fet(ctx, sender, msg)
+        return
     session_id = msg.transaction_id
     _log(ctx, "IN", sender, f"CommitPayment {str(session_id)[:14]}")
     record = ctx.storage.get(f"checkout:{session_id}") if session_id else None
@@ -295,19 +313,67 @@ async def on_commit(ctx: Context, sender: str, msg: CommitPayment) -> None:
     if not await asyncio.to_thread(is_paid, session_id):
         await ctx.send(sender, RejectPayment(reason="Stripe has not marked this checkout as paid yet."))
         return
-    quote = record["quote"]
-    try:
-        await _record_payment(record["reference"], session_id)
-    except Exception:  # noqa: BLE001 - Stripe has the money, so complete the payment and say what went wrong
-        ctx.logger.exception(f"record_payment failed for {record['reference']}")
-        await send(ctx, sender, CompletePayment(transaction_id=session_id), "CompletePayment")
-        await reply(ctx, sender, f"Payment received (TEST MODE), but recording order #{quote['order_id']} failed. "
-                                 f"Please pass this reference to the FORGE founder: {record['reference']}.")
+    await _settle(ctx, sender, record, session_id, "TEST MODE")
+
+
+# Tx hashes being checked or already accepted in this process; ctx.storage and the orders table cover restarts.
+_fet_claims: set[str] = set()
+
+
+async def _fet_tx(tx_hash: str) -> dict | None:
+    # The buyer commits after its transfer is in a block, but a node can lag behind the one it broadcast to.
+    for wait in (0, 3, 6):
+        await asyncio.sleep(wait)
+        if (tx := await asyncio.to_thread(fet.fetch_tx, tx_hash)) is not None:
+            return tx
+    return None
+
+
+async def on_commit_fet(ctx: Context, sender: str, msg: CommitPayment) -> None:
+    tx_hash = fet.normalize_hash(msg.transaction_id)
+    _log(ctx, "IN", sender, f"CommitPayment fet_direct {str(msg.transaction_id)[:14]}")
+
+    async def cancel(reason: str) -> None:
+        ctx.logger.info(f"fet payment cancelled {sender[:16]} {msg.transaction_id}: {reason}")
+        await send(ctx, sender, CancelPayment(transaction_id=msg.transaction_id, reason=reason), f"CancelPayment {reason}")
+
+    record = ctx.storage.get(f"payreq:{msg.reference}") if msg.reference else None
+    if tx_hash is None:
+        await cancel("transaction_id is not a testnet transaction hash.")
         return
-    await send(ctx, sender, CompletePayment(transaction_id=session_id), "CompletePayment")
-    ctx.storage.remove(f"quote:{sender}")
-    await reply(ctx, sender, f"Payment confirmed (TEST MODE). **Order #{quote['order_id']}** ({quote['summary']}) is queued "
-                             "for the COO. Reply **status** any time to see where it is.")
+    if problem := fet.commit_problem(msg, record, sender):
+        await cancel(problem)
+        return
+    reference = record["reference"]
+    used_for = ctx.storage.get(f"fet_tx:{tx_hash}")
+    if used_for == reference:  # a retried CommitPayment for a transfer already accepted for this order
+        await send(ctx, sender, CompletePayment(transaction_id=tx_hash), "CompletePayment (retry)")
+        return
+    if tx_hash in _fet_claims or used_for:
+        await cancel("This transaction has already paid for an order.")
+        return
+    _fet_claims.add(tx_hash)
+    try:
+        orders = await asyncio.to_thread(stdb.orders_for_payment, tx_hash)
+        if any(o["ref"] != reference for o in orders):
+            await cancel("This transaction has already paid for an order.")
+            return
+        buyer_wallet = str(msg.metadata["buyer_fet_wallet"])
+        tx = await _fet_tx(tx_hash)
+        reason = fet.check_transfer(tx, recipient=WALLET, sender=buyer_wallet,
+                                    min_atestfet=int(record["fet_atestfet"]))
+    except Exception as err:  # noqa: BLE001 - the buyer is told; the log keeps the cause
+        _fet_claims.discard(tx_hash)
+        ctx.logger.exception(f"fet verification failed for {tx_hash}")
+        await cancel(f"FORGE could not check the transaction right now ({type(err).__name__}).")
+        return
+    if reason:
+        _fet_claims.discard(tx_hash)
+        await cancel(reason)
+        return
+    ctx.storage.set(f"fet_tx:{tx_hash}", reference)
+    ctx.logger.info(f"fet payment verified {tx_hash} height={tx['height']} from={buyer_wallet} ref={reference}")
+    await _settle(ctx, sender, record, tx_hash, f"TEST MODE, {record['fet_amount']} testnet FET, tx {tx_hash}")
 
 
 @pay.on_message(RejectPayment)

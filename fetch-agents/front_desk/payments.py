@@ -4,6 +4,9 @@ import os
 import time
 
 import stripe
+from uagents_core.contrib.protocols.payment import Funds, RequestPayment
+
+from front_desk import fet
 
 # ASI:One renders an embedded Checkout from the RequestPayment metadata; this page is where
 # Stripe returns after payment.
@@ -47,6 +50,20 @@ def create_checkout(*, amount_cents: int, description: str, reference: str, cust
         # The value the Innovation Lab Stripe examples send; ASI:One reads it to pick the card.
         "ui_mode": "embedded",
     }
+
+
+def payment_request(*, quote: dict, checkout: dict[str, str], wallet: str) -> RequestPayment:
+    """The offer: a Stripe test card for people in ASI:One, or testnet FET to `wallet` for agents."""
+    return RequestPayment(
+        accepted_funds=[Funds(currency="USD", amount=f"{quote['cents'] / 100:.2f}", payment_method="stripe"),
+                        Funds(currency="FET", amount=fet.PRICE_FET, payment_method=fet.METHOD)],
+        recipient=wallet,
+        deadline_seconds=300,
+        reference=quote["ref"],
+        description=f"FORGE (TEST MODE): order #{quote['order_id']} {quote['summary']}",
+        metadata={"stripe": checkout, "service": "forge_data_api", "fet_network": fet.NETWORK, "mainnet": "false",
+                  "provider_agent_wallet": wallet},
+    )
 
 
 def is_paid(checkout_session_id: str) -> bool:
