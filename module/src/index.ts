@@ -25,8 +25,8 @@ const CONFIG_DEFAULTS: Record<string, string> = {
   'bonus_rate.auditor': '5',
   'bonus_rate.droid_runner': '10',
   // Vendor prices for micro-USD cost per call. 1 USD per million tokens is 1 micro-USD per token.
-  'price.llm_input_usd_per_mtok': '1',
-  'price.llm_output_usd_per_mtok': '5',
+  'price.llm_input_usd_per_mtok': '0.1', // Claude Haiku 5.5, prompts under 100K tokens
+  'price.llm_output_usd_per_mtok': '0.5',
   'price.brightdata_unlocker_usd_per_1k': '1.5',
 };
 
