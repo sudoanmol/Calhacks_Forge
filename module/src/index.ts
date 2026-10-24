@@ -1,4 +1,4 @@
-import { schema, table, t, SenderError, Router, SyncResponse, type InferSchema, type ReducerCtx } from 'spacetimedb/server';
+import { schema, table, t, SenderError, Router, SyncResponse, type InferSchema, type ReducerCtx, type ProcedureCtx } from 'spacetimedb/server';
 import { ScheduleAt, Timestamp, type Identity } from 'spacetimedb';
 
 const LEASE_MS = 10 * 60 * 1000;
@@ -75,6 +75,35 @@ const event = table(
   },
 );
 
+// One row per external run (CREAO, Apify, Bright Data, Droid).
+const run = table(
+  { name: 'run', public: true },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    provider: t.string(),
+    externalId: t.string().index('btree'),
+    appId: t.string(),
+    taskId: t.option(t.u64()),
+    threadId: t.string(),
+    status: t.string(), // starting | pending | running | completed | failed | cancelled | start_failed
+    resultText: t.string(),
+    shareUrl: t.string(),
+    costCents: t.u32(),
+    startedAt: t.timestamp(),
+    endedAt: t.option(t.timestamp()),
+  },
+);
+
+// One-time tokens in webhook URLs. Private: only procedures and routes read them.
+const callbackToken = table(
+  { name: 'callback_token' },
+  {
+    token: t.string().primaryKey(),
+    provider: t.string(),
+    runRef: t.u64(),
+    usedAt: t.option(t.timestamp()),
+  },
+);
 const leaseSweepSchedule = table(
   { name: 'lease_sweep_schedule' },
   {
@@ -83,7 +112,11 @@ const leaseSweepSchedule = table(
   },
 );
 
-const spacetimedb = schema({ config, staff, task, event, leaseSweepSchedule });
+const spacetimedb = schema(
+  { config, staff, task, event, run, callbackToken, leaseSweepSchedule },
+  // Set at publish time from the shell environment (spacetime publish reads declared names).
+  { env: { CREAO_API_KEY: t.option(t.string()), PUBLIC_ROUTE_BASE: t.option(t.string()) } },
+);
 export default spacetimedb;
 
 type Ctx = ReducerCtx<InferSchema<typeof spacetimedb>>;
@@ -225,4 +258,130 @@ export const ping = spacetimedb.httpHandler((ctx, req) => {
   return new SyncResponse('pong', { status: 200, headers: { 'content-type': 'text/plain' } });
 });
 
-export const routes = spacetimedb.httpRouter(new Router().post('/ping', ping));
+const CREAO_BASE = 'https://agent.creao.ai';
+const CREAO_TERMINAL = ['completed', 'failed', 'cancelled'];
+const RESULT_TEXT_MAX = 20_000;
+
+type CreaoRun = { id?: string; runId?: string; status?: string; threadId?: string; result?: { text?: string; chatText?: string } };
+
+function creaoKey(env: IoCtx['env']): string {
+  const key = env.get('CREAO_API_KEY');
+  if (!key) throw new SenderError('CREAO_API_KEY is not set on the module');
+  return key;
+}
+
+// Starts a CREAO run with a one-time webhook token. Gate 0 entry point; the dispatch schedule
+// replaces direct calls once orders exist.
+export const creao_start = spacetimedb.procedure(
+  { appId: t.string(), inputs: t.string(), idempotencyKey: t.string(), threadId: t.string() },
+  t.unit(),
+  (ctx, { appId, inputs, idempotencyKey, threadId }) => {
+    const token = ctx.newUuidV4().toString();
+    const runId = ctx.withTx((tx) => {
+      requireRole(tx, 'founder', 'canary');
+      const row = tx.db.run.insert({
+        id: 0n, provider: 'creao', externalId: '', appId, taskId: undefined, threadId, status: 'starting',
+        resultText: '', shareUrl: '', costCents: 0, startedAt: tx.timestamp, endedAt: undefined,
+      });
+      tx.db.callbackToken.insert({ token, provider: 'creao', runRef: row.id, usedAt: undefined });
+      return row.id;
+    });
+    const base = ctx.env.get('PUBLIC_ROUTE_BASE');
+    const body: Record<string, unknown> = { appId, inputs: JSON.parse(inputs), idempotencyKey };
+    if (base) body.webhookUrl = `${base}/creao-callback?token=${token}`;
+    if (threadId) body.threadId = threadId;
+    let status = 0;
+    let text = '';
+    try {
+      const res = ctx.http.fetch(`${CREAO_BASE}/api/v1/runs`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${creaoKey(ctx.env)}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      status = res.status;
+      text = res.text();
+    } catch (err) {
+      text = String(err);
+    }
+    ctx.withTx((tx) => {
+      const row = tx.db.run.id.find(runId)!;
+      let parsed: CreaoRun = {};
+      try { parsed = JSON.parse(text); } catch { /* error body */ }
+      const ok = status === 202 || status === 200;
+      tx.db.run.id.update({
+        ...row,
+        externalId: parsed.id ?? parsed.runId ?? '',
+        status: ok ? (parsed.status ?? 'pending') : 'start_failed',
+        resultText: ok ? '' : text.slice(0, 2000),
+      });
+      logEvent(tx, 'procedure', ok ? 'creao_run_started' : 'creao_run_start_failed', 'run', runId,
+        { appId, httpStatus: status, externalId: parsed.id ?? parsed.runId ?? '', webhook: Boolean(base) });
+    });
+    return {};
+  },
+);
+
+// Re-fetches a CREAO run with our key and stores the trusted status. Shared by the webhook
+// route and the poll fallback. Webhook bodies are never trusted.
+type IoCtx = Pick<ProcedureCtx<InferSchema<typeof spacetimedb>>, 'http' | 'env' | 'withTx'>;
+
+function refreshCreaoRun(ctx: IoCtx, runRef: bigint, actor: string) {
+  const row = ctx.withTx((tx) => tx.db.run.id.find(runRef));
+  if (!row || !row.externalId) return { changed: false, status: row?.status ?? 'missing' };
+  if (CREAO_TERMINAL.includes(row.status)) return { changed: false, status: row.status };
+  const res = ctx.http.fetch(`${CREAO_BASE}/api/v1/runs/${encodeURIComponent(row.externalId)}`, {
+    method: 'GET', headers: { Authorization: `Bearer ${creaoKey(ctx.env)}` },
+  });
+  const text = res.text();
+  if (res.status !== 200) {
+    ctx.withTx((tx) => logEvent(tx, actor, 'creao_refresh_failed', 'run', runRef, { httpStatus: res.status }));
+    return { changed: false, status: row.status };
+  }
+  const fresh = JSON.parse(text) as CreaoRun;
+  return ctx.withTx((tx) => {
+    const cur = tx.db.run.id.find(runRef)!;
+    const status = fresh.status ?? cur.status;
+    if (status === cur.status) return { changed: false, status };
+    const done = CREAO_TERMINAL.includes(status);
+    const result = fresh.result?.text ?? fresh.result?.chatText ?? '';
+    tx.db.run.id.update({
+      ...cur, status, threadId: fresh.threadId ?? cur.threadId,
+      resultText: result.slice(0, RESULT_TEXT_MAX), endedAt: done ? tx.timestamp : cur.endedAt,
+    });
+    logEvent(tx, actor, `creao_run_${status}`, 'run', runRef, { externalId: cur.externalId, threadId: fresh.threadId ?? '', resultChars: result.length });
+    return { changed: true, status };
+  });
+}
+
+export const creao_poll = spacetimedb.procedure({ runRef: t.u64() }, t.unit(), (ctx, { runRef }) => {
+  ctx.withTx((tx) => requireRole(tx, 'founder', 'canary'));
+  refreshCreaoRun(ctx, runRef, 'procedure');
+  return {};
+});
+
+export const creao_callback = spacetimedb.httpHandler((ctx, req) => {
+  const token = /[?&]token=([^&]+)/.exec(String(req.uri))?.[1] ?? '';
+  const claim = ctx.withTx((tx) => {
+    const row = token ? tx.db.callbackToken.token.find(decodeURIComponent(token)) : undefined;
+    if (!row || row.provider !== 'creao') return { ok: false as const, reason: 'unknown token' };
+    if (row.usedAt) return { ok: false as const, reason: 'token already used' };
+    return { ok: true as const, runRef: row.runRef };
+  });
+  if (!claim.ok) {
+    ctx.withTx((tx) => logEvent(tx, 'route', 'creao_callback_rejected', 'run', 0n, { reason: claim.reason }));
+    return new SyncResponse(claim.reason, { status: 403 });
+  }
+  const { status } = refreshCreaoRun(ctx, claim.runRef, 'route');
+  // The token is spent only once the run is terminal, so CREAO's retries and any
+  // intermediate notifications still get through.
+  if (CREAO_TERMINAL.includes(status)) {
+    ctx.withTx((tx) => {
+      const row = tx.db.callbackToken.token.find(decodeURIComponent(token))!;
+      tx.db.callbackToken.token.update({ ...row, usedAt: tx.timestamp });
+    });
+  }
+  return new SyncResponse('ok', { status: 200 });
+});
+export const routes = spacetimedb.httpRouter(
+  new Router().post('/ping', ping).post('/creao-callback', creao_callback),
+);
