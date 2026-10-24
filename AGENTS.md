@@ -57,7 +57,7 @@ customer: "row 4 is wrong" ─▶ challenge ─▶ recheck vs saved page ─▶ 
 11. Only measured numbers go in the README.
 12. New ideas go in `/docs/after-hackathon.md`, not in code.
 13. After Gate 1 the schema is frozen: changes are additive only.
-14. Use pnpm for JS (never npm) and uv for Python.
+14. Use pnpm for JS (never npm) and uv for Python (Python 3.12; uagents needs ≥3.10).
 15. Commit after each major feature, once its tests pass. Small, focused commits in Conventional Commits style (`feat(module): …`). Never commit a failing build or failing tests.
 16. Every feature ships with tests that verify it:
     - **Backend** (module reducers/procedures/routes, workers, Actors, CLI, agents): test directly against the real API, e.g. call reducers and run SQL through the SpacetimeDB HTTP API on the deployed database, run the Actor and read its dataset, hit the route with curl. Unit tests cover the pure logic; they don't replace the live API check.
@@ -209,7 +209,7 @@ The CFO proposes the investment; `reserve_budget` enforces the cap; the founder 
 | Path | What | Stack |
 |---|---|---|
 | `/module` | SpacetimeDB module: tables, reducers, procedures, routes | TypeScript |
-| `/web` | Founder dashboard | Vite + React + generated SpacetimeDB bindings (**verify** SDK package name) |
+| `/web` | Founder dashboard | Vite + React + generated SpacetimeDB bindings (`spacetimedb/react`: `SpacetimeDBProvider`, `useTable`, `useReducer`) |
 | `/workers/droid-runner` | Claims compile/enhancement/warranty tasks and drives Droid | Node + TypeScript |
 | `/workers/canary` | Scripted end-to-end order on each seeded API | Node + TypeScript |
 | `/fetch-agents` | Front Desk uAgent and the buyer agent (two separate agents) | Python, uv |
@@ -295,7 +295,7 @@ ctx.withTx(tx => applyResult(tx, job, res));
 
 ### HTTP routes
 
-`/creao-callback` and `/apify-callback`, served at `/v1/database/<db>/route/<path>` (beta, unauthenticated, exact match: **verify**).
+`/creao-callback` and `/apify-callback`, served at `/v1/database/<db>/route/<path>` (beta, unauthenticated, exact path match; `req.uri` includes the query string, verified on a local server).
 
 - Require a one-time `callback_token`; mark it used.
 - Never trust the body. Re-fetch the run status with our key and dedupe on run ID.
@@ -343,47 +343,54 @@ Front Desk classifies → `open_ticket(label)` → routes per the Addition 3 tab
 
 ## 7. Per-sponsor build guide
 
-All shapes below are **verify** until checked against the docs in §15.
+Shapes below were checked against the packages and docs on Oct 24 (`spacetimedb` 2.13, `@factory/droid-sdk` 0.10, `apify` 3.7, `uagents` 0.26.1). Anything still marked **verify** is not confirmed.
 
 ### SpacetimeDB (`/module`)
 
-- TypeScript module on Maincloud. Bindings: `spacetime generate --lang typescript`.
-- Lifecycle reducers: `init` (seed config, founder staff row), `clientConnected`, `clientDisconnected`.
-- Module env values via `ctx.env`. `--delete-data` wipes them, so re-set them after a wipe.
-- Workers and the Fetch agent use the HTTP API: `POST /v1/identity`, `/v1/database/<db>/call/<reducer>`, `/v1/database/<db>/sql`. Each holds its own identity, mapped to a role in `staff`.
+- TypeScript module on Maincloud (`spacetimedb` 2.13). Bindings: `spacetime generate --lang typescript --out-dir web/src/module_bindings -p module`.
+- Lifecycle: `export const init = spacetimedb.init(ctx => …)` (seeds config, founder staff row = the publisher's identity), `spacetimedb.clientConnected`, `spacetimedb.clientDisconnected`. Lifecycle hooks must be exported.
+- Every named export of the module must be a SpacetimeDB export (reducer, procedure, route, hook). Keep helpers and constants unexported.
+- Module env values: declare them in `schema({...}, { env: { KEY: t.string() } })`, read `ctx.env.KEY`, supply them at publish time (`KEY=… spacetime publish`). A reset (`--delete-data=always`) wipes them, so re-set them after a wipe.
+- Workers and the Fetch agent use the HTTP API: `POST /v1/identity` → `{identity, token}`; `POST /v1/database/<db>/call/<reducer>` with a **JSON array** of args in parameter order and `Authorization: Bearer <token>`; `POST /v1/database/<db>/sql` with raw SQL text. Each holds its own identity, mapped to a role in `staff`. Verified against a local server (`module/test/api.test.mjs`):
+  - An `Identity` argument is passed as `{"__identity__": "0x<hex>"}`.
+  - SQL column names come back snake_case (`lease_owner`, `ref_type`).
+  - A `SenderError` comes back as HTTP 530 with the message as the body.
+- Optional columns are `t.option(t.u64())` (values are `T | undefined`). `u64` values are `bigint`.
+- No timestamp arithmetic helper: `new Timestamp(ts.microsSinceUnixEpoch + BigInt(ms) * 1000n)`.
 
 ```ts
-import { schema, table, t, SenderError } from 'spacetimedb/server'; // verify import path
-import { ScheduleAt } from 'spacetimedb';
+import { schema, table, t, SenderError, Router, SyncResponse } from 'spacetimedb/server';
+import { ScheduleAt, Timestamp } from 'spacetimedb';
 
 const task = table({ name: 'task', public: true }, {
   id: t.u64().primaryKey().autoInc(),
-  kind: t.string(), role: t.string(), status: t.string(),
-  leaseOwner: t.identity().optional(), leaseUntil: t.timestamp().optional(), attempt: t.u32(),
+  kind: t.string().index('btree'), role: t.string(), status: t.string(),
+  leaseOwner: t.option(t.identity()), leaseUntil: t.option(t.timestamp()), attempt: t.u32(),
 });
-const lease_sweep_schedule = table(
-  { name: 'lease_sweep_schedule', scheduled: 'lease_sweep' },          // verify onSchedule option name
-  { id: t.u64().primaryKey().autoInc(), scheduledAt: t.scheduleAt() },
-);
-const spacetimedb = schema({ task, lease_sweep_schedule /* , ... */ });
+const leaseSweepSchedule = table({ name: 'lease_sweep_schedule' },
+  { scheduledId: t.u64().primaryKey().autoInc(), scheduledAt: t.scheduleAt() });
+const spacetimedb = schema({ task, leaseSweepSchedule /* , ... */ });
 export default spacetimedb;
 
-export const claim_task = spacetimedb.reducer({ kind: t.string() }, (ctx, { kind }) => {
-  const role = roleOf(ctx, ctx.sender);
-  if (!role) throw new SenderError('unknown identity');
-  const next = [...ctx.db.task.iter()]
-    .filter(r => r.kind === kind && r.role === role && r.status === 'queued')
-    .sort((a, b) => Number(a.id - b.id))[0];
-  if (!next) return;
-  ctx.db.task.id.update({ ...next, status: 'claimed', leaseOwner: ctx.sender,
-    leaseUntil: addMs(ctx.timestamp, LEASE_MS), attempt: next.attempt + 1 });
+// Scheduled functions bind with `onSchedule` and take the schedule row as their one argument.
+export const lease_sweep = spacetimedb.reducer({ onSchedule: leaseSweepSchedule },
+  { arg: leaseSweepSchedule.rowType }, (ctx, _args) => { /* ... */ });
+// seed in init: ctx.db.leaseSweepSchedule.insert({ scheduledId: 0n, scheduledAt: ScheduleAt.interval(15_000_000n) });
+
+// Procedures are synchronous. They have no ctx.db: read and write through ctx.withTx.
+export const recheck = spacetimedb.procedure({ valueRecordId: t.u64() }, t.unit(), (ctx, { valueRecordId }) => {
+  const rec = ctx.withTx(tx => tx.db.valueRecord.id.find(valueRecordId));
+  const res = ctx.http.fetch('https://api.brightdata.com/request', { method: 'POST', /* ... */ }); // throws on network failure
+  ctx.withTx(tx => applyRecheck(tx, rec, res));
+  return {};
 });
 
-export const recheck = spacetimedb.procedure({ valueRecordId: t.u64() }, t.unit(), (ctx, { valueRecordId }) => {
-  const rec = ctx.withTx(tx => tx.db.value_record.id.find(valueRecordId));
-  const res = ctx.http.fetch('https://api.brightdata.com/request', { /* §7 Bright Data */ });
-  ctx.withTx(tx => applyRecheck(tx, rec, res));
+// Routes: handlers have no ctx.db and no ctx.sender. req.uri includes the query string.
+export const apify_callback = spacetimedb.httpHandler((ctx, req) => {
+  ctx.withTx(tx => { /* check the one-time token, then record */ });
+  return new SyncResponse('ok', { status: 200 });
 });
+export const routes = spacetimedb.httpRouter(new Router().post('/apify-callback', apify_callback));
 ```
 
 ### CREAO (`/skills/forge-cli`, agent setup)
@@ -411,38 +418,39 @@ const call = (reducer, body) => fetch(`${db}/call/${reducer}`, {
 
 ### Factory Droid (`/workers/droid-runner`)
 
+- `@factory/droid-sdk` 0.10 (`/node` subpath). It spawns the `droid` CLI from `PATH`, so the `droid-runner` host needs `droid` installed. Reads `FACTORY_API_KEY`.
 - Claims `compile` / `enhancement` / `warranty` tasks through `claim_task`. Creates a worktree with `/actors/template` copied to `/actors/<api>` (no secrets). Writes fixtures from the API's saved Tier 0 pages and audited values.
 - The ticket prompt is narrow: "implement `extract(page)` so fixtures, live and contract tests pass; do not change the template plumbing."
-- `createSession({cwd, autonomyLevel: 'low', disabledToolIds, permissionHandler})`. The handler auto-approves an allowlist: running tests, a local Actor run against fixtures, and live pages through Bright Data. Anything else creates `approval(droid_action)` and waits for the founder's decision.
-- Every streamed message is logged with `log_droid_event`.
-- Follow-ups on the same API use `resumeSession(id)` (the id is stored on `api_version`).
+- `createSession({cwd, autonomyLevel: AutonomyLevel.Low, disabledToolIds, permissionHandler})`. `disabledToolIds` only removes tools; the SDK has no allowlist, so the allowlist lives in `permissionHandler`. The handler gets `{toolUses: [{toolUse: {id, name, input}, details: {type, fullCommand?, filePath?}}], options}` and auto-approves: running tests, a local Actor run against fixtures, and live pages through Bright Data. Anything else creates `approval(droid_action)` and waits for the founder's decision.
+- Every streamed message (`assistant`, `tool_call`, `tool_result`, `error`, `result`) is logged with `log_droid_event`.
+- Follow-ups on the same API use `resumeSession(id)` (`session.id` is stored on `api_version.droidSessionId`). `resumeSession` reuses the original cwd, so keep the worktree path stable per API.
 - The worker, never Droid, runs `apify push`, and only after `api_ship` is approved.
 - Every tool call is logged with its outcome (`auto-allowed`, `denied`, `founder-approved`) so the Engineering tab can badge it.
 - README includes a control table: trigger | allowed tools | denied tools | needs approval | where it's visible.
 
 ```ts
-import { createSession, ToolConfirmationOutcome } from '@factory/droid-sdk/node'; // FACTORY_API_KEY; verify names
+import { createSession, AutonomyLevel, ToolConfirmationOutcome } from '@factory/droid-sdk/node';
 const session = await createSession({
-  cwd: worktree, autonomyLevel: 'low',
-  permissionHandler: async (req) =>
-    allowlisted(req) ? ToolConfirmationOutcome.ProceedOnce
-      : (await founderApproves(req)) ? ToolConfirmationOutcome.ProceedOnce
+  cwd: worktree, autonomyLevel: AutonomyLevel.Low,
+  permissionHandler: async ({ toolUses }) =>
+    allowlisted(toolUses) ? ToolConfirmationOutcome.ProceedOnce
+      : (await founderApproves(toolUses)) ? ToolConfirmationOutcome.ProceedOnce
       : ToolConfirmationOutcome.Cancel,
 });
-for await (const msg of session.stream(compilePrompt(task))) await logDroidEvent(task.id, msg);
-await session.close();
+try { for await (const msg of session.stream(compilePrompt(task))) await logDroidEvent(task.id, msg); }
+finally { await session.close(); }
 ```
 
 ### Fetch (`/fetch-agents`)
 
 - Front Desk uAgent: Chat Protocol, mailbox, published manifest, Agentverse listing, Innovation Lab category.
 - ASI-1 parses intent and classifies tickets. The agent runs layer-2 gate checks, then quotes, counteroffers or rejects.
-- Payment Protocol as seller: Stripe test mode (`payment_method="stripe"`, `metadata.stripe = {publishable key, client secret, checkout session id}`). Confirm by `stripe.checkout.Session.retrieve(id).payment_status == "paid"`. The secret key never goes in metadata. Test card 4242 4242 4242 4242. Fallback: FET testnet.
+- Payment Protocol as seller: Stripe test mode (`Funds(currency="USD", amount="1.00", payment_method="stripe")`, `metadata.stripe = {ui_mode: "embedded", publishable_key, client_secret, checkout_session_id, currency, amount_cents}` with every value a string; `CommitPayment.transaction_id` is the checkout session id). Confirm by `stripe.checkout.Session.retrieve(id).payment_status == "paid"`. The secret key never goes in metadata. Test card 4242 4242 4242 4242. Fallback: FET testnet.
 - Map each ASI:One sender to its own SpacetimeDB `customer`.
 - Poll order state and post progress. Never end the session while an order is open.
 - Gate 0 test: do delayed (agent-initiated) messages appear in ASI:One? If not, fall back to on-demand `status`.
 - Use interactive cards if supported (**verify**).
-- **Buyer agent** (`/fetch-agents/buyer`): a second uAgent with its own seed and test wallet. It searches Agentverse for a data seller, finds the Front Desk, sends a Chat Protocol request for a named API, and handles `RequestPayment` → `CommitPayment` as the buyer (`Protocol(spec=payment_protocol_spec, role="buyer")`, **verify**). It then reads the delivered dataset and logs what it bought. A single script run is enough; it doesn't need to stay online. The Front Desk treats it like any other customer: no shortcuts.
+- **Buyer agent** (`/fetch-agents/buyer`): a second uAgent with its own seed and test wallet. It searches Agentverse for a data seller, finds the Front Desk, sends a Chat Protocol request for a named API, and handles `RequestPayment` → `CommitPayment` as the buyer (`Protocol(spec=payment_protocol_spec, role="buyer")`; discovery via `POST https://agentverse.ai/v1/search/agents` with an Agentverse API key). It then reads the delivered dataset and logs what it bought. A single script run is enough; it doesn't need to stay online. The Front Desk treats it like any other customer: no shortcuts.
 
 ```python
 from uagents import Agent, Context, Protocol
@@ -473,9 +481,10 @@ agent.include(pay, publish_manifest=True)
   - For each page: fetch through Bright Data, save the page text to the key-value store (`snapshotKey`, `snapshotHash`), ask the extraction LLM for `{field, value, excerpt}` per value, run the quote anchor, and push one dataset item per value.
   - Extraction LLM: ASI-1 or Claude Haiku 5.5, picked at Gate 0 by measured verified rate; one choice, no fallback. Key stored as an Apify secret env var.
   - Pitch it as "verified extraction": every value has a verbatim quote, a saved page and a status. It never invents a value.
-- **Tier 0 APIs** are Apify Tasks of `forge-extract` (**verify** Tasks API: `POST /v2/actor-tasks`, `POST /v2/actor-tasks/{id}/runs`).
+- **Tier 0 APIs** are Apify Tasks of `forge-extract` (Tasks API: `POST /v2/actor-tasks` `{actId, name, input, options}`, `POST /v2/actor-tasks/{id}/runs`, where the body overrides input fields).
 - **Tier 1 APIs** are Actors built from `/actors/template` with versions recorded.
-- Run: `POST /v2/acts/{username~actor}/runs?token=…&webhooks=<base64 JSON>`. Status: `GET /v2/actor-runs/{id}`. Items: `GET /v2/datasets/{id}/items?clean=true`.
+- Run: `POST /v2/actors/{username~actor}/runs?webhooks=<base64 JSON array>` with `Authorization: Bearer <token>`. Status: `GET /v2/actor-runs/{id}`; `usageTotalUsd` is the run cost, and it can be preliminary right after the run ends, so re-fetch about 10 s later before booking it. Items: `GET /v2/datasets/{id}/items?clean=1`. Saved pages: `GET /v2/key-value-stores/{id}/records/{key}?attachment=1` (raw bytes, needed for hash checks).
+- Actor layout: `.actor/actor.json` (env vars reference secrets as `"@name"`), `.actor/input_schema.json`, `Dockerfile` from `apify/actor-node:24` with corepack pnpm. Deploy with `pnpm exec apify push` (the Apify CLI is a root dev dependency).
 - Store listing for `forge-extract` with pay-per-event pricing is a founder task.
 
 ```js
@@ -725,6 +734,6 @@ Never cut: the admission gate, `forge-extract` with the quote anchor, a real exi
 | Fetch.ai hackpack | https://www.fetch.ai/events/hackathons/calhacks-13-0/hackpack |
 | ASI:One | https://asi1.ai/ |
 | Apify Actors | https://docs.apify.com/platform/actors |
-| Apify Actor tasks (**verify** URL) | https://docs.apify.com/platform/actors/running/tasks |
+| Apify Actor tasks | https://docs.apify.com/platform/actors/running/tasks |
 | Bright Data Web Unlocker | https://docs.brightdata.com/products/web-unlocker/introduction |
 | Coinbase x402 | https://docs.cdp.coinbase.com/x402/welcome |
