@@ -14,7 +14,15 @@ const USAGE = `usage:
   forge verdict <orderId> <ACCEPT|REJECT> <reason...>
   forge challenge <challengeId>                  a customer challenge: the value, saved page vs fresh page
   forge challenge-verdict <challengeId> <UPHELD|REJECTED> <reason...>
-env: FORGE_DB_URL, FORGE_SEAT_TOKEN_<SEAT> (decide uses COO, verdict and challenge-verdict use AUDITOR) or FORGE_SEAT_TOKEN`;
+  forge create-api '<spec JSON>'                 COO: a new Tier 0 API over researched sources
+  forge robots <orderId> <url>                   Research: the site's robots.txt and the verdict for this URL's path
+  forge research-fetch <orderId> <url> [--find <text>]... [--max <chars>]
+                                                 Research: fetch a page through Bright Data; a second fetch compares
+  forge search <orderId> <query...>              Research: Google results through the Bright Data SERP API
+  forge gate-check <orderId> <robots|terms|reachability|volatility> <pass|fail|unclear> <citationUrl> <citationText...>
+  forge report <orderId> '<findings JSON>'       Research: {summary, sources, fields, volatility, freshnessWindowMin, confidence}
+env: FORGE_DB_URL, FORGE_SEAT_TOKEN_<SEAT> (decide and create-api use COO; verdict and challenge-verdict use AUDITOR;
+     robots, research-fetch, search, gate-check and report use RESEARCH) or FORGE_SEAT_TOKEN`;
 
 class CliError extends Error {}
 
@@ -77,6 +85,7 @@ async function call(seat, reducer, args) {
   });
   const body = await r.text();
   if (!r.ok) throw new CliError(`${reducer} failed (${r.status}): ${body || r.statusText}`);
+  return body;
 }
 
 function id(s, what = 'id') {
@@ -98,6 +107,10 @@ async function order(orderId) {
     o.apiId === null ? [] : sql(`SELECT * FROM api WHERE id = ${o.apiId}`),
   ]);
   const ev = evidence.filter((e) => e.orderId === orderId);
+  const [fetches, reports] = await Promise.all([
+    sql(`SELECT * FROM research_page WHERE order_id = ${orderId}`),
+    sql(`SELECT * FROM research_findings WHERE order_id = ${orderId}`),
+  ]);
   return {
     order: {
       id: o.id, ref: o.ref, status: o.status, requestText: o.requestText, intent: parseJson(o.intent, o.intent),
@@ -108,6 +121,20 @@ async function order(orderId) {
     },
     gateChecks: gates.filter((g) => g.orderId === orderId)
       .map(({ check, result, citationUrl, citationText, at }) => ({ check, result, citationUrl, citationText, at })),
+    research: {
+      fetches: fetches.sort((a, b) => a.id - b.id).map(({ id: pid, kind, target, url, ok, httpStatus, reason, chars, summary, fetchedAt }) => {
+        const s = parseJson(summary, {});
+        return {
+          id: pid, kind, target, url, ok, httpStatus, reason: reason || null, chars, fetchedAt,
+          ...(kind === 'robots' ? { allowed: s.allowed, rule: s.rule ?? null } : {}),
+          ...(s.compare ? { compare: { secondsApart: s.compare.secondsApart, changedLines: s.compare.changedLines, numbersChanged: s.compare.numbersChanged, suggested: s.compare.suggested } } : {}),
+        };
+      }),
+      reports: reports.map((r) => ({
+        id: r.id, summary: r.summary, sources: parseJson(r.sources, []), fields: parseJson(r.fields, []), volatility: r.volatility,
+        freshnessWindowMin: r.freshnessWindowMin, confidence: r.confidenceBp / 10_000, checks: parseJson(r.checks, {}), createdAt: r.createdAt,
+      })),
+    },
     valueCounts: countBy(values, 'status'),
     values: values.sort((a, b) => a.row - b.row || a.id - b.id)
       .map(({ id: vid, row, entity, metric, value, excerpt, sourceUrl, status, freshValue }) =>
@@ -205,9 +232,75 @@ const NEXT = {
   },
   research_gate: {
     role: 'research',
-    steps: ['Gate 2: the research commands are not built yet. Run `forge order <orderId>` and report what you would check.'],
+    steps: [
+      'Run `forge order <orderId>`: read requestText and intent (the sources and fields asked for). Find a public source with `forge search <orderId> <query>` if none is named.',
+      'robots: `forge robots <orderId> <source URL>`, then `forge gate-check <orderId> robots <pass|fail> <robotsUrl> "<the deciding line, or User-agent: *>"`.',
+      'terms: find the terms page (`forge search <orderId> "<site> terms of use"`), fetch it with `forge research-fetch <orderId> <terms URL> --find scrap --find automated --find robot --find crawl`, and record `forge gate-check <orderId> terms <pass|fail|unclear> <terms URL> "<clause quoted verbatim>"`. No clear clause: unclear.',
+      'reachability: `forge research-fetch <orderId> <source URL> --find "<a requested value>"`; record `forge gate-check <orderId> reachability <pass|fail> <source URL> "<a verbatim snippet showing the data, or the login wall>"`.',
+      'volatility: wait at least 2 minutes after the first source fetch (sleep 150), fetch the same URL again and read `compare`; record `forge gate-check <orderId> volatility pass <source URL> "<what changed: lines, numbers, suggested>"`.',
+      'Finish with `forge report <orderId> \'{"summary":"...","sources":["<url>"],"fields":["<field>"],"volatility":"stable|volatile","freshnessWindowMin":0,"confidence":0.8}\'`.',
+    ],
   },
 };
+
+// A coo_triage task queued by research_report: the gate findings are in, so the COO decides on them.
+const AFTER_RESEARCH = [
+  'Run `forge order <orderId>`: read gateChecks (robots, terms, reachability, volatility, each with its citation) and research.reports.',
+  'If robots, terms and reachability all pass: `forge create-api \'<spec JSON>\'` over the reported sources and fields, then `forge decide <orderId> ACCEPT <name> "<reason>"`.',
+  'If the scope is larger than the page cap: `forge decide <orderId> COUNTEROFFER - "<the smaller scope>"`.',
+  'Otherwise `forge decide <orderId> REJECT - "<the failing check, quoting its citation and URL>"`. A terms check that is unclear is a rejection.',
+];
+
+function flags(args, names) {
+  const out = { rest: [] };
+  for (let i = 0; i < args.length; i++) {
+    const name = args[i].startsWith('--') ? args[i].slice(2) : null;
+    if (name && names.includes(name)) {
+      if (args[i + 1] === undefined) throw new CliError(`--${name} needs a value`);
+      (out[name] ??= []).push(args[++i]);
+    } else out.rest.push(args[i]);
+  }
+  return out;
+}
+
+const TEXT_DEFAULT = 4_000;
+const FIND_CONTEXT = 300;
+const FIND_MAX = 8;
+
+// research_fetch returns the whole page text; print a bounded slice plus passages around each --find.
+function pageView(res, finds = [], max = TEXT_DEFAULT) {
+  const { text = '', ...rest } = res;
+  const flat = text.replace(/\s+/g, ' ');
+  const low = flat.toLowerCase();
+  const found = finds.map((f) => {
+    const needle = f.toLowerCase();
+    const at = [];
+    for (let i = low.indexOf(needle); i >= 0 && at.length < FIND_MAX; i = low.indexOf(needle, i + needle.length)) at.push(i);
+    return { find: f, matches: at.length, passages: at.map((i) => flat.slice(Math.max(0, i - FIND_CONTEXT), i + needle.length + FIND_CONTEXT)) };
+  });
+  return { ...rest, text: flat.slice(0, max), textShown: Math.min(max, flat.length), ...(finds.length ? { found } : {}) };
+}
+
+async function procedure(seat, name, args) {
+  const body = await call(seat, name, args);
+  const v = parseJson(body, null);
+  return typeof v === 'string' ? parseJson(v, v) : v;
+}
+
+async function researchFetch(kind, orderId, target, view) {
+  const res = await procedure('research', 'research_fetch', [orderId, kind, target]);
+  if (!res || typeof res !== 'object') throw new CliError(`research_fetch returned ${JSON.stringify(res)}`);
+  return view(res);
+}
+
+function report(orderId, raw) {
+  const f = parseJson(raw, null);
+  if (!f || typeof f !== 'object' || Array.isArray(f)) throw new CliError('findings must be a JSON object: {summary, sources, fields, volatility, freshnessWindowMin, confidence}');
+  const confidence = Number(f.confidence);
+  if (!Number.isFinite(confidence)) throw new CliError('findings.confidence must be a number between 0 and 1');
+  return [orderId, String(f.summary ?? ''), JSON.stringify(f.sources ?? []), JSON.stringify(f.fields ?? []),
+    String(f.volatility ?? ''), Math.max(0, Math.round(Number(f.freshnessWindowMin ?? 0)) || 0), confidence];
+}
 
 function task(raw) {
   if (!raw) throw new CliError('no task: pass the task JSON as an argument or set FORGE_TASK');
@@ -218,10 +311,13 @@ function task(raw) {
   const orderId = String(t.orderId ?? t.input?.orderId ?? '');
   const challengeId = String(t.input?.challengeId ?? '');
   const fill = (s) => [['<orderId>', orderId], ['<challengeId>', challengeId]].reduce((acc, [k, v]) => (v ? acc.replaceAll(k, v) : acc), s);
+  const steps = t.kind === 'coo_triage' && t.input?.researchReportId ? AFTER_RESEARCH : next.steps;
   return {
     kind: t.kind, taskId: t.taskId ?? null, orderId: orderId || null, ...(challengeId ? { challengeId } : {}), role: next.role, input: t.input ?? {},
-    next: next.steps.map(fill),
-    rule: 'Act only through forge commands. A run that ends without a decide/verdict/challenge-verdict call fails the task.',
+    next: steps.map(fill),
+    rule: t.kind === 'research_gate'
+      ? 'Act only through forge commands. Research never accepts or rejects an order; a run that ends without forge report fails the task.'
+      : 'Act only through forge commands. A run that ends without a decide/verdict/challenge-verdict call fails the task.',
   };
 }
 
@@ -252,6 +348,52 @@ async function main(argv) {
       const challengeId = id(cid, 'challengeId');
       await call('auditor', 'challenge_verdict', [challengeId, verdict, reason.join(' ')]);
       return { ok: true, challengeId, verdict, ...(await challenge(challengeId)) };
+    }
+    case 'create-api': {
+      const spec = parseJson(a.join(' '), null);
+      if (!spec || typeof spec !== 'object') throw new CliError("usage: forge create-api '<spec JSON>' with name, description, sources, outputSchema, volatility, freshnessWindowMin, pageCap, instructions");
+      await call('coo', 'create_api', [JSON.stringify(spec), '', 'task']);
+      const [api] = (await catalog()).filter((x) => x.name === spec.name);
+      return { ok: true, api, note: 'The Apify Task is created in the background; an order accepted on this API starts once it exists.' };
+    }
+    case 'robots': {
+      const [oid, url] = a;
+      if (!url) throw new CliError('usage: forge robots <orderId> <url>');
+      return researchFetch('robots', id(oid, 'orderId'), url, (r) => {
+        const { text = '', ...rest } = r;
+        return { ...rest, robotsTxt: text.slice(0, 8_000) };
+      });
+    }
+    case 'research-fetch': {
+      const { rest, find = [], max = [] } = flags(a, ['find', 'max']);
+      const [oid, url] = rest;
+      if (!url) throw new CliError('usage: forge research-fetch <orderId> <url> [--find <text>]... [--max <chars>]');
+      const limit = max.length ? Number(max.at(-1)) : TEXT_DEFAULT;
+      if (!Number.isInteger(limit) || limit < 0) throw new CliError('--max must be a whole number of characters');
+      return researchFetch('page', id(oid, 'orderId'), url, (r) => pageView(r, find, limit));
+    }
+    case 'search': {
+      const [oid, ...q] = a;
+      if (!q.length) throw new CliError('usage: forge search <orderId> <query...>');
+      return researchFetch('search', id(oid, 'orderId'), q.join(' '), (r) => {
+        const { text, ...rest } = r;
+        return { ...rest, results: r.results ?? [] };
+      });
+    }
+    case 'gate-check': {
+      const [oid, check, result, citationUrl, ...quote] = a;
+      if (!citationUrl || !quote.length) throw new CliError('usage: forge gate-check <orderId> <robots|terms|reachability|volatility> <pass|fail|unclear> <citationUrl> <citationText...>');
+      const orderId = id(oid, 'orderId');
+      await call('research', 'record_gate_check', [orderId, check, result, citationUrl, quote.join(' ')]);
+      return { ok: true, orderId, check, result, gateChecks: (await order(orderId)).gateChecks };
+    }
+    case 'report': {
+      const [oid, ...json] = a;
+      if (!json.length) throw new CliError("usage: forge report <orderId> '<findings JSON>'");
+      const orderId = id(oid, 'orderId');
+      await call('research', 'research_report', report(orderId, json.join(' ')));
+      const o = await order(orderId);
+      return { ok: true, orderId, order: o.order, report: o.research.reports.at(-1) };
     }
     case undefined: case 'help': case '--help': case '-h':
       return { usage: USAGE };

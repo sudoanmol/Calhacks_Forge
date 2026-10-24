@@ -181,3 +181,89 @@ test('challenge-verdict surfaces reducer errors: invalid verdict, wrong seat, no
   assert.equal(done.code, 1);
   assert.match(done.err.error, /is rejected, not auditing/);
 });
+
+test('research commands: usage errors, seat checks and a non-researching order', async () => {
+  for (const args of [['robots', '1'], ['research-fetch', '1'], ['search', '1'], ['gate-check', '1', 'robots', 'pass', 'https://x.com/robots.txt'], ['report', '1'], ['create-api', 'not json']]) {
+    const r = await forge(seat('research'), ...args);
+    assert.equal(r.code, 1, args.join(' '));
+    assert.match(r.err.error, /usage: forge/);
+  }
+  const wrongSeat = await forge(seat('coo'), 'robots', '1', 'https://www.ycombinator.com/companies/airbnb');
+  assert.match(wrongSeat.err.error, /research_fetch failed \(5\d\d\): .*role coo may not do this/);
+  const notResearching = await forge(seat('research'), 'robots', '1', 'https://www.ycombinator.com/companies/airbnb');
+  assert.match(notResearching.err.error, /order 1 is \w+; research fetches are only for an order in researching/);
+  const noSeat = await runCli({ FORGE_SEAT_TOKEN_COO: seat('coo') }, 'search', '1', 'anything');
+  assert.match(noSeat.err.error, /FORGE_SEAT_TOKEN_RESEARCH is not set/);
+});
+
+test('research flow through the CLI on a canary order: robots, search, fetch with --find, gate checks, report', { timeout: 4 * 60_000 }, async () => {
+  const ref = `cli-research-${Date.now()}`;
+  const canary = seat('canary');
+  await call(canary, 'create_order', [ref, 'canary', 'YC company page for Airbnb: name, batch, status', '{"origin":"cli test"}', 0]);
+  await call(canary, 'record_payment', [ref, 'canary-no-payment']);
+  const [[orderId]] = await sqlRows(canary, `SELECT id FROM orders WHERE ref = '${ref}'`);
+  const oid = String(orderId);
+  const src = 'https://www.ycombinator.com/companies/airbnb';
+  try {
+    const d = await forge(seat('coo'), 'decide', oid, 'REQUEST_RESEARCH', '-', 'CLI test: research the YC page.');
+    assert.equal(d.code, 0, JSON.stringify(d.err));
+    assert.equal(d.out.order.status, 'researching');
+
+    const robots = await runCli({ FORGE_SEAT_TOKEN_RESEARCH: seat('research') }, 'robots', oid, src);
+    assert.equal(robots.code, 0, JSON.stringify(robots.err));
+    assert.equal(robots.out.url, 'https://www.ycombinator.com/robots.txt');
+    assert.equal(robots.out.allowed, true);
+    assert.equal(robots.out.rule, 'Allow: /');
+    assert.match(robots.out.robotsTxt, /Disallow: \/companies\?\*/);
+    assert.equal(robots.out.text, undefined, 'robots prints robotsTxt, not the raw text field');
+
+    const query = ['ycombinator', 'terms', 'of', 'use'];
+    let search = await forge(seat('research'), 'search', oid, ...query);
+    // Bright Data SERP refuses a query for at least 15 s after it last failed upstream.
+    if (search.code === 0 && !search.out.ok && /try again later/i.test(search.out.reason)) {
+      assert.deepEqual(search.out.results, []);
+      await new Promise((r) => setTimeout(r, 16_000));
+      search = await forge(seat('research'), 'search', oid, ...query);
+    }
+    assert.equal(search.code, 0, JSON.stringify(search.err));
+    assert.equal(search.out.ok, true, search.out.reason);
+    assert.ok(search.out.results.length >= 3);
+    assert.equal(search.out.text, undefined);
+
+    const page = await forge(seat('research'), 'research-fetch', oid, src, '--find', 'Winter 2009', '--max', '200');
+    assert.equal(page.code, 0, JSON.stringify(page.err));
+    assert.equal(page.out.ok, true, page.out.reason);
+    assert.ok(page.out.text.length <= 200);
+    assert.ok(page.out.chars > 1000);
+    const [hit] = page.out.found;
+    assert.equal(hit.find, 'Winter 2009');
+    assert.ok(hit.matches >= 1, 'the batch is on the page');
+    const snippet = hit.passages[0].slice(hit.passages[0].indexOf('Winter 2009') - 20, hit.passages[0].indexOf('Winter 2009') + 11);
+
+    const g1 = await forge(seat('research'), 'gate-check', oid, 'robots', 'pass', robots.out.url, 'Allow: /');
+    assert.equal(g1.code, 0, JSON.stringify(g1.err));
+    assert.ok(g1.out.gateChecks.some((g) => g.check === 'robots' && g.result === 'pass'));
+    const bad = await forge(seat('research'), 'gate-check', oid, 'reachability', 'pass', src, 'Founded in 1999 by robots');
+    assert.match(bad.err.error, /not on the page fetched/);
+    assert.equal((await forge(seat('research'), 'gate-check', oid, 'reachability', 'pass', src, snippet)).code, 0);
+    assert.equal((await forge(seat('research'), 'gate-check', oid, 'terms', 'unclear', src, 'CLI test: no terms page fetched.')).code, 0);
+    assert.equal((await forge(seat('research'), 'gate-check', oid, 'volatility', 'unclear', src, 'CLI test: fetched once, not measured.')).code, 0);
+
+    const o = await forge(seat('research'), 'order', oid);
+    assert.deepEqual([...new Set(o.out.research.fetches.map((f) => f.kind))], ['robots', 'search', 'page']);
+    assert.equal(o.out.research.fetches[0].allowed, true);
+
+    const rep = await forge(seat('research'), 'report', oid, JSON.stringify({ summary: 'CLI test report.', sources: [src], fields: ['name', 'batch'], volatility: 'stable', freshnessWindowMin: 0, confidence: 0.5 }));
+    assert.equal(rep.code, 0, JSON.stringify(rep.err));
+    assert.equal(rep.out.order.status, 'triaging');
+    assert.equal(rep.out.report.checks.terms.result, 'unclear');
+    assert.deepEqual(rep.out.report.fields, ['name', 'batch']);
+
+    const t = await forge(seat('coo'), 'task', JSON.stringify({ kind: 'coo_triage', taskId: '1', orderId: oid, input: { orderId: oid, researchReportId: String(rep.out.report.id) } }));
+    assert.ok(t.out.next.some((s) => s.includes('forge create-api')));
+    const create = await forge(seat('coo'), 'create-api', JSON.stringify({ name: `cli-${Date.now()}`, description: 'x', sources: [src], outputSchema: { type: 'object', properties: { name: { type: 'string' } } }, volatility: 'stable', pageCap: 1 }));
+    assert.match(create.err.error, /ycombinator.com has no research report with robots, terms and reachability all passing/);
+  } finally {
+    await forge(seat('coo'), 'decide', oid, 'REJECT', '-', 'CLI test cleanup: the terms check is unclear.');
+  }
+});
