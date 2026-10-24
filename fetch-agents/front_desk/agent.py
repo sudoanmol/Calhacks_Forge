@@ -58,14 +58,24 @@ def _text(body: str, end: bool = False) -> ChatMessage:
     return ChatMessage(timestamp=_now(), msg_id=uuid4(), content=content)
 
 
+def _log(ctx: Context, direction: str, peer: str, what: str) -> None:
+    ctx.logger.info(f"{_now().isoformat(timespec='seconds')} {direction} {peer[:16]} {what[:80]!r}")
+
+
+async def send(ctx: Context, to: str, message, what: str) -> None:
+    status = await ctx.send(to, message)
+    _log(ctx, f"OUT[{getattr(status, 'status', status)}]", to, what)
+
+
 async def reply(ctx: Context, to: str, body: str) -> None:
-    await ctx.send(to, _text(body))
+    await send(ctx, to, _text(body), body)
 
 
 @chat.on_message(ChatMessage)
 async def on_chat(ctx: Context, sender: str, msg: ChatMessage) -> None:
     await ctx.send(sender, ChatAcknowledgement(timestamp=_now(), acknowledged_msg_id=msg.msg_id))
     text = strip_mentions(" ".join(c.text for c in msg.content if isinstance(c, TextContent)))
+    _log(ctx, "IN", sender, text)
     if not text:
         return
     pending = ctx.storage.get(f"quote:{sender}")
@@ -126,20 +136,21 @@ async def request_payment(ctx: Context, sender: str, quote: dict) -> None:
         create_checkout, amount_cents=quote["cents"], description=quote["summary"], reference=reference, customer=sender)
     ctx.storage.set(f"checkout:{checkout['checkout_session_id']}", {"sender": sender, "quote": quote, "reference": reference})
     # ASI:One renders the card from RequestPayment, so it goes before the chat text.
-    await ctx.send(sender, RequestPayment(
+    await send(ctx, sender, RequestPayment(
         accepted_funds=[Funds(currency="USD", amount=f"{quote['cents'] / 100:.2f}", payment_method="stripe")],
         recipient=str(ctx.agent.address),
         deadline_seconds=300,
         reference=reference,
         description=f"FORGE (TEST MODE): {quote['summary']}",
         metadata={"stripe": checkout, "service": "forge_data_api"},
-    ))
+    ), "RequestPayment")
     await reply(ctx, sender, "TEST MODE payment card above. Use card 4242 4242 4242 4242, any future date, any CVC.")
 
 
 @pay.on_message(CommitPayment)
 async def on_commit(ctx: Context, sender: str, msg: CommitPayment) -> None:
     session_id = msg.transaction_id
+    _log(ctx, "IN", sender, f"CommitPayment {str(session_id)[:14]}")
     record = ctx.storage.get(f"checkout:{session_id}") if session_id else None
     if not record or record["sender"] != sender:
         await ctx.send(sender, RejectPayment(reason="Unknown payment session."))
@@ -147,13 +158,14 @@ async def on_commit(ctx: Context, sender: str, msg: CommitPayment) -> None:
     if not await asyncio.to_thread(is_paid, session_id):
         await ctx.send(sender, RejectPayment(reason="Stripe has not marked this checkout as paid yet."))
         return
-    await ctx.send(sender, CompletePayment(transaction_id=session_id))
+    await send(ctx, sender, CompletePayment(transaction_id=session_id), "CompletePayment")
     ctx.storage.remove(f"quote:{sender}")
     await reply(ctx, sender, f"Payment confirmed (TEST MODE). Order for **{record['quote']['summary']}** is queued.")
 
 
 @pay.on_message(RejectPayment)
 async def on_reject(ctx: Context, sender: str, msg: RejectPayment) -> None:
+    _log(ctx, "IN", sender, f"RejectPayment {msg.reason or ''}")
     await reply(ctx, sender, f"Payment cancelled{f': {msg.reason}' if msg.reason else ''}. Reply **pay** to try again.")
 
 
