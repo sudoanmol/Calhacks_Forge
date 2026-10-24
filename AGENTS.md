@@ -693,7 +693,7 @@ Never cut: the admission gate, `forge-extract` with the quote anchor, a real exi
 
 ## 13. Submission checklist
 
-- [ ] Devpost submitted by 8:15 AM Sun with tracks: Factory Droid SDK, Fetch.ai, CREAO: exactly one track (One-Person Company or AI-First Disruptor; founder picks), SpacetimeDB, Apify (+ Best Actor with `forge-extract`), Bright Data, Coinbase x402 (if eligible), Microsoft Built for the Real World, Best Solo Hack.
+- [ ] Devpost submitted by 8:15 AM Sun with tracks: Factory Droid SDK, Fetch.ai, CREAO: Best One-Person Company (founder's pick; one track only), SpacetimeDB, Apify (+ Best Actor with `forge-extract`), Bright Data, Coinbase x402 (if eligible), Microsoft Built for the Real World, Best Solo Hack.
 - [ ] Public GitHub repo. Demo video on Devpost (required).
 - [ ] README with one section per sponsor: what it does here, what breaks without it, and where to see it.
 - [ ] CREAO: all four agent IDs and run share links in the README; an agent shown running in the demo; one cited rejection and one compile decision linked.
@@ -711,7 +711,7 @@ Never cut: the admission gate, `forge-extract` with the quote anchor, a real exi
 | Who | Question | Answer |
 |---|---|---|
 | Organizers | Is a solo founder eligible? Student eligibility? | Solo is allowed. Student eligibility not yet confirmed. |
-| CREAO | Can one project enter both AI-First Disruptor and One-Person Company? | No. Only one CREAO track per project. Founder still picks which. |
+| CREAO | Can one project enter both AI-First Disruptor and One-Person Company? | No. Only one CREAO track per project. Founder picked Best One-Person Company. |
 | Fetch | Is data delivered in chat with a dataset link fine? Do delayed messages show in ASI:One? Which payment method renders? | Tested Sat Oct 24: Stripe test mode renders in ASI:One and a 4242 payment completed end to end (CommitPayment → `Session.retrieve` paid → CompletePayment). ASI:One needs `@agent1…` on every message, and its own assistant replies to agent messages, so the Front Desk strips mentions and ignores chatter. Delayed messages: **not shown in ASI:One**. A follow-up sent 69 s after the quote was accepted by Agentverse (`DELIVERED`) but never appeared in the chat. Use the on-demand `status` fallback (§7). Dataset-link delivery: not yet asked. |
 | SpacetimeDB | Are procedures and HTTP routes stable on Maincloud this weekend? | |
 | Apify | Does an LLM-based generic extractor (with quote verification) qualify for Best Actor? Do Droid-compiled Actors and later edits affect eligibility? Are Tasks a good fit for "an API per request"? | |
