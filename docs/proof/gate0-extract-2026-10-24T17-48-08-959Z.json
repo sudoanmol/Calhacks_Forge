@@ -1,0 +1,606 @@
+{
+  "measuredAt": "2026-10-24T17:48:08.959Z",
+  "totals": {
+    "asi1/asi1": {
+      "total": 195,
+      "verified": 195,
+      "verifiedRate": 1
+    },
+    "anthropic/claude-haiku-5-5": {
+      "total": 305,
+      "verified": 299,
+      "verifiedRate": 0.980327868852459
+    }
+  },
+  "results": [
+    {
+      "target": "open-roles (Greenhouse job-board API)",
+      "url": "https://boards-api.greenhouse.io/v1/boards/stripe/jobs",
+      "fetch": {
+        "method": "unlocker",
+        "country": "us",
+        "attempts": [
+          {
+            "method": "unlocker",
+            "country": "us",
+            "status": 200,
+            "ms": 7090,
+            "ok": true,
+            "reason": null
+          }
+        ],
+        "chars": 448764
+      },
+      "refetch": "ok",
+      "perLLM": [
+        {
+          "provider": "asi1",
+          "model": "asi1",
+          "ms": 144476,
+          "usage": {
+            "inputTokens": 17392,
+            "outputTokens": 47275
+          },
+          "error": null,
+          "truncated": true,
+          "total": 190,
+          "extracted": 190,
+          "unverifiable": 0,
+          "anchorRate": 1,
+          "verified": 190,
+          "verifiedRate": 1,
+          "sample": [
+            {
+              "row": 0,
+              "entity": "Abuse Investigator (job id 8172510)",
+              "metric": "title",
+              "value": "Abuse Investigator",
+              "excerpt": "\"title\":\"Abuse Investigator\"",
+              "sourceUrl": "https://boards-api.greenhouse.io/v1/boards/stripe/jobs",
+              "snapshotHash": "feb2814f4e1104127603faae1b12c3b2c09e3a1a5005666127eb12a316ec8d7a",
+              "observedAt": "2026-10-24T17:40:20.492Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 0,
+              "entity": "Abuse Investigator (job id 8172510)",
+              "metric": "location",
+              "value": "Seattle, San Francisco, New York City",
+              "excerpt": "\"location\":{\"name\":\"Seattle, San Francisco, New York City\"}",
+              "sourceUrl": "https://boards-api.greenhouse.io/v1/boards/stripe/jobs",
+              "snapshotHash": "feb2814f4e1104127603faae1b12c3b2c09e3a1a5005666127eb12a316ec8d7a",
+              "observedAt": "2026-10-24T17:40:20.492Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 1,
+              "entity": "Abuse Investigator (job id 8172508)",
+              "metric": "title",
+              "value": "Abuse Investigator",
+              "excerpt": "\"title\":\"Abuse Investigator\"",
+              "sourceUrl": "https://boards-api.greenhouse.io/v1/boards/stripe/jobs",
+              "snapshotHash": "feb2814f4e1104127603faae1b12c3b2c09e3a1a5005666127eb12a316ec8d7a",
+              "observedAt": "2026-10-24T17:40:20.492Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 1,
+              "entity": "Abuse Investigator (job id 8172508)",
+              "metric": "location",
+              "value": "Dublin",
+              "excerpt": "\"location\":{\"name\":\"Dublin\"},\"metadata\":null,\"id\":8172508",
+              "sourceUrl": "https://boards-api.greenhouse.io/v1/boards/stripe/jobs",
+              "snapshotHash": "feb2814f4e1104127603faae1b12c3b2c09e3a1a5005666127eb12a316ec8d7a",
+              "observedAt": "2026-10-24T17:40:20.492Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 2,
+              "entity": "Abuse Investigator (job id 8172487)",
+              "metric": "title",
+              "value": "Abuse Investigator",
+              "excerpt": "\"title\":\"Abuse Investigator\"",
+              "sourceUrl": "https://boards-api.greenhouse.io/v1/boards/stripe/jobs",
+              "snapshotHash": "feb2814f4e1104127603faae1b12c3b2c09e3a1a5005666127eb12a316ec8d7a",
+              "observedAt": "2026-10-24T17:40:20.492Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            }
+          ],
+          "notVerified": []
+        },
+        {
+          "provider": "anthropic",
+          "model": "claude-haiku-5-5",
+          "ms": 41053,
+          "usage": {
+            "inputTokens": 25837,
+            "outputTokens": 14477
+          },
+          "error": null,
+          "truncated": true,
+          "total": 190,
+          "extracted": 184,
+          "unverifiable": 6,
+          "anchorRate": 0.968421052631579,
+          "verified": 184,
+          "verifiedRate": 0.968421052631579,
+          "sample": [
+            {
+              "row": 0,
+              "entity": "Abuse Investigator (8172510)",
+              "metric": "title",
+              "value": "Abuse Investigator",
+              "excerpt": "\"requisition_id\":\"See Opening ID\",\"title\":\"Abuse Investigator\"",
+              "sourceUrl": "https://boards-api.greenhouse.io/v1/boards/stripe/jobs",
+              "snapshotHash": "feb2814f4e1104127603faae1b12c3b2c09e3a1a5005666127eb12a316ec8d7a",
+              "observedAt": "2026-10-24T17:42:45.180Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 0,
+              "entity": "Abuse Investigator (8172510)",
+              "metric": "location",
+              "value": "Seattle, San Francisco, New York City",
+              "excerpt": "\"location\":{\"name\":\"Seattle, San Francisco, New York City\"}",
+              "sourceUrl": "https://boards-api.greenhouse.io/v1/boards/stripe/jobs",
+              "snapshotHash": "feb2814f4e1104127603faae1b12c3b2c09e3a1a5005666127eb12a316ec8d7a",
+              "observedAt": "2026-10-24T17:42:45.180Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 1,
+              "entity": "Abuse Investigator (8172508)",
+              "metric": "title",
+              "value": "Abuse Investigator",
+              "excerpt": "\"title\":\"Abuse Investigator\",\"company_name\":\"Stripe\",\"first_published\":\"2026-09-03T13:32:53-04:00\"",
+              "sourceUrl": "https://boards-api.greenhouse.io/v1/boards/stripe/jobs",
+              "snapshotHash": "feb2814f4e1104127603faae1b12c3b2c09e3a1a5005666127eb12a316ec8d7a",
+              "observedAt": "2026-10-24T17:42:45.180Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 1,
+              "entity": "Abuse Investigator (8172508)",
+              "metric": "location",
+              "value": "Dublin",
+              "excerpt": "\"location\":{\"name\":\"Dublin\"},\"metadata\":null,\"id\":8172508",
+              "sourceUrl": "https://boards-api.greenhouse.io/v1/boards/stripe/jobs",
+              "snapshotHash": "feb2814f4e1104127603faae1b12c3b2c09e3a1a5005666127eb12a316ec8d7a",
+              "observedAt": "2026-10-24T17:42:45.180Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 2,
+              "entity": "Abuse Investigator (8172487)",
+              "metric": "title",
+              "value": "Abuse Investigator",
+              "excerpt": "\"title\":\"Abuse Investigator\",\"company_name\":\"Stripe\",\"first_published\":\"2026-09-03T13:30:34-04:00\"",
+              "sourceUrl": "https://boards-api.greenhouse.io/v1/boards/stripe/jobs",
+              "snapshotHash": "feb2814f4e1104127603faae1b12c3b2c09e3a1a5005666127eb12a316ec8d7a",
+              "observedAt": "2026-10-24T17:42:45.180Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            }
+          ],
+          "notVerified": [
+            {
+              "row": 26,
+              "entity": "Account Executive, Enterprise Platforms (Grower) (7576967)",
+              "metric": "location",
+              "value": "San Francisco, CA; Chicago, IL & New York, NY",
+              "excerpt": "\"location\":{\"name\":\"San Francisco, CA; Chicago, IL \\u0026 New York, NY\"}",
+              "sourceUrl": "https://boards-api.greenhouse.io/v1/boards/stripe/jobs",
+              "snapshotHash": "feb2814f4e1104127603faae1b12c3b2c09e3a1a5005666127eb12a316ec8d7a",
+              "observedAt": "2026-10-24T17:42:45.180Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "unverifiable"
+            },
+            {
+              "row": 50,
+              "entity": "Account Executive Product - Fraud & Risk (8271657)",
+              "metric": "title",
+              "value": "Account Executive Product - Fraud & Risk ",
+              "excerpt": "\"title\":\"Account Executive Product - Fraud \\u0026 Risk \"",
+              "sourceUrl": "https://boards-api.greenhouse.io/v1/boards/stripe/jobs",
+              "snapshotHash": "feb2814f4e1104127603faae1b12c3b2c09e3a1a5005666127eb12a316ec8d7a",
+              "observedAt": "2026-10-24T17:42:45.180Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "unverifiable"
+            },
+            {
+              "row": 51,
+              "entity": "Account Executive Product - Fraud & Risk (8181024)",
+              "metric": "title",
+              "value": "Account Executive Product - Fraud & Risk ",
+              "excerpt": "\"title\":\"Account Executive Product - Fraud \\u0026 Risk \"",
+              "sourceUrl": "https://boards-api.greenhouse.io/v1/boards/stripe/jobs",
+              "snapshotHash": "feb2814f4e1104127603faae1b12c3b2c09e3a1a5005666127eb12a316ec8d7a",
+              "observedAt": "2026-10-24T17:42:45.180Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "unverifiable"
+            },
+            {
+              "row": 54,
+              "entity": "Account Executive, Product - Issuing & Treasury (Grower) (8190044)",
+              "metric": "title",
+              "value": "Account Executive, Product - Issuing & Treasury (Grower)",
+              "excerpt": "\"title\":\"Account Executive, Product - Issuing \\u0026 Treasury (Grower)\"",
+              "sourceUrl": "https://boards-api.greenhouse.io/v1/boards/stripe/jobs",
+              "snapshotHash": "feb2814f4e1104127603faae1b12c3b2c09e3a1a5005666127eb12a316ec8d7a",
+              "observedAt": "2026-10-24T17:42:45.180Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "unverifiable"
+            },
+            {
+              "row": 55,
+              "entity": "Account Executive, Product - Issuing & Treasury (Hunter) (8238098)",
+              "metric": "title",
+              "value": "Account Executive, Product - Issuing & Treasury (Hunter)",
+              "excerpt": "\"title\":\"Account Executive, Product - Issuing \\u0026 Treasury (Hunter)\"",
+              "sourceUrl": "https://boards-api.greenhouse.io/v1/boards/stripe/jobs",
+              "snapshotHash": "feb2814f4e1104127603faae1b12c3b2c09e3a1a5005666127eb12a316ec8d7a",
+              "observedAt": "2026-10-24T17:42:45.180Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "unverifiable"
+            },
+            {
+              "row": 58,
+              "entity": "Account Executive, Product - Link: Bank Payments & Open Banking (8289847)",
+              "metric": "title",
+              "value": "Account Executive, Product - Link: Bank Payments & Open Banking",
+              "excerpt": "\"title\":\"Account Executive, Product - Link: Bank Payments \\u0026 Open Banking\"",
+              "sourceUrl": "https://boards-api.greenhouse.io/v1/boards/stripe/jobs",
+              "snapshotHash": "feb2814f4e1104127603faae1b12c3b2c09e3a1a5005666127eb12a316ec8d7a",
+              "observedAt": "2026-10-24T17:42:45.180Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "unverifiable"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "target": "yc-directory (YC company page)",
+      "url": "https://www.ycombinator.com/companies/airbnb",
+      "fetch": {
+        "method": "unlocker",
+        "country": "us",
+        "attempts": [
+          {
+            "method": "unlocker",
+            "country": "us",
+            "status": 200,
+            "ms": 4372,
+            "ok": true,
+            "reason": null
+          }
+        ],
+        "chars": 5609
+      },
+      "refetch": "ok",
+      "perLLM": [
+        {
+          "provider": "asi1",
+          "model": "asi1",
+          "ms": 3925,
+          "usage": {
+            "inputTokens": 1734,
+            "outputTokens": 1035
+          },
+          "error": null,
+          "truncated": false,
+          "total": 5,
+          "extracted": 5,
+          "unverifiable": 0,
+          "anchorRate": 1,
+          "verified": 5,
+          "verifiedRate": 1,
+          "sample": [
+            {
+              "row": 0,
+              "entity": "Airbnb",
+              "metric": "name",
+              "value": "Airbnb",
+              "excerpt": "Home › Companies › Airbnb\nAirbnb\nBook accommodations around the world.",
+              "sourceUrl": "https://www.ycombinator.com/companies/airbnb",
+              "snapshotHash": "7046acbf2bc4cdfd64b09bc84db53f575749c83b196df8430d60ea427cd6bd02",
+              "observedAt": "2026-10-24T17:43:32.750Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 0,
+              "entity": "Airbnb",
+              "metric": "one_liner",
+              "value": "Book accommodations around the world.",
+              "excerpt": "Airbnb\nBook accommodations around the world.\nWinter 2009",
+              "sourceUrl": "https://www.ycombinator.com/companies/airbnb",
+              "snapshotHash": "7046acbf2bc4cdfd64b09bc84db53f575749c83b196df8430d60ea427cd6bd02",
+              "observedAt": "2026-10-24T17:43:32.750Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 0,
+              "entity": "Airbnb",
+              "metric": "website",
+              "value": "http://airbnb.com",
+              "excerpt": "News\nhttp://airbnb.com\nBook accommodations around the world.",
+              "sourceUrl": "https://www.ycombinator.com/companies/airbnb",
+              "snapshotHash": "7046acbf2bc4cdfd64b09bc84db53f575749c83b196df8430d60ea427cd6bd02",
+              "observedAt": "2026-10-24T17:43:32.750Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 0,
+              "entity": "Airbnb",
+              "metric": "batch",
+              "value": "Winter 2009",
+              "excerpt": "Book accommodations around the world.\nWinter 2009\nPublic",
+              "sourceUrl": "https://www.ycombinator.com/companies/airbnb",
+              "snapshotHash": "7046acbf2bc4cdfd64b09bc84db53f575749c83b196df8430d60ea427cd6bd02",
+              "observedAt": "2026-10-24T17:43:32.750Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 0,
+              "entity": "Airbnb",
+              "metric": "status",
+              "value": "Public",
+              "excerpt": "Winter 2009\nPublic\nMarketplace",
+              "sourceUrl": "https://www.ycombinator.com/companies/airbnb",
+              "snapshotHash": "7046acbf2bc4cdfd64b09bc84db53f575749c83b196df8430d60ea427cd6bd02",
+              "observedAt": "2026-10-24T17:43:32.750Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            }
+          ],
+          "notVerified": []
+        },
+        {
+          "provider": "anthropic",
+          "model": "claude-haiku-5-5",
+          "ms": 1497,
+          "usage": {
+            "inputTokens": 3098,
+            "outputTokens": 250
+          },
+          "error": null,
+          "truncated": false,
+          "total": 5,
+          "extracted": 5,
+          "unverifiable": 0,
+          "anchorRate": 1,
+          "verified": 5,
+          "verifiedRate": 1,
+          "sample": [
+            {
+              "row": 0,
+              "entity": "Airbnb",
+              "metric": "name",
+              "value": "Airbnb",
+              "excerpt": "Airbnb\nBook accommodations around the world.\nWinter 2009",
+              "sourceUrl": "https://www.ycombinator.com/companies/airbnb",
+              "snapshotHash": "7046acbf2bc4cdfd64b09bc84db53f575749c83b196df8430d60ea427cd6bd02",
+              "observedAt": "2026-10-24T17:43:36.675Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 0,
+              "entity": "Airbnb",
+              "metric": "one_liner",
+              "value": "Book accommodations around the world.",
+              "excerpt": "Book accommodations around the world.\nWinter 2009",
+              "sourceUrl": "https://www.ycombinator.com/companies/airbnb",
+              "snapshotHash": "7046acbf2bc4cdfd64b09bc84db53f575749c83b196df8430d60ea427cd6bd02",
+              "observedAt": "2026-10-24T17:43:36.675Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 0,
+              "entity": "Airbnb",
+              "metric": "website",
+              "value": "http://airbnb.com",
+              "excerpt": "http://airbnb.com",
+              "sourceUrl": "https://www.ycombinator.com/companies/airbnb",
+              "snapshotHash": "7046acbf2bc4cdfd64b09bc84db53f575749c83b196df8430d60ea427cd6bd02",
+              "observedAt": "2026-10-24T17:43:36.675Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 0,
+              "entity": "Airbnb",
+              "metric": "batch",
+              "value": "Winter 2009",
+              "excerpt": "Batch: Winter 2009",
+              "sourceUrl": "https://www.ycombinator.com/companies/airbnb",
+              "snapshotHash": "7046acbf2bc4cdfd64b09bc84db53f575749c83b196df8430d60ea427cd6bd02",
+              "observedAt": "2026-10-24T17:43:36.675Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 0,
+              "entity": "Airbnb",
+              "metric": "status",
+              "value": "Public",
+              "excerpt": "Status:\nPublic",
+              "sourceUrl": "https://www.ycombinator.com/companies/airbnb",
+              "snapshotHash": "7046acbf2bc4cdfd64b09bc84db53f575749c83b196df8430d60ea427cd6bd02",
+              "observedAt": "2026-10-24T17:43:36.675Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            }
+          ],
+          "notVerified": []
+        }
+      ]
+    },
+    {
+      "target": "gpu-listings (Newegg search)",
+      "url": "https://www.newegg.com/p/pl?d=rtx+5080",
+      "fetch": {
+        "method": "unlocker",
+        "country": "us",
+        "attempts": [
+          {
+            "method": "unlocker",
+            "country": "us",
+            "status": 200,
+            "ms": 15919,
+            "ok": true,
+            "reason": null
+          }
+        ],
+        "chars": 20089
+      },
+      "refetch": "ok",
+      "perLLM": [
+        {
+          "provider": "asi1",
+          "model": "asi1",
+          "ms": 168858,
+          "usage": {
+            "inputTokens": 7162,
+            "outputTokens": 48768
+          },
+          "error": "unparseable LLM output (stop: length): Expected ',' or ']' after array element in JSON at position 566 (line 2 column 557)",
+          "truncated": false,
+          "total": 0,
+          "extracted": 0,
+          "unverifiable": 0,
+          "anchorRate": 0,
+          "verified": 0,
+          "verifiedRate": 0,
+          "sample": [],
+          "notVerified": []
+        },
+        {
+          "provider": "anthropic",
+          "model": "claude-haiku-5-5",
+          "ms": 38792,
+          "usage": {
+            "inputTokens": 11438,
+            "outputTokens": 14421
+          },
+          "error": null,
+          "truncated": false,
+          "total": 110,
+          "extracted": 110,
+          "unverifiable": 0,
+          "anchorRate": 1,
+          "verified": 110,
+          "verifiedRate": 1,
+          "sample": [
+            {
+              "row": 0,
+              "entity": "GIGABYTE AORUS GeForce RTX 5080 INFINITY WOOD 16G Graphics Card",
+              "metric": "name",
+              "value": "GIGABYTE AORUS GeForce RTX 5080 INFINITY WOOD 16G Graphics Card, 16GB 256-bit GDDR7, PCIe 5.0, WINDFORCE HYPERBURST cooling system, GV-N5080AORUSIF WD-16GD Graphics Card",
+              "excerpt": "GIGABYTE AORUS GeForce RTX 5080 INFINITY WOOD 16G Graphics Card, 16GB 256-bit GDDR7, PCIe 5.0, WINDFORCE HYPERBURST cooling system, GV-N5080AORUSIF WD-16GD Graphics Card $ 3,286 .90",
+              "sourceUrl": "https://www.newegg.com/p/pl?d=rtx+5080",
+              "snapshotHash": "d90c02b9346ff2a460e9cedf517b4613698ae6fe375174908149a182102d4f7f",
+              "observedAt": "2026-10-24T17:47:30.144Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 0,
+              "entity": "GIGABYTE AORUS GeForce RTX 5080 INFINITY WOOD 16G Graphics Card",
+              "metric": "price",
+              "value": "$ 3,286 .90",
+              "excerpt": "GIGABYTE AORUS GeForce RTX 5080 INFINITY WOOD 16G Graphics Card, 16GB 256-bit GDDR7, PCIe 5.0, WINDFORCE HYPERBURST cooling system, GV-N5080AORUSIF WD-16GD Graphics Card $ 3,286 .90",
+              "sourceUrl": "https://www.newegg.com/p/pl?d=rtx+5080",
+              "snapshotHash": "d90c02b9346ff2a460e9cedf517b4613698ae6fe375174908149a182102d4f7f",
+              "observedAt": "2026-10-24T17:47:30.144Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 0,
+              "entity": "GIGABYTE AORUS GeForce RTX 5080 INFINITY WOOD 16G Graphics Card",
+              "metric": "stock",
+              "value": "Add to cart",
+              "excerpt": "More options from $1,949.99 - $3,286.90 Free Shipping Add to cart",
+              "sourceUrl": "https://www.newegg.com/p/pl?d=rtx+5080",
+              "snapshotHash": "d90c02b9346ff2a460e9cedf517b4613698ae6fe375174908149a182102d4f7f",
+              "observedAt": "2026-10-24T17:47:30.144Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 1,
+              "entity": "ASUS ROG Astral GeForce RTX 5080 16GB GDDR7 OC Edition ROG-ASTRAL-RTX5080-O16G-GAMING",
+              "metric": "name",
+              "value": "ASUS ROG Astral GeForce RTX 5080 16GB GDDR7 OC Edition ROG-ASTRAL-RTX5080-O16G-GAMING PCI-Express 5.0 DLSS 4.0 Graphics Card",
+              "excerpt": "ASUS ROG Astral GeForce RTX 5080 16GB GDDR7 OC Edition ROG-ASTRAL-RTX5080-O16G-GAMING PCI-Express 5.0 DLSS 4.0 Graphics Card $ 2,689 .99",
+              "sourceUrl": "https://www.newegg.com/p/pl?d=rtx+5080",
+              "snapshotHash": "d90c02b9346ff2a460e9cedf517b4613698ae6fe375174908149a182102d4f7f",
+              "observedAt": "2026-10-24T17:47:30.144Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 1,
+              "entity": "ASUS ROG Astral GeForce RTX 5080 16GB GDDR7 OC Edition ROG-ASTRAL-RTX5080-O16G-GAMING",
+              "metric": "price",
+              "value": "$ 2,689 .99",
+              "excerpt": "ASUS ROG Astral GeForce RTX 5080 16GB GDDR7 OC Edition ROG-ASTRAL-RTX5080-O16G-GAMING PCI-Express 5.0 DLSS 4.0 Graphics Card $ 2,689 .99",
+              "sourceUrl": "https://www.newegg.com/p/pl?d=rtx+5080",
+              "snapshotHash": "d90c02b9346ff2a460e9cedf517b4613698ae6fe375174908149a182102d4f7f",
+              "observedAt": "2026-10-24T17:47:30.144Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            }
+          ],
+          "notVerified": []
+        }
+      ]
+    }
+  ]
+}
