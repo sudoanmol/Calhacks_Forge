@@ -110,6 +110,58 @@ export const reanchor = (pageText: string, excerpt: string, value: string, entit
   return found.size === 1 ? [...found][0]! : null;
 };
 
+// Customer challenge (AGENTS.md §3 Addition 2): the challenged value checked against one page,
+// either the saved page the extractor read or a fresh fetch.
+//   match:       the excerpt is verbatim on the page and holds the value (or the value sits in the same place)
+//   changed:     the excerpt is gone and a different value now sits in its place (found deterministically)
+//   missing:     the excerpt is gone and no single replacement value was found
+//   unavailable: the page could not be loaded
+export type PageCheck = { result: 'match' | 'changed' | 'missing' | 'unavailable'; value: string; quote: string; context: string };
+
+const CONTEXT_CHARS_AROUND = 600;
+const QUOTE_CHARS_AROUND = 80;
+
+// A slice of the whitespace-collapsed page around the first occurrence of needle. Being a substring of
+// that page, it always passes the quote anchor against it.
+const around = (pageText: string, needle: string, chars: number): string => {
+  const orig = collapse(pageText);
+  const low = orig.toLowerCase();
+  const src = low.length === orig.length ? orig : low;
+  const n = norm(needle);
+  if (!n) return '';
+  const i = low.indexOf(n);
+  if (i < 0) return '';
+  return src.slice(Math.max(0, i - chars), i + n.length + chars).trim();
+};
+
+export const checkPage = (
+  page: { ok: boolean; text: string },
+  rec: { excerpt: string; value: string; entity: string },
+): PageCheck => {
+  if (!page.ok) return { result: 'unavailable', value: '', quote: '', context: '' };
+  const context = around(page.text, rec.excerpt, CONTEXT_CHARS_AROUND) || around(page.text, rec.entity, CONTEXT_CHARS_AROUND);
+  if (anchored(page.text, rec.excerpt, rec.value)) return { result: 'match', value: rec.value, quote: rec.excerpt, context };
+  const v = reanchor(page.text, rec.excerpt, rec.value, rec.entity);
+  if (v === null) return { result: 'missing', value: '', quote: '', context };
+  const quote = around(page.text, v, QUOTE_CHARS_AROUND);
+  return { result: norm(v) === norm(rec.value) ? 'match' : 'changed', value: v, quote, context: context || around(page.text, v, CONTEXT_CHARS_AROUND) };
+};
+
+export type ChallengeCheck = { saved: PageCheck; fresh: PageCheck; correctedValue: string; correctedExcerpt: string };
+
+// A correction is offered only when the saved page itself holds a different value in the excerpt's
+// place, quoted verbatim from that page. Otherwise an upheld challenge withdraws the value.
+export const compareChallenge = (
+  saved: { ok: boolean; text: string },
+  fresh: { ok: boolean; text: string },
+  rec: { excerpt: string; value: string; entity: string },
+): ChallengeCheck => {
+  const s = checkPage(saved, rec);
+  const f = checkPage(fresh, rec);
+  const correctable = s.result === 'changed' && Boolean(s.quote) && anchored(saved.text, s.quote, s.value);
+  return { saved: s, fresh: f, correctedValue: correctable ? s.value : '', correctedExcerpt: correctable ? s.quote : '' };
+};
+
 export type Verification = { status: 'verified' | 'stale' | 'mismatch' | 'unverifiable'; freshValue: string };
 
 // The per-value rule shared by verify_values and verify_probe.

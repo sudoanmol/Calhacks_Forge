@@ -29,6 +29,7 @@ from uagents_core.contrib.protocols.payment import (
 )
 
 from front_desk import stdb
+from front_desk.challenge import Challenge, format_challenge, parse_challenge, pick_metric
 from front_desk.gate import run_layer2
 from front_desk.intent import NotARequest, parse_intent, strip_mentions
 from front_desk.params import Resolution, resolve as resolve_params
@@ -37,6 +38,8 @@ from front_desk.status import format_status, is_status_request
 
 QUOTE_CENTS = 100  # Flat test price until the COO prices orders.
 PAY_WORDS = {"pay", "buy", "yes", "accept", "ok"}
+RECHECK_WAIT_S = 45  # the recheck is one saved-page read plus one Bright Data fetch
+SHOWN_CHALLENGES = 3
 
 agent = Agent(
     name="forge-front-desk",
@@ -73,6 +76,10 @@ async def reply(ctx: Context, to: str, body: str) -> None:
     await send(ctx, to, _text(body), body)
 
 
+def _challenge_text(c: dict) -> str:
+    return format_challenge(c, stdb.challenge_check(c["id"]), stdb.refunds_for_challenge(c["id"]))
+
+
 def _status_text(sender: str) -> str:
     orders = stdb.orders_for_sender(sender)
     if not orders:
@@ -80,7 +87,66 @@ def _status_text(sender: str) -> str:
     latest = orders[0]
     values = stdb.value_records(latest["id"])
     api = stdb.api_name(latest["api_id"]) if latest["api_id"] is not None else None
-    return format_status(orders, values, api)
+    out = format_status(orders, values, api)
+    challenges = stdb.challenges_for_orders([o["id"] for o in orders])[:SHOWN_CHALLENGES]
+    return "\n\n".join([out, *(_challenge_text(c) for c in challenges)])
+
+
+def _open_challenge(sender: str, ch: Challenge) -> tuple[str, int | None]:
+    """Opens the challenge on the customer's order; returns the chat reply and the new challenge id."""
+    orders = stdb.orders_for_sender(sender)
+    if ch.order_id is not None:
+        order = next((o for o in orders if o["id"] == ch.order_id), None)
+        if order is None:
+            return f"I can't find order #{ch.order_id} among your orders.", None
+    else:
+        order = next((o for o in orders if o["status"] == "delivered"), None)
+        if order is None:
+            return "You have no delivered order to challenge yet. Reply **status** to see your orders.", None
+    in_row = [v for v in stdb.value_records(order["id"]) if v["row"] == ch.row and v["metric"] != "_page"]
+    metric = pick_metric(ch.reason, [v["metric"] for v in in_row])
+    before = {c["id"] for c in stdb.challenges_for_orders([order["id"]])}
+    try:
+        stdb.open_challenge(order["id"], sender, ch.row, metric, ch.reason)
+    except stdb.StdbError as err:
+        if err.status != 530:
+            raise
+        if "say which one is wrong" in err.body:
+            options = ", ".join(f"`{v['metric']}`" for v in in_row)
+            return (f"Row {ch.row} of order #{order['id']} has several values ({options}). Which one is wrong? "
+                    f"For example: \"row {ch.row} {in_row[0]['metric']} is wrong because …\""), None
+        return f"I couldn't open that challenge: {err.body}", None
+    new = [c for c in stdb.challenges_for_orders([order["id"]]) if c["id"] not in before]
+    what = f"row {ch.row}" + (f" `{metric}`" if metric else "")
+    body = (f"Rechecking {what} of order #{order['id']}: I'm reading the page our extractor saved and fetching the source "
+            "again now. Reply **status** in a few seconds for the result; the Auditor's ruling follows within minutes.")
+    return body, (new[0]["id"] if new else None)
+
+
+async def follow_up_challenge(ctx: Context, sender: str, challenge_id: int) -> None:
+    """Posts the recheck result once it lands. ASI:One may not show a later message; `status` always does."""
+    for _ in range(RECHECK_WAIT_S // 3):
+        await asyncio.sleep(3)
+        try:
+            c = await asyncio.to_thread(stdb.challenge_by_id, challenge_id)
+        except Exception:  # noqa: BLE001
+            ctx.logger.exception("challenge poll failed")
+            return
+        if c and c["status"] != "rechecking":
+            await reply(ctx, sender, await asyncio.to_thread(_challenge_text, c))
+            return
+
+
+async def handle_challenge(ctx: Context, sender: str, ch: Challenge) -> None:
+    try:
+        body, challenge_id = await asyncio.to_thread(_open_challenge, sender, ch)
+    except Exception as err:  # noqa: BLE001
+        ctx.logger.exception("open_challenge failed")
+        await reply(ctx, sender, f"Sorry, I couldn't open that challenge right now ({type(err).__name__}). Please try again.")
+        return
+    await reply(ctx, sender, body)
+    if challenge_id is not None:
+        asyncio.create_task(follow_up_challenge(ctx, sender, challenge_id))
 
 
 def _resolve_params(text: str) -> Resolution:
@@ -105,6 +171,9 @@ async def on_chat(ctx: Context, sender: str, msg: ChatMessage) -> None:
         return
     if is_status_request(text):
         await reply_status(ctx, sender)
+        return
+    if challenge := parse_challenge(text):
+        await handle_challenge(ctx, sender, challenge)
         return
     pending = ctx.storage.get(f"quote:{sender}")
     if text.lower().strip(" .!") in PAY_WORDS:

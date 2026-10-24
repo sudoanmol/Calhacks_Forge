@@ -1,6 +1,6 @@
 import { schema, table, t, SenderError, Router, SyncResponse, type InferSchema, type ReducerCtx, type ProcedureCtx } from 'spacetimedb/server';
 import { ScheduleAt, TimeDuration, Timestamp, type Identity } from 'spacetimedb';
-import { base64, classify, verifyValue } from './text';
+import { base64, classify, compareChallenge, verifyValue } from './text';
 import { parseParams, resolveSources, validateApiInputs } from './params';
 
 const LEASE_MS = 10 * 60 * 1000;
@@ -272,7 +272,7 @@ const challenge = table(
     orderId: t.u64(),
     valueRecordId: t.u64(),
     reason: t.string(),
-    status: t.string(), // open | rechecked | upheld | rejected
+    status: t.string(), // rechecking | auditing | upheld | rejected
     verdict: t.string(),
     auditorReason: t.string(),
     createdAt: t.timestamp(),
@@ -430,12 +430,70 @@ const costSettleSchedule = table(
   },
 );
 
+// The recheck of a challenged value (AGENTS.md §3 Addition 2): the saved page the extractor read
+// versus a fresh Bright Data fetch. One row per challenge, written by the recheck procedure.
+const challengeCheck = table(
+  { name: 'challenge_check', public: true },
+  {
+    challengeId: t.u64().primaryKey(),
+    orderId: t.u64().index('btree'),
+    valueRecordId: t.u64(),
+    row: t.u32(),
+    entity: t.string(),
+    metric: t.string(),
+    value: t.string(), // the delivered value
+    excerpt: t.string(), // the delivered quote
+    sourceUrl: t.string(),
+    observedAt: t.timestamp(), // when the extractor read the saved page
+    savedResult: t.string(), // match | changed | missing | unavailable
+    savedReason: t.string(),
+    savedValue: t.string(),
+    savedQuote: t.string(),
+    savedContext: t.string(),
+    savedMs: t.u32(),
+    freshResult: t.string(), // match | changed | missing | unavailable
+    freshReason: t.string(),
+    freshValue: t.string(),
+    freshQuote: t.string(),
+    freshContext: t.string(),
+    freshMs: t.u32(),
+    freshFetchedAt: t.timestamp(),
+    correctedValue: t.string(), // a different value quoted verbatim from the saved page, or ''
+    correctedExcerpt: t.string(),
+    totalMs: t.u32(),
+    checkedAt: t.timestamp(),
+  },
+);
+
+// Test-mode refunds. Over config refund_limit_cents a refund waits on a founder approval.
+const refund = table(
+  { name: 'refund', public: true },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    orderId: t.u64().index('btree'),
+    challengeId: t.u64(),
+    amountCents: t.u32(),
+    status: t.string(), // issued | pending_approval | rejected
+    createdAt: t.timestamp(),
+    decidedAt: t.option(t.timestamp()),
+  },
+);
+
+const recheckSchedule = table(
+  { name: 'recheck_schedule' },
+  {
+    scheduledId: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+    challengeId: t.u64(),
+  },
+);
+
 const spacetimedb = schema(
   {
     config, staff, task, event, run, callbackToken, leaseSweepSchedule,
     customer, api, apiVersion, gateCheck, orders, ticket, valueRecord, evidence, challenge,
     approval, budget, bonus, ledger, books, apiRunSchedule, verifySchedule, dispatchSchedule,
-    canaryOrder, apiRetired, runCost, apiCost, costSettleSchedule,
+    canaryOrder, apiRetired, runCost, apiCost, costSettleSchedule, challengeCheck, refund, recheckSchedule,
   },
   // Set at publish time from the shell environment (spacetime publish reads declared names).
   {
@@ -800,6 +858,164 @@ export const audit_verdict = spacetimedb.reducer(
     }
   },
 );
+// ---- Customer challenge (AGENTS.md §3 Addition 2, flow D) ----
+
+const CHALLENGEABLE = ['verified', 'stale', 'corrected']; // statuses delivered as facts
+const CHALLENGE_OPEN = ['rechecking', 'auditing'];
+const metricKey = (s: string) => s.trim().toLowerCase().replace(/[\s_-]+/g, '_');
+
+// The order's values as the customer sees them: a record another record supersedes is left out.
+function currentValues(ctx: Ctx, orderId: bigint) {
+  const recs = [...ctx.db.valueRecord.orderId.filter(orderId)];
+  const superseded = new Set(recs.map((r) => r.supersedesId).filter((x) => x !== undefined));
+  return recs.filter((r) => !superseded.has(r.id));
+}
+
+function closeChallengeTasks(ctx: Ctx, challengeId: bigint, output: unknown) {
+  for (const row of ctx.db.task.kind.filter('audit_challenge')) {
+    let input: { challengeId?: string } = {};
+    try { input = JSON.parse(row.input); } catch { /* not ours */ }
+    if (input.challengeId === challengeId.toString() && ['queued', 'claimed', 'dispatched'].includes(row.status)) {
+      ctx.db.task.id.update({ ...row, status: 'done', output: JSON.stringify(output), leaseUntil: undefined, updatedAt: ctx.timestamp });
+    }
+  }
+}
+
+// The Front Desk opens a challenge for the customer who owns the delivered order. metric picks the value
+// when the row has several; '' is fine for a one-value row.
+export const open_challenge = spacetimedb.reducer(
+  { orderId: t.u64(), asiSender: t.string(), row: t.u32(), metric: t.string(), reason: t.string() },
+  (ctx, { orderId, asiSender, row, metric, reason }) => {
+    requireRole(ctx, 'front_desk');
+    if (!reason.trim()) throw new SenderError('a reason is required');
+    const o = findOrder(ctx, orderId);
+    const c = ctx.db.customer.asiSender.find(asiSender);
+    if (!c || c.id !== o.customerId) throw new SenderError(`order ${orderId} does not belong to this customer`);
+    if (o.status !== 'delivered') throw new SenderError(`order ${orderId} is ${o.status}; only a delivered order can be challenged`);
+    const inRow = currentValues(ctx, orderId).filter((r) => r.row === row && r.metric !== '_page');
+    if (!inRow.length) throw new SenderError(`order ${orderId} has no row ${row}`);
+    const picked = metric.trim() ? inRow.filter((r) => metricKey(r.metric) === metricKey(metric)) : inRow;
+    if (!picked.length) throw new SenderError(`row ${row} has no ${metric}; it has ${inRow.map((r) => r.metric).join(', ')}`);
+    if (picked.length > 1) throw new SenderError(`row ${row} has ${picked.length} values (${picked.map((r) => r.metric).join(', ')}); say which one is wrong`);
+    const v = picked[0]!;
+    if (!CHALLENGEABLE.includes(v.status)) throw new SenderError(`row ${row} ${v.metric} was not delivered as a fact (status ${v.status})`);
+    const open = [...ctx.db.challenge.iter()].find((x) => x.valueRecordId === v.id && CHALLENGE_OPEN.includes(x.status));
+    if (open) throw new SenderError(`challenge ${open.id} on row ${row} ${v.metric} is already ${open.status}`);
+    const ch = ctx.db.challenge.insert({
+      id: 0n, orderId, valueRecordId: v.id, reason: reason.slice(0, 1000), status: 'rechecking', verdict: '', auditorReason: '',
+      createdAt: ctx.timestamp, resolvedAt: undefined,
+    });
+    ctx.db.recheckSchedule.insert({ scheduledId: 0n, scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch), challengeId: ch.id });
+    logEvent(ctx, 'front_desk', 'challenge_opened', 'challenge', ch.id, {
+      orderId: orderId.toString(), valueRecordId: v.id.toString(), row, metric: v.metric, value: v.value, reason: ch.reason,
+    });
+  },
+);
+
+const CHALLENGE_VERDICTS = ['UPHELD', 'REJECTED'];
+
+// Auditor, after the recheck: UPHELD only when the saved page shows the extractor misread it.
+export const challenge_verdict = spacetimedb.reducer(
+  { challengeId: t.u64(), verdict: t.string(), reason: t.string() },
+  (ctx, { challengeId, verdict, reason }) => {
+    requireRole(ctx, 'auditor');
+    if (!CHALLENGE_VERDICTS.includes(verdict)) throw new SenderError('verdict must be UPHELD or REJECTED');
+    if (!reason.trim()) throw new SenderError('a reason is required');
+    const ch = ctx.db.challenge.id.find(challengeId);
+    if (!ch) throw new SenderError(`no challenge ${challengeId}`);
+    if (ch.status !== 'auditing') throw new SenderError(`challenge ${challengeId} is ${ch.status}, not auditing`);
+    const o = findOrder(ctx, ch.orderId);
+    const v = ctx.db.valueRecord.id.find(ch.valueRecordId);
+    if (!v) throw new Error(`challenge ${challengeId} has no value record`);
+    const check = ctx.db.challengeCheck.challengeId.find(challengeId);
+    closeChallengeTasks(ctx, challengeId, { verdict, reason });
+    const resolved = { ...ch, verdict, auditorReason: reason, resolvedAt: ctx.timestamp };
+    if (verdict === 'REJECTED') {
+      ctx.db.challenge.id.update({ ...resolved, status: 'rejected' });
+      logEvent(ctx, 'auditor', 'challenge_rejected', 'challenge', challengeId, {
+        orderId: o.id.toString(), row: v.row, metric: v.metric, reason,
+        savedQuote: check?.savedQuote ?? '', freshResult: check?.freshResult ?? '', freshValue: check?.freshValue ?? '',
+      });
+      return;
+    }
+
+    // The challenged value is superseded: by the value the saved page really shows, or withdrawn.
+    const corrected = Boolean(check?.correctedValue);
+    const next = ctx.db.valueRecord.insert({
+      ...v, id: 0n, value: corrected ? check!.correctedValue : '', excerpt: corrected ? check!.correctedExcerpt : '',
+      status: corrected ? 'corrected' : 'unverifiable', freshValue: '', verifiedAt: corrected ? ctx.timestamp : undefined,
+      method: 'challenge', supersedesId: v.id,
+    });
+
+    // Refund what is left of the order's price; over the limit it waits on the founder.
+    const refunded = [...ctx.db.refund.orderId.filter(o.id)].filter((r) => r.status !== 'rejected').reduce((s, r) => s + r.amountCents, 0);
+    const amount = Math.max(0, o.priceCents - refunded);
+    let refundRow: { id: bigint; status: string; amountCents: number } | undefined;
+    if (amount > 0) {
+      const overLimit = amount > cfgInt(ctx, 'refund_limit_cents');
+      refundRow = ctx.db.refund.insert({
+        id: 0n, orderId: o.id, challengeId, amountCents: amount, status: overLimit ? 'pending_approval' : 'issued',
+        createdAt: ctx.timestamp, decidedAt: overLimit ? undefined : ctx.timestamp,
+      });
+      if (overLimit) {
+        const ap = ctx.db.approval.insert({
+          id: 0n, kind: 'refund_over_limit', refType: 'refund', refId: refundRow.id, amountCents: amount,
+          detail: JSON.stringify({ orderId: o.id.toString(), challengeId: challengeId.toString(), limitCents: cfgInt(ctx, 'refund_limit_cents') }),
+          status: 'pending', createdAt: ctx.timestamp, decidedAt: undefined,
+        });
+        logEvent(ctx, 'treasurer', 'approval_requested', 'approval', ap.id, { kind: ap.kind, amountCents: amount, refundId: refundRow.id.toString() });
+      } else {
+        postTx(ctx, `refund order ${o.id} challenge ${challengeId} (TEST MODE)`, [[`customer:${o.id}`, BigInt(amount)], ['treasury', -BigInt(amount)]]);
+      }
+    }
+
+    // Bonuses are paid only for accepted work; this deliverable turned out wrong.
+    const clawed: string[] = [];
+    for (const b of [...ctx.db.bonus.iter()].filter((x) => x.orderId === o.id && (x.status === 'accrued' || x.status === 'paid'))) {
+      ctx.db.bonus.id.update({ ...b, status: 'clawed_back' });
+      postTx(ctx, `claw back ${b.role} bonus order ${o.id} challenge ${challengeId}`, [['treasury', BigInt(b.amountCents)], [`seat:${b.role}`, -BigInt(b.amountCents)]]);
+      clawed.push(`${b.role}:${b.amountCents}`);
+    }
+
+    // An extractor error on a Tier 0 API is a compile trigger; on Tier 1 it is a warranty fix (AGENTS.md §3).
+    const a = ctx.db.api.id.find(v.apiId);
+    const label = a && a.tier === 0 ? 'compile' : 'warranty';
+    let t = [...ctx.db.ticket.iter()].find((x) => x.apiId === v.apiId && x.label === label && x.status === 'open');
+    if (!t) {
+      t = ctx.db.ticket.insert({
+        id: 0n, orderId: o.id, apiId: v.apiId, label, confidenceBp: 10_000, status: 'open', createdAt: ctx.timestamp,
+        text: `challenge ${challengeId} upheld on order ${o.id} row ${v.row} ${v.metric} (${a?.name ?? 'api ' + v.apiId}): ${reason}`.slice(0, 2000),
+      });
+      logEvent(ctx, 'rules', 'ticket_opened', 'ticket', t.id, { label, apiId: v.apiId.toString(), trigger: 'challenge_upheld', challengeId: challengeId.toString() });
+    }
+
+    ctx.db.challenge.id.update({ ...resolved, status: 'upheld' });
+    logEvent(ctx, 'auditor', 'challenge_upheld', 'challenge', challengeId, {
+      orderId: o.id.toString(), row: v.row, metric: v.metric, reason, supersededBy: next.id.toString(), newStatus: next.status, newValue: next.value,
+      refund: refundRow ? { id: refundRow.id.toString(), amountCents: refundRow.amountCents, status: refundRow.status } : null,
+      clawedBack: clawed, ticketId: t.id.toString(),
+    });
+  },
+);
+
+// Founder: the only path that unblocks a gated action.
+export const decide_approval = spacetimedb.reducer(
+  { id: t.u64(), approve: t.bool() },
+  (ctx, { id, approve }) => {
+    requireRole(ctx, 'founder');
+    const ap = ctx.db.approval.id.find(id);
+    if (!ap) throw new SenderError(`no approval ${id}`);
+    if (ap.status !== 'pending') throw new SenderError(`approval ${id} is ${ap.status}`);
+    if (ap.kind !== 'refund_over_limit') throw new SenderError(`approval kind ${ap.kind} has no handler yet`);
+    const r = ctx.db.refund.id.find(ap.refId);
+    if (!r || r.status !== 'pending_approval') throw new SenderError(`refund ${ap.refId} is not pending approval`);
+    ctx.db.approval.id.update({ ...ap, status: approve ? 'approved' : 'rejected', decidedAt: ctx.timestamp });
+    ctx.db.refund.id.update({ ...r, status: approve ? 'issued' : 'rejected', decidedAt: ctx.timestamp });
+    if (approve) postTx(ctx, `refund order ${r.orderId} challenge ${r.challengeId} (TEST MODE, founder-approved)`, [[`customer:${r.orderId}`, BigInt(r.amountCents)], ['treasury', -BigInt(r.amountCents)]]);
+    logEvent(ctx, 'founder', approve ? 'approval_approved' : 'approval_rejected', 'approval', id, { kind: ap.kind, refundId: r.id.toString(), amountCents: r.amountCents });
+  },
+);
+
 // Founder: change an API's params, sources or page cap. The output schema, name and volatility
 // never change here (versions are additive only, AGENTS.md §2 rule 10).
 export const update_api = spacetimedb.reducer(
@@ -1033,7 +1249,7 @@ const ROLE_APP_ENV = { coo: 'CREAO_APP_ID_COO', research: 'CREAO_APP_ID_RESEARCH
 const CREAO_ROLES = Object.keys(ROLE_APP_ENV);
 // Tasks of any other kind (test fixtures, worker-only kinds) and canary orders' tasks are never sent to a paid CREAO run;
 // the canary plays the COO itself.
-const CREAO_KINDS = ['coo_triage', 'research_gate', 'audit'];
+const CREAO_KINDS = ['coo_triage', 'research_gate', 'audit', 'audit_challenge'];
 const DISPATCH_EVERY_MICROS = 5_000_000n;
 
 function envOrThrow(env: IoCtx['env'], name: 'APIFY_TOKEN' | 'BRIGHTDATA_API_KEY' | 'BRIGHTDATA_UNLOCKER_ZONE'): string {
@@ -1318,8 +1534,9 @@ export const apify_callback = spacetimedb.httpHandler((ctx, req) => {
 
 // Bright Data Web Unlocker with one retry from another country on a block or timeout
 // (the module cannot drive the Browser API rung; a JS shell stays unverifiable here).
-function unlockerFetch(ctx: IoCtx, url: string, orderId: bigint | undefined): { ok: boolean; text: string; reason: string } {
+function unlockerFetch(ctx: IoCtx, url: string, orderId: bigint | undefined, valueRecordId?: bigint): { ok: boolean; text: string; reason: string; evidenceIds: bigint[] } {
   let last = { ok: false, text: '', reason: 'not fetched' };
+  const evidenceIds: bigint[] = [];
   let attempt = 0;
   for (const country of ['us', 'gb']) {
     attempt++;
@@ -1343,15 +1560,85 @@ function unlockerFetch(ctx: IoCtx, url: string, orderId: bigint | undefined): { 
     }
     const ms = Date.now() - t0;
     const c = thrown ? { ok: false, kind: /timed? ?out/i.test(thrown) ? 'timeout' : 'error', reason: thrown.slice(0, 200), text: '' } : classify(status, body, brdError);
-    ctx.withTx((tx) => tx.db.evidence.insert({
-      id: 0n, valueRecordId: undefined, orderId, url, method: 'unlocker', country, httpStatus: status, attempt, ms: Math.max(0, ms),
+    evidenceIds.push(ctx.withTx((tx) => tx.db.evidence.insert({
+      id: 0n, valueRecordId, orderId, url, method: 'unlocker', country, httpStatus: status, attempt, ms: Math.max(0, ms),
       matched: false, reason: c.ok ? '' : c.reason, snapshotHash: '', fetchedAt: tx.timestamp,
-    }));
+    }).id));
     last = { ok: c.ok, text: c.text, reason: c.reason };
     if (c.ok || !['blocked', 'timeout'].includes(c.kind)) break;
   }
-  return last;
+  return { ...last, evidenceIds };
 }
+
+// Challenge recheck (flow D): the saved page the extractor read (the Apify run's key-value store) and a
+// fresh Bright Data fetch, both run through the quote anchor. Then the Auditor rules on the results.
+export const recheck = spacetimedb.procedure(
+  { onSchedule: recheckSchedule },
+  { arg: recheckSchedule.rowType },
+  t.unit(),
+  (ctx, { arg }) => {
+    const t0 = Date.now();
+    const job = ctx.withTx((tx) => {
+      const ch = tx.db.challenge.id.find(arg.challengeId);
+      if (!ch || ch.status !== 'rechecking') return null;
+      const v = tx.db.valueRecord.id.find(ch.valueRecordId);
+      const o = tx.db.orders.id.find(ch.orderId);
+      if (!v || !o) return null;
+      return { ch, v, apifyRunId: o.apifyRunId };
+    });
+    if (!job) return {};
+    const { ch, v } = job;
+
+    const s0 = Date.now();
+    let saved = { ok: false, text: '', reason: '' };
+    if (!job.apifyRunId || !v.snapshotKey) saved.reason = 'no saved page recorded for this value';
+    else {
+      try {
+        const res = ctx.http.fetch(`${APIFY_BASE}/actor-runs/${job.apifyRunId}/key-value-store/records/${encodeURIComponent(v.snapshotKey)}`, {
+          headers: { Authorization: `Bearer ${envOrThrow(ctx.env, 'APIFY_TOKEN')}` }, timeout: TimeDuration.fromMillis(20_000),
+        });
+        saved = res.status === 200 ? { ok: true, text: res.text(), reason: '' } : { ok: false, text: '', reason: `saved page: apify http ${res.status}` };
+      } catch (err) {
+        saved.reason = `saved page: ${String(err).slice(0, 200)}`;
+      }
+    }
+    const savedMs = Date.now() - s0;
+    const f0 = Date.now();
+    const fresh = unlockerFetch(ctx, v.sourceUrl, ch.orderId, v.id);
+    const freshMs = Date.now() - f0;
+    const cmp = compareChallenge(saved, fresh, v);
+    const totalMs = Date.now() - t0;
+
+    ctx.withTx((tx) => {
+      const cur = tx.db.challenge.id.find(ch.id);
+      if (!cur || cur.status !== 'rechecking' || tx.db.challengeCheck.challengeId.find(ch.id)) return;
+      const last = fresh.evidenceIds[fresh.evidenceIds.length - 1];
+      const ev = last !== undefined ? tx.db.evidence.id.find(last) : undefined;
+      if (ev) tx.db.evidence.id.update({ ...ev, matched: cmp.fresh.result === 'match' });
+      const clip = (s: string, n = 2000) => s.slice(0, n);
+      tx.db.challengeCheck.insert({
+        challengeId: ch.id, orderId: ch.orderId, valueRecordId: v.id, row: v.row, entity: v.entity, metric: v.metric,
+        value: v.value, excerpt: v.excerpt, sourceUrl: v.sourceUrl, observedAt: v.observedAt,
+        savedResult: cmp.saved.result, savedReason: saved.reason, savedValue: cmp.saved.value, savedQuote: clip(cmp.saved.quote),
+        savedContext: clip(cmp.saved.context), savedMs: Math.max(0, savedMs),
+        freshResult: cmp.fresh.result, freshReason: fresh.reason, freshValue: cmp.fresh.value, freshQuote: clip(cmp.fresh.quote),
+        freshContext: clip(cmp.fresh.context), freshMs: Math.max(0, freshMs), freshFetchedAt: tx.timestamp,
+        correctedValue: cmp.correctedValue, correctedExcerpt: clip(cmp.correctedExcerpt), totalMs: Math.max(0, totalMs), checkedAt: tx.timestamp,
+      });
+      tx.db.challenge.id.update({ ...cur, status: 'auditing' });
+      queueTask(tx, 'audit_challenge', 'auditor', ch.orderId, {
+        challengeId: ch.id.toString(), orderId: ch.orderId.toString(), row: v.row, metric: v.metric,
+        savedResult: cmp.saved.result, freshResult: cmp.fresh.result,
+      });
+      logEvent(tx, 'procedure', 'challenge_rechecked', 'challenge', ch.id, {
+        orderId: ch.orderId.toString(), row: v.row, metric: v.metric, value: v.value,
+        savedResult: cmp.saved.result, savedValue: cmp.saved.value, freshResult: cmp.fresh.result, freshValue: cmp.fresh.value,
+        savedMs, freshMs, totalMs, freshAttempts: fresh.evidenceIds.length,
+      });
+    });
+    return {};
+  },
+);
 
 // Independent re-fetch of every anchored value (AGENTS.md §3 Addition 1), then hand-off to the Auditor.
 export const verify_values = spacetimedb.procedure(

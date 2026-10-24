@@ -89,3 +89,17 @@ def test_wrong_token_is_refused(monkeypatch):
     ref, sender = ids()
     with pytest.raises(stdb.StdbError):
         stdb.create_order(ref, sender, "pytest request", INTENT, 100)
+
+
+def test_open_challenge_needs_a_delivered_order_the_customer_owns():
+    ref, sender = ids()
+    stdb.create_order(ref, sender, "pytest request", INTENT, 100)
+    o = stdb.order_by_ref(ref)
+    with pytest.raises(stdb.StdbError, match="only a delivered order can be challenged") as err:
+        stdb.open_challenge(o["id"], sender, 0, "", "row 0 is wrong")
+    assert err.value.status == 530
+    delivered = next((x for x in stdb.orders_for_sender("asi-e2e-founder") if x["status"] == "delivered"), None)
+    if delivered:
+        with pytest.raises(stdb.StdbError, match="does not belong to this customer"):
+            stdb.open_challenge(delivered["id"], sender, 0, "", "row 0 is wrong")
+    assert stdb.challenges_for_orders([o["id"]]) == []

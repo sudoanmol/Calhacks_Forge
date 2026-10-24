@@ -37,13 +37,16 @@ import {
 import AuditVerdictReducer from "./audit_verdict_reducer";
 import BackfillCanaryOrdersReducer from "./backfill_canary_orders_reducer";
 import CancelTaskReducer from "./cancel_task_reducer";
+import ChallengeVerdictReducer from "./challenge_verdict_reducer";
 import ClaimTaskReducer from "./claim_task_reducer";
 import CompleteTaskReducer from "./complete_task_reducer";
 import CooDecideReducer from "./coo_decide_reducer";
 import CreateApiReducer from "./create_api_reducer";
 import CreateOrderReducer from "./create_order_reducer";
+import DecideApprovalReducer from "./decide_approval_reducer";
 import EnqueueTaskReducer from "./enqueue_task_reducer";
 import EnsureDefaultsReducer from "./ensure_defaults_reducer";
+import OpenChallengeReducer from "./open_challenge_reducer";
 import RecordPaymentReducer from "./record_payment_reducer";
 import RejectAtDeskReducer from "./reject_at_desk_reducer";
 import RetireApiReducer from "./retire_api_reducer";
@@ -70,12 +73,14 @@ import BooksRow from "./books_table";
 import BudgetRow from "./budget_table";
 import CanaryOrderRow from "./canary_order_table";
 import ChallengeRow from "./challenge_table";
+import ChallengeCheckRow from "./challenge_check_table";
 import ConfigRow from "./config_table";
 import CustomerRow from "./customer_table";
 import EventRow from "./event_table";
 import EvidenceRow from "./evidence_table";
 import GateCheckRow from "./gate_check_table";
 import OrdersRow from "./orders_table";
+import RefundRow from "./refund_table";
 import RunRow from "./run_table";
 import RunCostRow from "./run_cost_table";
 import StaffRow from "./staff_table";
@@ -204,6 +209,20 @@ const tablesSchema = __schema({
       { name: 'challenge_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, ChallengeRow),
+  challengeCheck: __table({
+    name: 'challenge_check',
+    indexes: [
+      { accessor: 'challengeId', name: 'challenge_check_challenge_id_idx_btree', algorithm: 'btree', columns: [
+        'challengeId',
+      ] },
+      { accessor: 'orderId', name: 'challenge_check_order_id_idx_btree', algorithm: 'btree', columns: [
+        'orderId',
+      ] },
+    ],
+    constraints: [
+      { name: 'challenge_check_challenge_id_key', constraint: 'unique', columns: ['challengeId'] },
+    ],
+  }, ChallengeCheckRow),
   config: __table({
     name: 'config',
     indexes: [
@@ -281,6 +300,20 @@ const tablesSchema = __schema({
       { name: 'orders_ref_key', constraint: 'unique', columns: ['ref'] },
     ],
   }, OrdersRow),
+  refund: __table({
+    name: 'refund',
+    indexes: [
+      { accessor: 'id', name: 'refund_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'orderId', name: 'refund_order_id_idx_btree', algorithm: 'btree', columns: [
+        'orderId',
+      ] },
+    ],
+    constraints: [
+      { name: 'refund_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, RefundRow),
   run: __table({
     name: 'run',
     indexes: [
@@ -369,13 +402,16 @@ const reducersSchema = __reducers(
   __reducerSchema("audit_verdict", AuditVerdictReducer),
   __reducerSchema("backfill_canary_orders", BackfillCanaryOrdersReducer),
   __reducerSchema("cancel_task", CancelTaskReducer),
+  __reducerSchema("challenge_verdict", ChallengeVerdictReducer),
   __reducerSchema("claim_task", ClaimTaskReducer),
   __reducerSchema("complete_task", CompleteTaskReducer),
   __reducerSchema("coo_decide", CooDecideReducer),
   __reducerSchema("create_api", CreateApiReducer),
   __reducerSchema("create_order", CreateOrderReducer),
+  __reducerSchema("decide_approval", DecideApprovalReducer),
   __reducerSchema("enqueue_task", EnqueueTaskReducer),
   __reducerSchema("ensure_defaults", EnsureDefaultsReducer),
+  __reducerSchema("open_challenge", OpenChallengeReducer),
   __reducerSchema("record_payment", RecordPaymentReducer),
   __reducerSchema("reject_at_desk", RejectAtDeskReducer),
   __reducerSchema("retire_api", RetireApiReducer),

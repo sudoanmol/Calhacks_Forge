@@ -132,6 +132,37 @@ export const Challenge = __t.object("Challenge", {
 });
 export type Challenge = __Infer<typeof Challenge>;
 
+export const ChallengeCheck = __t.object("ChallengeCheck", {
+  challengeId: __t.u64(),
+  orderId: __t.u64(),
+  valueRecordId: __t.u64(),
+  row: __t.u32(),
+  entity: __t.string(),
+  metric: __t.string(),
+  value: __t.string(),
+  excerpt: __t.string(),
+  sourceUrl: __t.string(),
+  observedAt: __t.timestamp(),
+  savedResult: __t.string(),
+  savedReason: __t.string(),
+  savedValue: __t.string(),
+  savedQuote: __t.string(),
+  savedContext: __t.string(),
+  savedMs: __t.u32(),
+  freshResult: __t.string(),
+  freshReason: __t.string(),
+  freshValue: __t.string(),
+  freshQuote: __t.string(),
+  freshContext: __t.string(),
+  freshMs: __t.u32(),
+  freshFetchedAt: __t.timestamp(),
+  correctedValue: __t.string(),
+  correctedExcerpt: __t.string(),
+  totalMs: __t.u32(),
+  checkedAt: __t.timestamp(),
+});
+export type ChallengeCheck = __Infer<typeof ChallengeCheck>;
+
 export const Config = __t.object("Config", {
   key: __t.string(),
   value: __t.string(),
@@ -234,6 +265,24 @@ export const Orders = __t.object("Orders", {
   updatedAt: __t.timestamp(),
 });
 export type Orders = __Infer<typeof Orders>;
+
+export const RecheckSchedule = __t.object("RecheckSchedule", {
+  scheduledId: __t.u64(),
+  scheduledAt: __t.scheduleAt(),
+  challengeId: __t.u64(),
+});
+export type RecheckSchedule = __Infer<typeof RecheckSchedule>;
+
+export const Refund = __t.object("Refund", {
+  id: __t.u64(),
+  orderId: __t.u64(),
+  challengeId: __t.u64(),
+  amountCents: __t.u32(),
+  status: __t.string(),
+  createdAt: __t.timestamp(),
+  decidedAt: __t.option(__t.timestamp()),
+});
+export type Refund = __Infer<typeof Refund>;
 
 export const Run = __t.object("Run", {
   id: __t.u64(),

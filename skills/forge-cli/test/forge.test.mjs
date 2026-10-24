@@ -138,3 +138,46 @@ test('happy path: front desk order, COO rejects through the CLI, verdict error p
   assert.equal(wrongSeat.code, 1);
   assert.match(wrongSeat.err.error, /role coo may not do this/);
 });
+
+test('task prints the challenge steps for an audit_challenge task', async () => {
+  const r = await forge(seat('auditor'), 'task', JSON.stringify({ kind: 'audit_challenge', taskId: '9', orderId: '7', input: { challengeId: '5', orderId: '7', row: 0, metric: 'batch' } }));
+  assert.equal(r.code, 0, JSON.stringify(r.err));
+  assert.equal(r.out.role, 'auditor');
+  assert.equal(r.out.challengeId, '5');
+  assert.ok(r.out.next.some((s) => s.includes('forge challenge 5')));
+  assert.ok(r.out.next.some((s) => s.includes('forge challenge-verdict 5')));
+  assert.ok(r.out.next.some((s) => s.includes('SAVED page')));
+});
+
+test('challenge <id> reads a rechecked challenge with saved and fresh results', async () => {
+  const rows = await sqlRows(seat('auditor'), "SELECT id FROM challenge WHERE status = 'rejected'");
+  assert.ok(rows.length, 'a rejected challenge exists (module/test/challenge.test.mjs makes one)');
+  const challengeId = Math.max(...rows.map((r) => r[0]));
+  const r = await forge(seat('auditor'), 'challenge', String(challengeId));
+  assert.equal(r.code, 0, JSON.stringify(r.err));
+  assert.equal(r.out.challenge.id, challengeId);
+  assert.equal(r.out.challenge.verdict, 'REJECTED');
+  assert.match(r.out.challenge.resolvedAt, /^\d{4}-\d\d-\d\dT/);
+  assert.ok(r.out.value.excerpt && r.out.value.sourceUrl);
+  assert.ok(['match', 'changed', 'missing', 'unavailable'].includes(r.out.recheck.saved.result));
+  assert.ok(['match', 'changed', 'missing', 'unavailable'].includes(r.out.recheck.fresh.result));
+  assert.match(r.out.recheck.saved.observedAt, /^\d{4}-/);
+  assert.match(r.out.recheck.fresh.fetchedAt, /^\d{4}-/);
+  assert.equal(r.out.supersededBy, null);
+  const missing = await forge(seat('auditor'), 'challenge', '999999999');
+  assert.equal(missing.code, 1);
+  assert.match(missing.err.error, /no challenge 999999999/);
+});
+
+test('challenge-verdict surfaces reducer errors: invalid verdict, wrong seat, not auditing', async () => {
+  const rows = await sqlRows(seat('auditor'), "SELECT id FROM challenge WHERE status = 'rejected'");
+  const challengeId = String(Math.max(...rows.map((r) => r[0])));
+  const invalid = await forge(seat('auditor'), 'challenge-verdict', challengeId, 'MAYBE', 'because');
+  assert.equal(invalid.code, 1);
+  assert.match(invalid.err.error, /challenge_verdict failed \(530\): verdict must be UPHELD or REJECTED/);
+  const wrongSeat = await forge(seat('coo'), 'challenge-verdict', challengeId, 'REJECTED', 'because');
+  assert.match(wrongSeat.err.error, /role coo may not do this/);
+  const done = await runCli({ FORGE_SEAT_TOKEN_AUDITOR: seat('auditor') }, 'challenge-verdict', challengeId, 'UPHELD', 'test');
+  assert.equal(done.code, 1);
+  assert.match(done.err.error, /is rejected, not auditing/);
+});

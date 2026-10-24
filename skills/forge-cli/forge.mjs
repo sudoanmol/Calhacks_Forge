@@ -12,7 +12,9 @@ const USAGE = `usage:
   forge catalog                                  live APIs with params, version, tier, fields, rates, cost
   forge decide <orderId> <ACCEPT|COUNTEROFFER|REQUEST_RESEARCH|REJECT> <apiName|-> <reason...>
   forge verdict <orderId> <ACCEPT|REJECT> <reason...>
-env: FORGE_DB_URL, FORGE_SEAT_TOKEN_<SEAT> (decide uses COO, verdict uses AUDITOR) or FORGE_SEAT_TOKEN`;
+  forge challenge <challengeId>                  a customer challenge: the value, saved page vs fresh page
+  forge challenge-verdict <challengeId> <UPHELD|REJECTED> <reason...>
+env: FORGE_DB_URL, FORGE_SEAT_TOKEN_<SEAT> (decide uses COO, verdict and challenge-verdict use AUDITOR) or FORGE_SEAT_TOKEN`;
 
 class CliError extends Error {}
 
@@ -143,6 +145,40 @@ async function catalog() {
   });
 }
 
+async function challenge(challengeId) {
+  const [c] = await sql(`SELECT * FROM challenge WHERE id = ${challengeId}`);
+  if (!c) throw new CliError(`no challenge ${challengeId}`);
+  const [[o], [v], [check], values, refunds] = await Promise.all([
+    sql(`SELECT * FROM orders WHERE id = ${c.orderId}`),
+    sql(`SELECT * FROM value_record WHERE id = ${c.valueRecordId}`),
+    sql(`SELECT * FROM challenge_check WHERE challenge_id = ${challengeId}`),
+    sql(`SELECT * FROM value_record WHERE order_id = ${c.orderId}`),
+    sql(`SELECT * FROM refund WHERE order_id = ${c.orderId}`),
+  ]);
+  const [api] = o?.apiId == null ? [] : await sql(`SELECT * FROM api WHERE id = ${o.apiId}`);
+  const next = values.find((x) => x.supersedesId === c.valueRecordId);
+  const side = (p) => check && ({
+    result: check[`${p}Result`], value: check[`${p}Value`], quote: check[`${p}Quote`],
+    context: check[`${p}Context`], reason: check[`${p}Reason`] || null, ms: check[`${p}Ms`],
+  });
+  return {
+    challenge: {
+      id: c.id, status: c.status, reason: c.reason, verdict: c.verdict || null, auditorReason: c.auditorReason || null,
+      createdAt: c.createdAt, resolvedAt: c.resolvedAt,
+    },
+    order: o && { id: o.id, status: o.status, requestText: o.requestText, api: api?.name ?? null, volatility: api?.volatility ?? null, tier: api?.tier ?? null, priceCents: o.priceCents },
+    value: v && { id: v.id, row: v.row, entity: v.entity, metric: v.metric, value: v.value, excerpt: v.excerpt, sourceUrl: v.sourceUrl, status: v.status, observedAt: v.observedAt },
+    recheck: check ? {
+      saved: { ...side('saved'), observedAt: check.observedAt },
+      fresh: { ...side('fresh'), fetchedAt: check.freshFetchedAt },
+      correction: check.correctedValue ? { value: check.correctedValue, excerpt: check.correctedExcerpt } : null,
+      totalMs: check.totalMs, checkedAt: check.checkedAt,
+    } : null,
+    supersededBy: next ? { id: next.id, value: next.value, excerpt: next.excerpt, status: next.status } : null,
+    refunds: refunds.filter((r) => r.challengeId === c.id).map(({ id: rid, amountCents, status }) => ({ id: rid, amountCents, status })),
+  };
+}
+
 const NEXT = {
   coo_triage: {
     role: 'coo',
@@ -159,6 +195,14 @@ const NEXT = {
       'Rule exactly once with `forge verdict <orderId> <ACCEPT|REJECT> <reason citing the counts>`.',
     ],
   },
+  audit_challenge: {
+    role: 'auditor',
+    steps: [
+      'Run `forge challenge <challengeId>` and read the customer reason, the delivered value, and recheck.saved vs recheck.fresh.',
+      'Judge against the SAVED page: UPHELD only if recheck.saved shows the extractor misread it (wrong value, entity or metric for that quote).',
+      'Rule exactly once with `forge challenge-verdict <challengeId> <UPHELD|REJECTED> <reason quoting the saved page and the fresh result>`.',
+    ],
+  },
   research_gate: {
     role: 'research',
     steps: ['Gate 2: the research commands are not built yet. Run `forge order <orderId>` and report what you would check.'],
@@ -172,10 +216,12 @@ function task(raw) {
   const next = NEXT[t.kind];
   if (!next) throw new CliError(`unknown task kind ${JSON.stringify(t.kind)}`);
   const orderId = String(t.orderId ?? t.input?.orderId ?? '');
+  const challengeId = String(t.input?.challengeId ?? '');
+  const fill = (s) => [['<orderId>', orderId], ['<challengeId>', challengeId]].reduce((acc, [k, v]) => (v ? acc.replaceAll(k, v) : acc), s);
   return {
-    kind: t.kind, taskId: t.taskId ?? null, orderId: orderId || null, role: next.role, input: t.input ?? {},
-    next: next.steps.map((s) => (orderId ? s.replaceAll('<orderId>', orderId) : s)),
-    rule: 'Act only through forge commands. A run that ends without a decide/verdict call fails the task.',
+    kind: t.kind, taskId: t.taskId ?? null, orderId: orderId || null, ...(challengeId ? { challengeId } : {}), role: next.role, input: t.input ?? {},
+    next: next.steps.map(fill),
+    rule: 'Act only through forge commands. A run that ends without a decide/verdict/challenge-verdict call fails the task.',
   };
 }
 
@@ -198,6 +244,14 @@ async function main(argv) {
       const orderId = id(oid, 'orderId');
       await call('auditor', 'audit_verdict', [orderId, verdict, reason.join(' ')]);
       return { ok: true, orderId, verdict, order: (await order(orderId)).order };
+    }
+    case 'challenge': return challenge(id(a[0], 'challengeId'));
+    case 'challenge-verdict': {
+      const [cid, verdict, ...reason] = a;
+      if (!verdict) throw new CliError('usage: forge challenge-verdict <challengeId> <UPHELD|REJECTED> <reason...>');
+      const challengeId = id(cid, 'challengeId');
+      await call('auditor', 'challenge_verdict', [challengeId, verdict, reason.join(' ')]);
+      return { ok: true, challengeId, verdict, ...(await challenge(challengeId)) };
     }
     case undefined: case 'help': case '--help': case '-h':
       return { usage: USAGE };

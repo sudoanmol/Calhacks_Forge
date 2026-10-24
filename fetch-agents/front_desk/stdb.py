@@ -103,6 +103,31 @@ def catalog() -> list[dict]:
             for r in _sql("SELECT * FROM api") if int(r["id"]) not in retired]
 
 
+def open_challenge(order_id: int, asi_sender: str, row: int, metric: str, reason: str) -> None:
+    _call("open_challenge", int(order_id), asi_sender, int(row), metric, reason)
+
+
+def challenges_for_orders(order_ids: list[int]) -> list[dict]:
+    """Challenges on these orders, newest first."""
+    ids = {int(i) for i in order_ids}
+    rows = [r for r in _sql("SELECT * FROM challenge") if int(r["order_id"]) in ids]
+    return sorted(rows, key=lambda r: r["id"], reverse=True)
+
+
+def challenge_by_id(challenge_id: int) -> dict | None:
+    rows = _sql(f"SELECT * FROM challenge WHERE id = {int(challenge_id)}")
+    return rows[0] if rows else None
+
+
+def challenge_check(challenge_id: int) -> dict | None:
+    rows = _sql(f"SELECT * FROM challenge_check WHERE challenge_id = {int(challenge_id)}")
+    return rows[0] if rows else None
+
+
+def refunds_for_challenge(challenge_id: int) -> list[dict]:
+    return [r for r in _sql("SELECT * FROM refund") if int(r["challenge_id"]) == int(challenge_id)]
+
+
 def api_name(api_id: int) -> str | None:
     rows = _sql(f"SELECT * FROM api WHERE id = {int(api_id)}")
     return rows[0]["name"] if rows else None

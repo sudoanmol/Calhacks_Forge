@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { resolveSources, validateApiInputs, parseParams } from '../src/params.ts';
-import { reanchor, verifyValue } from '../src/text.ts';
+import { anchored, compareChallenge, reanchor, verifyValue } from '../src/text.ts';
 
 const INPUTS = JSON.stringify({ board: { type: 'string', description: 'Greenhouse board token', default: 'discord' } });
 const SOURCES = JSON.stringify(['https://boards-api.greenhouse.io/v1/boards/{board}/departments']);
@@ -49,4 +49,41 @@ test('verifyValue: verified, stale with fresh value, mismatch, unverifiable', ()
   assert.equal(verifyValue(page, { excerpt: 'Sold Price: $1,099.99 Free', value: '$1,099.99', entity: '' }, 'stable').status, 'mismatch');
   assert.equal(verifyValue(page, { excerpt: 'nothing like this', value: 'zzz', entity: '' }, 'volatile').status, 'mismatch');
   assert.equal(verifyValue({ ok: false, text: '' }, { excerpt: 'a', value: 'a', entity: '' }, 'volatile').status, 'unverifiable');
+});
+
+const YC = 'Airbnb\nBook accommodations around the world.\nWinter 2009\nActive Founders\nBatch: Winter 2009\nStatus:\nPublic\nLocation: San Francisco';
+
+test('challenge: the saved page holds the quote and the fresh page still matches', () => {
+  const rec = { excerpt: 'Batch: Winter 2009', value: 'Winter 2009', entity: 'Airbnb' };
+  const c = compareChallenge({ ok: true, text: YC }, { ok: true, text: YC }, rec);
+  assert.equal(c.saved.result, 'match');
+  assert.equal(c.fresh.result, 'match');
+  assert.equal(c.saved.quote, 'Batch: Winter 2009');
+  assert.match(c.saved.context, /Batch: Winter 2009/);
+  assert.equal(c.correctedValue, '');
+});
+
+test('challenge: a page that changed since extraction shows the fresh value and offers no correction', () => {
+  const rec = { excerpt: 'Sold Price: $1,099.99 Free Shipping', value: '$1,099.99', entity: '' };
+  const savedPage = PAGE.replace('$1,149.99', '$1,099.99');
+  const c = compareChallenge({ ok: true, text: savedPage }, { ok: true, text: PAGE }, rec);
+  assert.equal(c.saved.result, 'match');
+  assert.deepEqual([c.fresh.result, c.fresh.value], ['changed', '$1,149.99']);
+  assert.ok(anchored(PAGE, c.fresh.quote, c.fresh.value), 'the fresh quote is verbatim on the fresh page');
+  assert.equal(c.correctedValue, '');
+});
+
+test('challenge: a misread saved page yields a correction quoted verbatim from the saved page', () => {
+  const rec = { excerpt: 'Sold Price: $1,099.99 Free Shipping', value: '$1,099.99', entity: '' };
+  const c = compareChallenge({ ok: true, text: PAGE }, { ok: false, text: '' }, rec);
+  assert.deepEqual([c.saved.result, c.saved.value], ['changed', '$1,149.99']);
+  assert.equal(c.fresh.result, 'unavailable');
+  assert.equal(c.correctedValue, '$1,149.99');
+  assert.ok(anchored(PAGE, c.correctedExcerpt, c.correctedValue));
+});
+
+test('challenge: a value with no trace on either page is missing, never invented', () => {
+  const rec = { excerpt: 'Founded: 1999', value: '1999', entity: 'Nope Corp' };
+  const c = compareChallenge({ ok: true, text: YC }, { ok: true, text: YC }, rec);
+  assert.deepEqual([c.saved.result, c.saved.value, c.fresh.result, c.correctedValue], ['missing', '', 'missing', '']);
 });

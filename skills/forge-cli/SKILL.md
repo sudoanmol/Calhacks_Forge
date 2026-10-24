@@ -1,6 +1,6 @@
 ---
 name: forge-cli
-description: Read FORGE orders and the API catalog and record FORGE staff decisions (COO decide, Auditor verdict) through SpacetimeDB reducers. Use on every FORGE agent run that receives a `task` input.
+description: Read FORGE orders, customer challenges and the API catalog and record FORGE staff decisions (COO decide, Auditor verdict and challenge verdict) through SpacetimeDB reducers. Use on every FORGE agent run that receives a `task` input.
 ---
 
 # forge-cli
@@ -27,13 +27,15 @@ FORGE is a company that sells APIs over public web data. You are one of its staf
 | `forge catalog` | Every API: name, description, tier, volatility, sources, fields, current version, verified rate (0-1), buyers, cost per call |
 | `forge decide <orderId> <ACCEPT\|COUNTEROFFER\|REQUEST_RESEARCH\|REJECT> <apiName\|-> <reason...>` | COO only. `apiName` is the catalog API for ACCEPT, `-` otherwise |
 | `forge verdict <orderId> <ACCEPT\|REJECT> <reason...>` | Auditor only |
+| `forge challenge <challengeId>` | A customer challenge: its reason and status, the challenged value, and the recheck: `recheck.saved` (the page the extractor read) and `recheck.fresh` (a new Bright Data fetch), each with `result` (`match`, `changed`, `missing`, `unavailable`), the value and quote found, surrounding page text (`context`) and timestamps |
+| `forge challenge-verdict <challengeId> <UPHELD\|REJECTED> <reason...>` | Auditor only. UPHELD supersedes the value, refunds the order (TEST MODE), claws back its bonuses and opens a compile/warranty ticket; REJECTED changes nothing |
 
 Quote the reason as one shell argument: `forge decide 8 REJECT - "Fares only exist after a search form; they cannot be re-fetched to verify."`
 
 ## Rules
 
 1. Act only through `forge`. Do not call the database or any FORGE URL directly, and do not search the web for the answer to a decision.
-2. Make exactly one decision per run (`decide` or `verdict`). A run that ends without one fails the task. If the command fails, read the error, fix the arguments, and retry once; if it still fails, stop and report the error text.
+2. Make exactly one decision per run (`decide`, `verdict` or `challenge-verdict`). A run that ends without one fails the task. If the command fails, read the error, fix the arguments, and retry once; if it still fails, stop and report the error text.
 3. Every reason is specific and cites what you read: the API name, the gate check, the value counts, or the quoted terms clause and its URL.
 4. Never invent, guess or "fix" a value. Values come only from `forge order`. A value without a verified status is not a fact.
 5. Public data only: no logins, no paywalls, no personal data (names, emails, phones, profiles). Counts of people are fine; lists of people are not.
