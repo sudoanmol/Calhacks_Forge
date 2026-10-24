@@ -1,0 +1,111 @@
+diff --git aa/src/extract.js bb/src/extract.js
+index 75a9624..82f3624 100644
+--- aa/src/extract.js
++++ bb/src/extract.js
+@@ -12,6 +12,105 @@
+ //   excerpt  a short span (under 300 characters) copied character for character from page.text
+ //   row      optional integer row index; when left out, rows are grouped by entity
+ // Leave a field out when the page does not show it. Never compute, guess or reformat a value.
++//
++// Newegg search results render each listing card in the page text as:
++//   Quick View
++//   (123)                                  optional review count
++//   <title> [Save: $x (n%)] [$ 1,234 .56] [SOLD OUT|OUT OF STOCK|COMING SOON]
++//   [$ 1,234 .56]                          price on its own line when a promo label wraps
++//   [OUT OF STOCK]                         stock label on its own line
++//   [Sold Price: $1,234.56]                price shown for unavailable items
++// Cards end at the next "Quick View" or at the "Page x / y" pager.
++
++const PRICE = String.raw`\$ ?\d[\d,]* ?\.\d{2}`;
++const STOCK = String.raw`SOLD OUT|OUT OF STOCK|COMING SOON|LIMITED QUANTITY|PRE-ORDER`;
++
++const RE_CARD_START = /^Quick View$/;
++const RE_CARD_END = /^Page \d+ \/ \d+$/;
++const RE_RATING = /^\(\d[\d,]*\)$/;
++const RE_PRICE_LINE = new RegExp(`^(${PRICE})$`);
++const RE_STOCK_LINE = new RegExp(`^(${STOCK})$`);
++const RE_SOLD_PRICE = new RegExp(`^Sold Price:\\s*(${PRICE})$`);
++const RE_TRAIL_PRICE = new RegExp(`\\s+(${PRICE})$`);
++const RE_TRAIL_STOCK = new RegExp(`\\s+(${STOCK})$`);
++const RE_TRAIL_SAVE = /\s+Save:\s*\$[\d,.]+\s*\(\d+%\)$/;
++const RE_TRAIL_PROMO = /\s+Limited time offer, ends\s*\d{1,2}\/\d{1,2}(\/\d{2,4})?$/i;
++
++const MAX_EXCERPT = 299;
++const excerptFor = (line, value) => (line.length <= MAX_EXCERPT ? line : value);
++
++const parseTitleLine = (line) => {
++  let rest = line;
++  let price = null;
++  let stock = null;
++  for (let changed = true; changed;) {
++    changed = false;
++    let m;
++    if (!price && (m = rest.match(RE_TRAIL_PRICE))) {
++      price = m[1];
++      rest = rest.slice(0, m.index);
++      changed = true;
++    }
++    if (!stock && (m = rest.match(RE_TRAIL_STOCK))) {
++      stock = m[1];
++      rest = rest.slice(0, m.index);
++      changed = true;
++    }
++    if ((m = rest.match(RE_TRAIL_SAVE)) || (m = rest.match(RE_TRAIL_PROMO))) {
++      rest = rest.slice(0, m.index);
++      changed = true;
++    }
++  }
++  return { name: rest.trim(), price, stock };
++};
++
++const splitCards = (lines) => {
++  const cards = [];
++  let cur = null;
++  for (const line of lines) {
++    if (RE_CARD_START.test(line)) {
++      cur = [];
++      cards.push(cur);
++    } else if (RE_CARD_END.test(line)) {
++      cur = null;
++    } else if (cur) {
++      cur.push(line);
++    }
++  }
++  return cards;
++};
++
+ export const extract = (page) => {
+-  throw new Error('extract(page) is not implemented');
++  const lines = String(page.text ?? '').split('\n').map((l) => l.trim()).filter(Boolean);
++  const out = [];
++  let row = 0;
++
++  for (const card of splitCards(lines)) {
++    let i = 0;
++    while (i < card.length && RE_RATING.test(card[i])) i++;
++    const titleLine = card[i];
++    if (!titleLine || RE_PRICE_LINE.test(titleLine) || titleLine.length < 10) continue;
++
++    const parsed = parseTitleLine(titleLine);
++    if (!parsed.name) continue;
++
++    const values = [];
++    values.push({ metric: 'name', value: parsed.name, excerpt: excerptFor(titleLine, parsed.name) });
++
++    let price = parsed.price ? { value: parsed.price, excerpt: excerptFor(titleLine, parsed.price) } : null;
++    let stock = parsed.stock ? { value: parsed.stock, excerpt: excerptFor(titleLine, parsed.stock) } : null;
++
++    for (const line of card.slice(i + 1)) {
++      let m;
++      if (!price && (m = line.match(RE_PRICE_LINE))) price = { value: m[1], excerpt: line };
++      else if (!price && (m = line.match(RE_SOLD_PRICE))) price = { value: m[1], excerpt: line };
++      else if (!stock && (m = line.match(RE_STOCK_LINE))) stock = { value: m[1], excerpt: line };
++    }
++    if (price) values.push({ metric: 'price', ...price });
++    if (stock) values.push({ metric: 'stock', ...stock });
++
++    for (const v of values) out.push({ entity: parsed.name, row, ...v });
++    row++;
++  }
++  return out;
+ };

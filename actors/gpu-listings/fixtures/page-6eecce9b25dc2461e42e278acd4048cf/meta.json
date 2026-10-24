@@ -1,0 +1,9 @@
+{
+  "url": "https://www.newegg.com/p/pl?d=rtx+5080",
+  "snapshotKey": "page-6eecce9b25dc2461e42e278acd4048cf",
+  "snapshotHash": "6eecce9b25dc2461e42e278acd4048cf206826412b73f3ab89ef3e9356b80aac",
+  "orderId": 44,
+  "apifyRunId": "WmQMXEzql7vaycuNO",
+  "observedAt": "2026-10-24T21:23:40.893Z",
+  "note": "Saved Tier 0 page; expected.json holds the values verified on an independent Bright Data re-fetch."
+}

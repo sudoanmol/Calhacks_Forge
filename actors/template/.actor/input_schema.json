@@ -1,0 +1,20 @@
+{
+  "title": "FORGE Tier 1 API input",
+  "type": "object",
+  "schemaVersion": 1,
+  "properties": {
+    "sources": {
+      "title": "Source URLs",
+      "type": "array",
+      "description": "Public page URLs to extract from. Defaults to the API's sources in api.json.",
+      "editor": "stringList"
+    },
+    "pageCap": {
+      "title": "Page cap",
+      "type": "integer",
+      "description": "Maximum number of source pages fetched in one run. Defaults to the API's page cap.",
+      "minimum": 1,
+      "maximum": 50
+    }
+  }
+}

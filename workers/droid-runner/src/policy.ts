@@ -49,3 +49,31 @@ export function decide(worktree: string, use: ToolUseInfo): Decision {
   }
   return { outcome: 'needs-approval', reason: `tool ${use.name} (${use.type}) is not on the allowlist` };
 }
+
+// Compile sessions: Droid may change only the extractor of the Actor it is compiling and run its
+// tests. Everything else is denied outright (there is no founder approval path in a compile).
+const PLUMBING = /^src\/(lib\/|main\.js$|run\.js$|fetchers\.js$)/;
+const COMPILE_COMMANDS: RegExp[] = [
+  /^pnpm( run)? test$/,
+  /^pnpm run test:(fixtures|contract)$/,
+  /^node --test( [\w./*"-]+)*$/,
+];
+const SHELL_META = /[;&|<>`$\\\n(){}]/;
+
+export function decideCompile(actorDir: string, use: ToolUseInfo): Decision {
+  if (use.type === 'create' || use.type === 'edit' || use.type === 'apply_patch') {
+    if (!use.filePath) return { outcome: 'denied', reason: 'file change without a path' };
+    const rel = relative(actorDir, isAbsolute(use.filePath) ? use.filePath : resolve(actorDir, use.filePath));
+    if (rel.startsWith('..') || isAbsolute(rel)) return { outcome: 'denied', reason: `writes outside the Actor: ${use.filePath}` };
+    if (!rel.startsWith('src/')) return { outcome: 'denied', reason: `only src/ may change, not ${rel}` };
+    if (PLUMBING.test(rel)) return { outcome: 'denied', reason: `template plumbing is read-only: ${rel}` };
+    return { outcome: 'auto-allowed', reason: `extractor change: ${rel}` };
+  }
+  if (use.type === 'exec') {
+    const cmd = (use.command ?? '').trim();
+    if (SHELL_META.test(cmd)) return { outcome: 'denied', reason: `shell operators are not allowed: ${cmd}` };
+    if (COMPILE_COMMANDS.some((re) => re.test(cmd))) return { outcome: 'auto-allowed', reason: `test command: ${cmd}` };
+    return { outcome: 'denied', reason: `only the Actor's tests may run: ${cmd}` };
+  }
+  return { outcome: 'denied', reason: `tool ${use.name} (${use.type}) is not allowed in a compile` };
+}

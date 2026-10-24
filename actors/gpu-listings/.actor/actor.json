@@ -1,0 +1,14 @@
+{
+  "actorSpecification": 1,
+  "name": "forge-gpu-listings",
+  "title": "FORGE gpu-listings (Tier 1)",
+  "description": "A compiled FORGE API: deterministic extraction from public pages, no LLM. Every value carries a verbatim quote from a saved page and a status; values without a quote are marked unverifiable, never invented.",
+  "version": "1.0",
+  "buildTag": "latest",
+  "input": "./input_schema.json",
+  "dockerfile": "./Dockerfile",
+  "environmentVariables": {
+    "BRIGHTDATA_API_KEY": "@brightdataApiKey",
+    "BRIGHTDATA_UNLOCKER_ZONE": "forge_unlocker"
+  }
+}

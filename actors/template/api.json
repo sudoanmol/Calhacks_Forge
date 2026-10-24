@@ -1,0 +1,10 @@
+{
+  "name": "template",
+  "description": "Placeholder. scripts/make-fixtures.mjs overwrites this file with the API's Tier 0 spec.",
+  "sources": [],
+  "outputSchema": { "type": "object", "properties": {} },
+  "markers": [],
+  "render": "unlocker",
+  "pageCap": 1,
+  "volatility": "stable"
+}

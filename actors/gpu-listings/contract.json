@@ -1,0 +1,24 @@
+{
+  "api": "gpu-listings",
+  "replacesVersion": "0.1",
+  "replacesTier": 0,
+  "fields": [
+    "name",
+    "price",
+    "stock"
+  ],
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "price": {
+        "type": "string"
+      },
+      "stock": {
+        "type": "string"
+      }
+    }
+  }
+}

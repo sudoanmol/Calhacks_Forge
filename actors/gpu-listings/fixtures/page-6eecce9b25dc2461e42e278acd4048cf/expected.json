@@ -1,0 +1,464 @@
+[
+  {
+    "row": 0,
+    "entity": "Listing 1",
+    "metric": "name",
+    "value": "GIGABYTE AORUS GeForce RTX 5080 INFINITY WOOD 16G Graphics Card, 16GB 256-bit GDDR7, PCIe 5.0, WINDFORCE HYPERBURST cooling system, GV-N5080AORUSIF WD-16GD Graphics Card"
+  },
+  {
+    "row": 0,
+    "entity": "Listing 1",
+    "metric": "price",
+    "value": "$ 3,286 .90"
+  },
+  {
+    "row": 1,
+    "entity": "Listing 2",
+    "metric": "name",
+    "value": "ASUS ROG Astral GeForce RTX 5080 16GB GDDR7 OC Edition ROG-ASTRAL-RTX5080-O16G-GAMING PCI-Express 5.0 DLSS 4.0 Graphics Card"
+  },
+  {
+    "row": 2,
+    "entity": "Listing 3",
+    "metric": "name",
+    "value": "GIGABYTE AERO GeForce RTX 5080 16GB GDDR7 PCI Express 5.0 Graphics Card GV-N5080AERO OC-16GD"
+  },
+  {
+    "row": 2,
+    "entity": "Listing 3",
+    "metric": "price",
+    "value": "$ 2,835 .90"
+  },
+  {
+    "row": 3,
+    "entity": "Listing 4",
+    "metric": "price",
+    "value": "$ 1,999 .99"
+  },
+  {
+    "row": 4,
+    "entity": "Listing 5",
+    "metric": "name",
+    "value": "MSI SHADOW GeForce RTX 5080 16GB GDDR7 PCI Express 5.0 Graphics Card RTX 5080 16G SHADOW 3X OC"
+  },
+  {
+    "row": 4,
+    "entity": "Listing 5",
+    "metric": "price",
+    "value": "$ 2,082 .62"
+  },
+  {
+    "row": 5,
+    "entity": "Listing 6",
+    "metric": "name",
+    "value": "ASUS PRIME GeForce RTX 5080 16GB GDDR7 OC Edition PRIME-RTX5080-O16G PCI-Express 5.0 DLSS 4.0 Graphics Card"
+  },
+  {
+    "row": 5,
+    "entity": "Listing 6",
+    "metric": "price",
+    "value": "$ 2,399 .99"
+  },
+  {
+    "row": 6,
+    "entity": "Listing 7",
+    "metric": "name",
+    "value": "Acer Predator Helios Neo 16 AI - 16.0\" WQXGA 180 Hz - Intel Core Ultra 9 290HX Plus - GeForce RTX 5080 Laptop GPU - 16GB Memory DDR5 6400 - 1TB NVMe SSD - Windows 11 Home (NH.U5TAA.001 )"
+  },
+  {
+    "row": 6,
+    "entity": "Listing 7",
+    "metric": "price",
+    "value": "$ 3,299 .99"
+  },
+  {
+    "row": 7,
+    "entity": "Listing 8",
+    "metric": "name",
+    "value": "ASUS TUF Gaming GeForce RTX 5080 16GB GDDR7 OC Edition TUF-RTX5080-O16G-GAMING PCI-Express 5.0 DLSS 4.0 Graphics Card"
+  },
+  {
+    "row": 7,
+    "entity": "Listing 8",
+    "metric": "price",
+    "value": "$ 2,499 .00"
+  },
+  {
+    "row": 8,
+    "entity": "Listing 9",
+    "metric": "name",
+    "value": "GIGABYTE AORUS GeForce RTX 5080 16GB GDDR7 PCI Express 5.0 ATX Graphics Card GV-N5080AORUSM ICE-16G"
+  },
+  {
+    "row": 8,
+    "entity": "Listing 9",
+    "metric": "price",
+    "value": "$ 2,933 .90"
+  },
+  {
+    "row": 9,
+    "entity": "Listing 10",
+    "metric": "name",
+    "value": "Hasee T8 Pro-16'' GeForce RTX 5080 Laptop GPU Intel i9-14900HX-5.8GHz, AI Gaming Laptop, 32G DDR5 RAM, 2TB SSD, 16'' 240Hz QHD+ 100%sRGB IPS Display, RGB KB, WiFi 7,BT5.4,Win11, Mecha Grey"
+  },
+  {
+    "row": 9,
+    "entity": "Listing 10",
+    "metric": "price",
+    "value": "$ 2,549 .99"
+  },
+  {
+    "row": 10,
+    "entity": "Listing 11",
+    "metric": "name",
+    "value": "GIGABYTE AORUS MASTER GeForce RTX 5080 16GB GDDR7 PCI Express 5.0 Graphics Card GV-N5080AORUS M-16GD"
+  },
+  {
+    "row": 10,
+    "entity": "Listing 11",
+    "metric": "price",
+    "value": "$ 2,819 .68"
+  },
+  {
+    "row": 11,
+    "entity": "Listing 12",
+    "metric": "name",
+    "value": "ASUS ROG Astral GeForce RTX 5080 16GB GDDR7 PCI Express 5.0 x16 Graphics Card ROG-ASTRAL-RTX5080-O16G-WHITE"
+  },
+  {
+    "row": 11,
+    "entity": "Listing 12",
+    "metric": "price",
+    "value": "$ 2,989 .00"
+  },
+  {
+    "row": 12,
+    "entity": "Listing 13",
+    "metric": "name",
+    "value": "MSI Gaming GeForce RTX 5080 16GB GDDR7 PCI Express 5.0 Graphics Card RTX 5080 16G GAMING TRIO OC"
+  },
+  {
+    "row": 12,
+    "entity": "Listing 13",
+    "metric": "price",
+    "value": "$ 2,399 .00"
+  },
+  {
+    "row": 13,
+    "entity": "Listing 14",
+    "metric": "name",
+    "value": "MSI Ventus GeForce RTX 5080 16GB GDDR7 PCI Express 5.0 Graphics Card RTX 5080 16G VENTUS 3X OC"
+  },
+  {
+    "row": 13,
+    "entity": "Listing 14",
+    "metric": "price",
+    "value": "$ 2,089 .00"
+  },
+  {
+    "row": 14,
+    "entity": "Listing 15",
+    "metric": "name",
+    "value": "MSI INSPIRE GeForce RTX 5080 16GB GDDR7 PCI Express 5.0 ATX Graphics Card RTX 5080 16G INSPIRE 3X OC BLACK"
+  },
+  {
+    "row": 14,
+    "entity": "Listing 15",
+    "metric": "price",
+    "value": "$ 2,399 .99"
+  },
+  {
+    "row": 15,
+    "entity": "Listing 16",
+    "metric": "name",
+    "value": "PNY ARGB OC GeForce RTX 5080 16GB 256-Bit GDDR7 DLSS 4.0 PCI Express 5.0 x16 Graphics Card VCG508016TFXXPB1-O"
+  },
+  {
+    "row": 15,
+    "entity": "Listing 16",
+    "metric": "price",
+    "value": "$ 2,249 .99"
+  },
+  {
+    "row": 16,
+    "entity": "Listing 17",
+    "metric": "name",
+    "value": "MSI GeForce RTX 5080 16GB GDDR7 PCI Express 5.0 ATX Video Card RTX 5080 16G VENTUS 3X OC BLACK"
+  },
+  {
+    "row": 16,
+    "entity": "Listing 17",
+    "metric": "price",
+    "value": "$ 2,099 .00"
+  },
+  {
+    "row": 17,
+    "entity": "Listing 18",
+    "metric": "name",
+    "value": "PNY GeForce RTX 5080 OC 16GB 256-Bit GDDR7 DLSS 4.0 PCI Express 5.0 x16 Graphics Card VCG508016TFXPB1-O"
+  },
+  {
+    "row": 17,
+    "entity": "Listing 18",
+    "metric": "price",
+    "value": "$ 2,499 .00"
+  },
+  {
+    "row": 18,
+    "entity": "Listing 19",
+    "metric": "name",
+    "value": "ASUS ROG Astral white GeForce RTX 5080 16GB GDDR7 OC Edition ROG-ASTRAL-RTX5080-O16G-WHITE PCI-Express 5.0 DLSS 4.0 Graphics Card"
+  },
+  {
+    "row": 18,
+    "entity": "Listing 19",
+    "metric": "price",
+    "value": "$ 2,989 .00"
+  },
+  {
+    "row": 19,
+    "entity": "Listing 20",
+    "metric": "name",
+    "value": "MSI Suprim GeForce RTX 5080 16GB GDDR7 PCI Express 5.0 Graphics Card RTX 5080 16G SUPRIM SOC"
+  },
+  {
+    "row": 19,
+    "entity": "Listing 20",
+    "metric": "price",
+    "value": "$ 4,999 .99"
+  },
+  {
+    "row": 20,
+    "entity": "Listing 21",
+    "metric": "name",
+    "value": "ASUS ROG Astral GeForce RTX 5080 16GB GDDR7 OC HATSUNE MIKU EDITION PCI Express 5.0 x16 Graphics Card ROG-ASTRAL-RTX5080-O16G-MIKU-W"
+  },
+  {
+    "row": 20,
+    "entity": "Listing 21",
+    "metric": "price",
+    "value": "$ 4,169 .16"
+  },
+  {
+    "row": 21,
+    "entity": "Listing 22",
+    "metric": "name",
+    "value": "ASUS ROG Astral GeForce RTX 5080 16GB 256-Bit GDDR7 PCI Express 5.0 DLSS 4.0 Graphics Card ROG-ASTRAL-RTX5080-16G-GAMING"
+  },
+  {
+    "row": 21,
+    "entity": "Listing 22",
+    "metric": "price",
+    "value": "$ 2,691 .80"
+  },
+  {
+    "row": 22,
+    "entity": "Listing 23",
+    "metric": "name",
+    "value": "GIGABYTE WINDFORCE GeForce RTX 5080 16GB GDDR7 PCI Express 5.0 x16 ATX SFF Graphics Card GV-N5080WF3-16GD"
+  },
+  {
+    "row": 22,
+    "entity": "Listing 23",
+    "metric": "price",
+    "value": "$ 2,470 .00"
+  },
+  {
+    "row": 23,
+    "entity": "Listing 24",
+    "metric": "name",
+    "value": "GIGABYTE AORUS GeForce RTX 5080 16GB GDDR7 PCI Express 5.0 ATX Graphics Card GV-N5080AORUSX W-16GD"
+  },
+  {
+    "row": 23,
+    "entity": "Listing 24",
+    "metric": "price",
+    "value": "$ 2,974 .90"
+  },
+  {
+    "row": 24,
+    "entity": "Listing 25",
+    "metric": "name",
+    "value": "MSI VANGUARD GeForce RTX 5080 16GB GDDR7 PCI Express 5.0 Graphics Card RTX 5080 16G VANGUARD SOC"
+  },
+  {
+    "row": 24,
+    "entity": "Listing 25",
+    "metric": "price",
+    "value": "$ 3,499 .00"
+  },
+  {
+    "row": 25,
+    "entity": "Listing 26",
+    "metric": "name",
+    "value": "ASUS TUF Gaming GeForce RTX 5080 16GB GDDR7 OC Edition TUF-RTX5080-O16G-GAMING PCI-Express 5.0 DLSS 4.0 Graphics Card"
+  },
+  {
+    "row": 25,
+    "entity": "Listing 26",
+    "metric": "price",
+    "value": "$ 2,379 .00"
+  },
+  {
+    "row": 26,
+    "entity": "Listing 27",
+    "metric": "name",
+    "value": "ASUS ROG Astral GeForce RTX 5080 video card, 16GB GDDR7, ROG-ASTRAL-RTX5080-O16G-GAMING, PCI-Express 5.0 DLSS 4.0 Graphics Card"
+  },
+  {
+    "row": 26,
+    "entity": "Listing 27",
+    "metric": "price",
+    "value": "$ 4,899 .99"
+  },
+  {
+    "row": 27,
+    "entity": "Listing 28",
+    "metric": "price",
+    "value": "$ 3,999 .99"
+  },
+  {
+    "row": 28,
+    "entity": "Listing 29",
+    "metric": "name",
+    "value": "ASUS PROART GeForce RTX 5080 16GB GDDR7 OC Edition PROART-RTX5080-O16G PCI-Express 5.0 DLSS 4.0 Graphics Card Free Logitech G502 HERO gaming mouse, limited offer"
+  },
+  {
+    "row": 28,
+    "entity": "Listing 29",
+    "metric": "price",
+    "value": "$ 3,999 .99"
+  },
+  {
+    "row": 29,
+    "entity": "Listing 30",
+    "metric": "name",
+    "value": "MSI Ventus GeForce RTX 5080 16GB GDDR7 PCI Express 5.0 Graphics Card RTX 5080 16G VENTUS 3X OC PLUS"
+  },
+  {
+    "row": 29,
+    "entity": "Listing 30",
+    "metric": "price",
+    "value": "$ 2,599 .00"
+  },
+  {
+    "row": 30,
+    "entity": "Listing 31",
+    "metric": "name",
+    "value": "ASUS PROART GeForce RTX 5080 16GB GDDR7 Edition PROART-RTX5080-16G PCI-Express 5.0 DLSS 4.0 Graphics Card Free Logitech G502 HERO gaming mouse, limited offer"
+  },
+  {
+    "row": 30,
+    "entity": "Listing 31",
+    "metric": "price",
+    "value": "$ 3,999 .99"
+  },
+  {
+    "row": 31,
+    "entity": "Listing 32",
+    "metric": "name",
+    "value": "ASUS ROG ASTRAL MIKU C GeForce RTX 5080 16GB GDDR7 OC Edition ROG-ASTRAL-RTX5080-O16G-MIKU-C PCI-Express 5.0 DLSS 4.0 Graphics Card"
+  },
+  {
+    "row": 31,
+    "entity": "Listing 32",
+    "metric": "price",
+    "value": "$ 5,299 .99"
+  },
+  {
+    "row": 32,
+    "entity": "Listing 33",
+    "metric": "name",
+    "value": "ASUS TUF Gaming GeForce RTX 5080 16GB GDDR7 BTF OC Edition Gaming Graphics Card (PCIe 5.0, HDMI/DP 2.1, 3.6-slot, military-grade components, detachable GC-HPWR adapter)"
+  },
+  {
+    "row": 32,
+    "entity": "Listing 33",
+    "metric": "price",
+    "value": "$ 2,349 .99"
+  },
+  {
+    "row": 33,
+    "entity": "Listing 34",
+    "metric": "name",
+    "value": "GIGABYTE Gaming GeForce RTX 5080 16GB GDDR7 PCI Express 5.0 Graphics Card GV-N5080GAMING OC-16GD"
+  },
+  {
+    "row": 33,
+    "entity": "Listing 34",
+    "metric": "price",
+    "value": "$1,799.99"
+  },
+  {
+    "row": 33,
+    "entity": "Listing 34",
+    "metric": "stock",
+    "value": "SOLD OUT"
+  },
+  {
+    "row": 34,
+    "entity": "Listing 35",
+    "metric": "name",
+    "value": "GIGABYTE WINDFORCE GeForce RTX 5080 16GB GDDR7 PCI Express 5.0 Graphics Card GV-N5080WF3OC-16GD"
+  },
+  {
+    "row": 34,
+    "entity": "Listing 35",
+    "metric": "price",
+    "value": "$1,699.99"
+  },
+  {
+    "row": 34,
+    "entity": "Listing 35",
+    "metric": "stock",
+    "value": "SOLD OUT"
+  },
+  {
+    "row": 35,
+    "entity": "Listing 36",
+    "metric": "name",
+    "value": "ASUS PRIME GeForce RTX 5080 16GB 256-Bit GDDR7 PCI-Express 5.0 DLSS 4.0 Graphics Card PRIME-RTX5080-16G"
+  },
+  {
+    "row": 35,
+    "entity": "Listing 36",
+    "metric": "price",
+    "value": "$1,599.99"
+  },
+  {
+    "row": 35,
+    "entity": "Listing 36",
+    "metric": "stock",
+    "value": "SOLD OUT"
+  },
+  {
+    "row": 36,
+    "entity": "Listing 37",
+    "metric": "name",
+    "value": "MSI Gaming GeForce RTX 5080 16GB GDDR7 PCI Express 5.0 Graphics Card RTX 5080 16G GAMING TRIO OC WHITE"
+  },
+  {
+    "row": 36,
+    "entity": "Listing 37",
+    "metric": "price",
+    "value": "$1,849.99"
+  },
+  {
+    "row": 36,
+    "entity": "Listing 37",
+    "metric": "stock",
+    "value": "OUT OF STOCK"
+  },
+  {
+    "row": 37,
+    "entity": "Listing 38",
+    "metric": "name",
+    "value": "ASUS PRIME GeForce RTX 5080 16GB GDDR7 PCI Express 5.0 ATX Video Card PRIME-RTX5080-O16G-EVO"
+  },
+  {
+    "row": 37,
+    "entity": "Listing 38",
+    "metric": "stock",
+    "value": "COMING SOON"
+  }
+]

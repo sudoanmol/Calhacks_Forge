@@ -1,0 +1,27 @@
+{
+  "name": "gpu-listings",
+  "description": "RTX 5080 graphics card listings from the public Newegg search results page: product name, price and stock status per listing. Volatile: prices and stock change often, so values are verified within a 15-minute window.",
+  "sources": [
+    "https://www.newegg.com/p/pl?d=rtx+5080"
+  ],
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "price": {
+        "type": "string"
+      },
+      "stock": {
+        "type": "string"
+      }
+    }
+  },
+  "markers": [
+    "5080"
+  ],
+  "render": "unlocker",
+  "pageCap": 1,
+  "volatility": "volatile"
+}
