@@ -6,8 +6,17 @@
 import { type Infer as __Infer } from "spacetimedb";
 
 // Import all procedure arg schemas
+import * as ApifyPollProcedure from "../apify_poll_procedure";
+import * as CreaoPollProcedure from "../creao_poll_procedure";
+import * as CreaoStartProcedure from "../creao_start_procedure";
 import * as HttpSmokeProcedure from "../http_smoke_procedure";
 
+export type ApifyPollArgs = __Infer<typeof ApifyPollProcedure.params>;
+export type ApifyPollResult = __Infer<typeof ApifyPollProcedure.returnType>;
+export type CreaoPollArgs = __Infer<typeof CreaoPollProcedure.params>;
+export type CreaoPollResult = __Infer<typeof CreaoPollProcedure.returnType>;
+export type CreaoStartArgs = __Infer<typeof CreaoStartProcedure.params>;
+export type CreaoStartResult = __Infer<typeof CreaoStartProcedure.returnType>;
 export type HttpSmokeArgs = __Infer<typeof HttpSmokeProcedure.params>;
 export type HttpSmokeResult = __Infer<typeof HttpSmokeProcedure.returnType>;
 

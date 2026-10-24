@@ -1,55 +1,65 @@
-import { useMemo } from 'react';
+import { useState } from 'react';
 import { useSpacetimeDB, useTable } from 'spacetimedb/react';
 import { tables } from './module_bindings';
+import { usd } from './format';
+import { TERMINAL } from './flow';
+import { OrdersTab } from './Orders';
+import { ApisTab } from './Apis';
+import { EventsPanel } from './Events';
 
-const time = (ts: { microsSinceUnixEpoch: bigint }) =>
-  new Date(Number(ts.microsSinceUnixEpoch / 1000n)).toLocaleTimeString();
+const TABS = ['Orders', 'APIs'] as const;
+type Tab = (typeof TABS)[number];
+const CHECKED = new Set(['verified', 'stale', 'mismatch', 'unverifiable', 'corrected']);
 
-export function App({ db }: { db: string }) {
+function Stats({ db }: { db: string }) {
   const conn = useSpacetimeDB();
-  const [events, eventsReady] = useTable(tables.event);
-  const [tasks] = useTable(tables.task);
-  const [staff] = useTable(tables.staff);
-  const [config] = useTable(tables.config);
+  const [books] = useTable(tables.books);
+  const [budget] = useTable(tables.budget);
+  const [values] = useTable(tables.valueRecord);
+  const [orders] = useTable(tables.orders);
 
-  const recent = useMemo(() => [...events].sort((a, b) => (a.id < b.id ? 1 : -1)).slice(0, 50), [events]);
-  const openTasks = tasks.filter((t) => t.status === 'queued' || t.status === 'claimed').length;
+  // Payments debit customer:<orderId>, so the sum of those balances is revenue received.
+  const revenue = -books.filter((b) => b.account.startsWith('customer:')).reduce((s, b) => s + b.balanceCents, 0n);
+  const treasury = books.find((b) => b.account === 'treasury')?.balanceCents ?? 0n;
+  const eng = budget.find((b) => b.name === 'engineering');
+  const checked = values.filter((v) => CHECKED.has(v.status));
+  const verified = checked.filter((v) => v.status === 'verified').length;
+  const openOrders = orders.filter((o) => !TERMINAL.has(o.status)).length;
+  const connText = conn.isActive ? 'connected' : conn.connectionError ? `error: ${conn.connectionError.message}` : 'connecting…';
 
   return (
-    <div className="app">
-      <header className="stats" data-testid="stats">
-        <span className="badge test">TEST MODE</span>
+    <header className="stats" data-testid="stats">
+      <span className="badge test">TEST MODE</span>
+      <span className="stat"><small>revenue</small><b>{usd(revenue)}</b></span>
+      <span className="stat"><small>treasury</small><b>{usd(treasury)}</b></span>
+      <span className="stat"><small>eng budget cap / reserved / spent</small><b>{eng ? `${usd(eng.capCents)} / ${usd(eng.reservedCents)} / ${usd(eng.spentCents)}` : '—'}</b></span>
+      <span className="stat"><small>verified</small><b>{checked.length ? `${Math.round((verified / checked.length) * 100)}%` : '—'}</b><small>{verified}/{checked.length}</small></span>
+      <span className="stat"><small>open orders</small><b data-testid="open-orders">{openOrders}</b></span>
+      <span className="right">
+        <span className={`conn ${conn.isActive ? 'ok' : 'bad'}`} data-testid="conn">{connText}</span>
+        <span className="muted">db {db}</span>
+        <span className="muted" title={conn.identity?.toHexString()}>{conn.identity ? `you ${conn.identity.toHexString().slice(0, 8)}…` : ''}</span>
         <span className="badge live">LIVE</span>
-        <span>db <b>{db}</b></span>
-        <span data-testid="conn">{conn.isActive ? 'connected' : conn.connectionError ? `error: ${conn.connectionError.message}` : 'connecting…'}</span>
-        <span>staff <b>{staff.length}</b></span>
-        <span>open tasks <b data-testid="open-tasks">{openTasks}</b></span>
-        <span>config keys <b>{config.length}</b></span>
-        <span className="identity" title={conn.identity?.toHexString()}>{conn.identity ? `you: ${conn.identity.toHexString().slice(0, 10)}…` : ''}</span>
-      </header>
+      </span>
+    </header>
+  );
+}
+
+export function App({ db }: { db: string }) {
+  const [tab, setTab] = useState<Tab>('Orders');
+  return (
+    <div className="app">
+      <Stats db={db} />
       <main>
-        <section className="panel">
-          <h2>Tasks</h2>
-          <table>
-            <thead><tr><th>id</th><th>kind</th><th>role</th><th>status</th><th>attempt</th></tr></thead>
-            <tbody>
-              {[...tasks].sort((a, b) => (a.id < b.id ? 1 : -1)).slice(0, 30).map((t) => (
-                <tr key={String(t.id)}><td>{String(t.id)}</td><td>{t.kind}</td><td>{t.role}</td><td>{t.status}</td><td>{t.attempt}</td></tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-        <section className="panel events">
-          <h2>Events {eventsReady ? `(${events.length})` : '(loading)'}</h2>
-          <ol data-testid="events">
-            {recent.map((e) => (
-              <li key={String(e.id)}>
-                <span className="t">{time(e.at)}</span> <b>{e.kind}</b> <span className="actor">{e.actor}</span>
-                <code>{e.payload.slice(0, 140)}</code>
-              </li>
+        <section className="panel mainpanel">
+          <nav className="tabs">
+            {TABS.map((t) => (
+              <button key={t} className={t === tab ? 'on' : ''} onClick={() => setTab(t)}>{t}</button>
             ))}
-          </ol>
+          </nav>
+          {tab === 'Orders' ? <OrdersTab /> : <ApisTab />}
         </section>
+        <EventsPanel />
       </main>
     </div>
   );

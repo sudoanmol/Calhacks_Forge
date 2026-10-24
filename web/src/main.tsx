@@ -15,7 +15,11 @@ const builder = DbConnection.builder()
   .withToken(localStorage.getItem(TOKEN_KEY) ?? undefined)
   .onConnect((conn, _identity, token) => {
     localStorage.setItem(TOKEN_KEY, token);
-    conn.subscriptionBuilder().subscribe([tables.config, tables.staff, tables.task, tables.event]);
+    conn.subscriptionBuilder().subscribe([
+      tables.config, tables.staff, tables.task, tables.event, tables.run, tables.customer, tables.api, tables.apiVersion,
+      tables.gateCheck, tables.orders, tables.ticket, tables.valueRecord, tables.evidence, tables.challenge,
+      tables.approval, tables.budget, tables.bonus, tables.books,
+    ]);
   });
 
 createRoot(document.getElementById('root')!).render(

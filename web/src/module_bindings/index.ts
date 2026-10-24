@@ -34,25 +34,133 @@ import {
 } from "spacetimedb";
 
 // Import all reducer arg schemas
+import AuditVerdictReducer from "./audit_verdict_reducer";
 import ClaimTaskReducer from "./claim_task_reducer";
 import CompleteTaskReducer from "./complete_task_reducer";
+import CooDecideReducer from "./coo_decide_reducer";
+import CreateApiReducer from "./create_api_reducer";
+import CreateOrderReducer from "./create_order_reducer";
 import EnqueueTaskReducer from "./enqueue_task_reducer";
+import EnsureDefaultsReducer from "./ensure_defaults_reducer";
+import RecordPaymentReducer from "./record_payment_reducer";
+import RejectAtDeskReducer from "./reject_at_desk_reducer";
 import SetConfigReducer from "./set_config_reducer";
 import SetStaffReducer from "./set_staff_reducer";
 
 // Import all procedure arg schemas
+import * as ApifyPollProcedure from "./apify_poll_procedure";
+import * as CreaoPollProcedure from "./creao_poll_procedure";
+import * as CreaoStartProcedure from "./creao_start_procedure";
 import * as HttpSmokeProcedure from "./http_smoke_procedure";
 
 // Import all table schema definitions
+import ApiRow from "./api_table";
+import ApiVersionRow from "./api_version_table";
+import ApprovalRow from "./approval_table";
+import BonusRow from "./bonus_table";
+import BooksRow from "./books_table";
+import BudgetRow from "./budget_table";
+import ChallengeRow from "./challenge_table";
 import ConfigRow from "./config_table";
+import CustomerRow from "./customer_table";
 import EventRow from "./event_table";
+import EvidenceRow from "./evidence_table";
+import GateCheckRow from "./gate_check_table";
+import OrdersRow from "./orders_table";
+import RunRow from "./run_table";
 import StaffRow from "./staff_table";
 import TaskRow from "./task_table";
+import TicketRow from "./ticket_table";
+import ValueRecordRow from "./value_record_table";
 
 /** Type-only namespace exports for generated type groups. */
 
 /** The schema information for all tables in this module. This is defined the same was as the tables would have been defined in the server. */
 const tablesSchema = __schema({
+  api: __table({
+    name: 'api',
+    indexes: [
+      { accessor: 'id', name: 'api_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'name', name: 'api_name_idx_btree', algorithm: 'btree', columns: [
+        'name',
+      ] },
+    ],
+    constraints: [
+      { name: 'api_id_key', constraint: 'unique', columns: ['id'] },
+      { name: 'api_name_key', constraint: 'unique', columns: ['name'] },
+    ],
+  }, ApiRow),
+  apiVersion: __table({
+    name: 'api_version',
+    indexes: [
+      { accessor: 'apiId', name: 'api_version_api_id_idx_btree', algorithm: 'btree', columns: [
+        'apiId',
+      ] },
+      { accessor: 'id', name: 'api_version_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'api_version_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, ApiVersionRow),
+  approval: __table({
+    name: 'approval',
+    indexes: [
+      { accessor: 'id', name: 'approval_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'approval_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, ApprovalRow),
+  bonus: __table({
+    name: 'bonus',
+    indexes: [
+      { accessor: 'id', name: 'bonus_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'bonus_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, BonusRow),
+  books: __table({
+    name: 'books',
+    indexes: [
+      { accessor: 'account', name: 'books_account_idx_btree', algorithm: 'btree', columns: [
+        'account',
+      ] },
+    ],
+    constraints: [
+      { name: 'books_account_key', constraint: 'unique', columns: ['account'] },
+    ],
+  }, BooksRow),
+  budget: __table({
+    name: 'budget',
+    indexes: [
+      { accessor: 'name', name: 'budget_name_idx_btree', algorithm: 'btree', columns: [
+        'name',
+      ] },
+    ],
+    constraints: [
+      { name: 'budget_name_key', constraint: 'unique', columns: ['name'] },
+    ],
+  }, BudgetRow),
+  challenge: __table({
+    name: 'challenge',
+    indexes: [
+      { accessor: 'id', name: 'challenge_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'challenge_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, ChallengeRow),
   config: __table({
     name: 'config',
     indexes: [
@@ -64,6 +172,21 @@ const tablesSchema = __schema({
       { name: 'config_key_key', constraint: 'unique', columns: ['key'] },
     ],
   }, ConfigRow),
+  customer: __table({
+    name: 'customer',
+    indexes: [
+      { accessor: 'asiSender', name: 'customer_asi_sender_idx_btree', algorithm: 'btree', columns: [
+        'asiSender',
+      ] },
+      { accessor: 'id', name: 'customer_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'customer_asi_sender_key', constraint: 'unique', columns: ['asiSender'] },
+      { name: 'customer_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, CustomerRow),
   event: __table({
     name: 'event',
     indexes: [
@@ -75,6 +198,60 @@ const tablesSchema = __schema({
       { name: 'event_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, EventRow),
+  evidence: __table({
+    name: 'evidence',
+    indexes: [
+      { accessor: 'id', name: 'evidence_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'evidence_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, EvidenceRow),
+  gateCheck: __table({
+    name: 'gate_check',
+    indexes: [
+      { accessor: 'id', name: 'gate_check_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'gate_check_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, GateCheckRow),
+  orders: __table({
+    name: 'orders',
+    indexes: [
+      { accessor: 'customerId', name: 'orders_customer_id_idx_btree', algorithm: 'btree', columns: [
+        'customerId',
+      ] },
+      { accessor: 'id', name: 'orders_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'ref', name: 'orders_ref_idx_btree', algorithm: 'btree', columns: [
+        'ref',
+      ] },
+    ],
+    constraints: [
+      { name: 'orders_id_key', constraint: 'unique', columns: ['id'] },
+      { name: 'orders_ref_key', constraint: 'unique', columns: ['ref'] },
+    ],
+  }, OrdersRow),
+  run: __table({
+    name: 'run',
+    indexes: [
+      { accessor: 'externalId', name: 'run_external_id_idx_btree', algorithm: 'btree', columns: [
+        'externalId',
+      ] },
+      { accessor: 'id', name: 'run_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'run_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, RunRow),
   staff: __table({
     name: 'staff',
     indexes: [
@@ -100,19 +277,54 @@ const tablesSchema = __schema({
       { name: 'task_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, TaskRow),
+  ticket: __table({
+    name: 'ticket',
+    indexes: [
+      { accessor: 'id', name: 'ticket_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'ticket_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, TicketRow),
+  valueRecord: __table({
+    name: 'value_record',
+    indexes: [
+      { accessor: 'id', name: 'value_record_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'orderId', name: 'value_record_order_id_idx_btree', algorithm: 'btree', columns: [
+        'orderId',
+      ] },
+    ],
+    constraints: [
+      { name: 'value_record_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, ValueRecordRow),
 });
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
+  __reducerSchema("audit_verdict", AuditVerdictReducer),
   __reducerSchema("claim_task", ClaimTaskReducer),
   __reducerSchema("complete_task", CompleteTaskReducer),
+  __reducerSchema("coo_decide", CooDecideReducer),
+  __reducerSchema("create_api", CreateApiReducer),
+  __reducerSchema("create_order", CreateOrderReducer),
   __reducerSchema("enqueue_task", EnqueueTaskReducer),
+  __reducerSchema("ensure_defaults", EnsureDefaultsReducer),
+  __reducerSchema("record_payment", RecordPaymentReducer),
+  __reducerSchema("reject_at_desk", RejectAtDeskReducer),
   __reducerSchema("set_config", SetConfigReducer),
   __reducerSchema("set_staff", SetStaffReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */
 const proceduresSchema = __procedures(
+  __procedureSchema("apify_poll", ApifyPollProcedure.params, ApifyPollProcedure.returnType),
+  __procedureSchema("creao_poll", CreaoPollProcedure.params, CreaoPollProcedure.returnType),
+  __procedureSchema("creao_start", CreaoStartProcedure.params, CreaoStartProcedure.returnType),
   __procedureSchema("http_smoke", HttpSmokeProcedure.params, HttpSmokeProcedure.returnType),
 );
 

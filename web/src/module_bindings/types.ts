@@ -10,12 +10,125 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
+export const Api = __t.object("Api", {
+  id: __t.u64(),
+  name: __t.string(),
+  description: __t.string(),
+  inputs: __t.string(),
+  sources: __t.string(),
+  outputSchema: __t.string(),
+  volatility: __t.string(),
+  freshnessWindowMin: __t.u32(),
+  pageCap: __t.u32(),
+  tier: __t.u8(),
+  currentVersionId: __t.option(__t.u64()),
+  buyerCount: __t.u32(),
+  verifiedRateBp: __t.u32(),
+  costPerCallCents: __t.u32(),
+  createdAt: __t.timestamp(),
+});
+export type Api = __Infer<typeof Api>;
+
+export const ApiRunSchedule = __t.object("ApiRunSchedule", {
+  scheduledId: __t.u64(),
+  scheduledAt: __t.scheduleAt(),
+  orderId: __t.u64(),
+});
+export type ApiRunSchedule = __Infer<typeof ApiRunSchedule>;
+
+export const ApiVersion = __t.object("ApiVersion", {
+  id: __t.u64(),
+  apiId: __t.u64(),
+  version: __t.string(),
+  tier: __t.u8(),
+  engine: __t.string(),
+  apifyId: __t.string(),
+  fields: __t.string(),
+  droidSessionId: __t.string(),
+  testsPassed: __t.bool(),
+  shippedAt: __t.option(__t.timestamp()),
+});
+export type ApiVersion = __Infer<typeof ApiVersion>;
+
+export const Approval = __t.object("Approval", {
+  id: __t.u64(),
+  kind: __t.string(),
+  refType: __t.string(),
+  refId: __t.u64(),
+  amountCents: __t.u32(),
+  detail: __t.string(),
+  status: __t.string(),
+  createdAt: __t.timestamp(),
+  decidedAt: __t.option(__t.timestamp()),
+});
+export type Approval = __Infer<typeof Approval>;
+
+export const Bonus = __t.object("Bonus", {
+  id: __t.u64(),
+  role: __t.string(),
+  orderId: __t.option(__t.u64()),
+  taskId: __t.option(__t.u64()),
+  amountCents: __t.u32(),
+  status: __t.string(),
+  createdAt: __t.timestamp(),
+});
+export type Bonus = __Infer<typeof Bonus>;
+
+export const Books = __t.object("Books", {
+  account: __t.string(),
+  balanceCents: __t.i64(),
+  updatedAt: __t.timestamp(),
+});
+export type Books = __Infer<typeof Books>;
+
+export const Budget = __t.object("Budget", {
+  name: __t.string(),
+  capCents: __t.u32(),
+  reservedCents: __t.u32(),
+  spentCents: __t.u32(),
+});
+export type Budget = __Infer<typeof Budget>;
+
+export const CallbackToken = __t.object("CallbackToken", {
+  token: __t.string(),
+  provider: __t.string(),
+  runRef: __t.u64(),
+  usedAt: __t.option(__t.timestamp()),
+});
+export type CallbackToken = __Infer<typeof CallbackToken>;
+
+export const Challenge = __t.object("Challenge", {
+  id: __t.u64(),
+  orderId: __t.u64(),
+  valueRecordId: __t.u64(),
+  reason: __t.string(),
+  status: __t.string(),
+  verdict: __t.string(),
+  auditorReason: __t.string(),
+  createdAt: __t.timestamp(),
+  resolvedAt: __t.option(__t.timestamp()),
+});
+export type Challenge = __Infer<typeof Challenge>;
+
 export const Config = __t.object("Config", {
   key: __t.string(),
   value: __t.string(),
   updatedAt: __t.timestamp(),
 });
 export type Config = __Infer<typeof Config>;
+
+export const Customer = __t.object("Customer", {
+  id: __t.u64(),
+  asiSender: __t.string(),
+  createdAt: __t.timestamp(),
+});
+export type Customer = __Infer<typeof Customer>;
+
+export const DispatchSchedule = __t.object("DispatchSchedule", {
+  scheduledId: __t.u64(),
+  scheduledAt: __t.scheduleAt(),
+});
+export type DispatchSchedule = __Infer<typeof DispatchSchedule>;
 
 export const Event = __t.object("Event", {
   id: __t.u64(),
@@ -28,11 +141,86 @@ export const Event = __t.object("Event", {
 });
 export type Event = __Infer<typeof Event>;
 
+export const Evidence = __t.object("Evidence", {
+  id: __t.u64(),
+  valueRecordId: __t.option(__t.u64()),
+  orderId: __t.option(__t.u64()),
+  url: __t.string(),
+  method: __t.string(),
+  country: __t.string(),
+  httpStatus: __t.u32(),
+  attempt: __t.u32(),
+  ms: __t.u32(),
+  matched: __t.bool(),
+  reason: __t.string(),
+  snapshotHash: __t.string(),
+  fetchedAt: __t.timestamp(),
+});
+export type Evidence = __Infer<typeof Evidence>;
+
+export const GateCheck = __t.object("GateCheck", {
+  id: __t.u64(),
+  orderId: __t.option(__t.u64()),
+  ticketId: __t.option(__t.u64()),
+  check: __t.string(),
+  result: __t.string(),
+  citationUrl: __t.string(),
+  citationText: __t.string(),
+  at: __t.timestamp(),
+});
+export type GateCheck = __Infer<typeof GateCheck>;
+
 export const LeaseSweepSchedule = __t.object("LeaseSweepSchedule", {
   scheduledId: __t.u64(),
   scheduledAt: __t.scheduleAt(),
 });
 export type LeaseSweepSchedule = __Infer<typeof LeaseSweepSchedule>;
+
+export const Ledger = __t.object("Ledger", {
+  id: __t.u64(),
+  txId: __t.u64(),
+  account: __t.string(),
+  amountCents: __t.i64(),
+  memo: __t.string(),
+  at: __t.timestamp(),
+});
+export type Ledger = __Infer<typeof Ledger>;
+
+export const Orders = __t.object("Orders", {
+  id: __t.u64(),
+  ref: __t.string(),
+  customerId: __t.u64(),
+  apiId: __t.option(__t.u64()),
+  requestText: __t.string(),
+  intent: __t.string(),
+  params: __t.string(),
+  priceCents: __t.u32(),
+  status: __t.string(),
+  apiVersionId: __t.option(__t.u64()),
+  apifyRunId: __t.string(),
+  datasetUrl: __t.string(),
+  stripeSessionId: __t.string(),
+  decisionReason: __t.string(),
+  createdAt: __t.timestamp(),
+  updatedAt: __t.timestamp(),
+});
+export type Orders = __Infer<typeof Orders>;
+
+export const Run = __t.object("Run", {
+  id: __t.u64(),
+  provider: __t.string(),
+  externalId: __t.string(),
+  appId: __t.string(),
+  taskId: __t.option(__t.u64()),
+  threadId: __t.string(),
+  status: __t.string(),
+  resultText: __t.string(),
+  shareUrl: __t.string(),
+  costCents: __t.u32(),
+  startedAt: __t.timestamp(),
+  endedAt: __t.option(__t.timestamp()),
+});
+export type Run = __Infer<typeof Run>;
 
 export const Staff = __t.object("Staff", {
   identity: __t.identity(),
@@ -58,4 +246,46 @@ export const Task = __t.object("Task", {
   updatedAt: __t.timestamp(),
 });
 export type Task = __Infer<typeof Task>;
+
+export const Ticket = __t.object("Ticket", {
+  id: __t.u64(),
+  orderId: __t.option(__t.u64()),
+  apiId: __t.option(__t.u64()),
+  label: __t.string(),
+  text: __t.string(),
+  confidenceBp: __t.u32(),
+  status: __t.string(),
+  createdAt: __t.timestamp(),
+});
+export type Ticket = __Infer<typeof Ticket>;
+
+export const ValueRecord = __t.object("ValueRecord", {
+  id: __t.u64(),
+  orderId: __t.u64(),
+  apiId: __t.u64(),
+  row: __t.u32(),
+  entity: __t.string(),
+  metric: __t.string(),
+  value: __t.string(),
+  sourceUrl: __t.string(),
+  excerpt: __t.string(),
+  snapshotKey: __t.string(),
+  snapshotHash: __t.string(),
+  observedAt: __t.timestamp(),
+  verifiedAt: __t.option(__t.timestamp()),
+  apiVersionId: __t.u64(),
+  tier: __t.u8(),
+  method: __t.string(),
+  status: __t.string(),
+  freshValue: __t.string(),
+  supersedesId: __t.option(__t.u64()),
+});
+export type ValueRecord = __Infer<typeof ValueRecord>;
+
+export const VerifySchedule = __t.object("VerifySchedule", {
+  scheduledId: __t.u64(),
+  scheduledAt: __t.scheduleAt(),
+  orderId: __t.u64(),
+});
+export type VerifySchedule = __Infer<typeof VerifySchedule>;
 
