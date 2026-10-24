@@ -401,7 +401,7 @@ export const routes = spacetimedb.httpRouter(new Router().post('/apify-callback'
 - The Research prompt requires a quoted terms clause and URL for every terms finding; "unclear" is a valid answer.
 - Rework continues the same `threadId`.
 - The CFO's daily report is a CREAO scheduled run that writes to the dashboard through `forge report`.
-- API: base `https://agent.creao.ai`, `Authorization: Bearer capi_…`.
+- API: base `https://agent.creao.ai`, `Authorization: Bearer capi_…`. The key is an **account** key (agent.creao.ai → Settings → API keys), so it runs every agent on the account. Agents are created in the browser (chat, then **Create Agent**); their `appId` goes in `.env` as `CREAO_APP_ID_<ROLE>`. Do not use developer.creao.ai: it is the `/v2` platform with a separate USD wallet, and its agents do not appear on agent.creao.ai. Gate 0 verified Sat Oct 24: FORGE Probe (`CREAO_APP_ID_PROBE`) ran through `creao_start`, the webhook landed on Maincloud and the run was re-fetched, 22 s total.
   - `POST /api/v1/runs` `{appId, inputs, webhookUrl, threadId, idempotencyKey (8–128 chars)}`
   - `GET /api/v1/runs/{id}`, `POST /api/v1/runs/{id}/cancel`
   - Result: `{runId, status, threadId, result: {text, chatText, artifacts[]}}`. Runs take minutes and do not stream.
