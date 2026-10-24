@@ -2,12 +2,12 @@
 // reducers, Apify run, ingest and Bright Data verification. Desk steps run as the canary seat,
 // the ACCEPT as the COO seat. It stops at `auditing`: the Auditor's verdict is not the canary's
 // to give. Results go to workers/canary/results/<timestamp>.json; README numbers come only from there.
-// Usage: pnpm --filter @forge/canary canary [api-name ...]
+// Usage: pnpm --filter @forge/canary canary [api-name[:param=value,...] ...], e.g. yc-directory:company=stripe
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Apify, Stdb, requireEnv, sleep, sqlString, type Row } from './clients.ts';
-import { CATALOG, type SeededApi } from './catalog.ts';
+import { CATALOG, defaultSources, type SeededApi } from './catalog.ts';
 import { judge, scoreValues, type ValueRow } from './summary.ts';
 
 const TIMEOUT_MS = Number(process.env.CANARY_TIMEOUT_MS ?? 6 * 60_000);
@@ -23,10 +23,16 @@ const apify = new Apify();
 const canaryToken = requireEnv('SPACETIME_TOKEN_CANARY');
 const cooToken = requireEnv('SPACETIME_TOKEN_COO');
 
-const wanted = process.argv.slice(2);
-const apis = wanted.length ? CATALOG.filter((a) => wanted.includes(a.name)) : CATALOG;
-if (wanted.length && apis.length !== wanted.length) {
-  throw new Error(`unknown api in ${wanted.join(', ')}; seeded: ${CATALOG.map((a) => a.name).join(', ')}`);
+const wanted = process.argv.slice(2).map((arg) => {
+  const [name, spec = ''] = arg.split(':');
+  const params = Object.fromEntries(spec.split(',').filter(Boolean).map((kv) => kv.split('=') as [string, string]));
+  return { name: name!, params };
+});
+const apis = wanted.length
+  ? wanted.map((w) => ({ api: CATALOG.find((a) => a.name === w.name), params: w.params }))
+  : CATALOG.map((api) => ({ api, params: {} as Record<string, string> }));
+if (apis.some((x) => !x.api)) {
+  throw new Error(`unknown api in ${wanted.map((w) => w.name).join(', ')}; seeded: ${CATALOG.map((a) => a.name).join(', ')}`);
 }
 
 const orderById = async (id: number): Promise<Row> => {
@@ -44,12 +50,13 @@ type RunSummary = {
   pages?: { url: string; status: string; method?: string; country?: string; truncated?: boolean; error?: string | null; reason?: string; attempts?: unknown[] }[];
 };
 
-const runOne = async (a: SeededApi, stamp: string) => {
+const runOne = async (a: SeededApi, params: Record<string, string>, stamp: string) => {
   const t0 = Date.now();
-  const ref = `canary-${a.name}-${stamp}`;
-  const intent = { api: a.name, fields: Object.keys(a.outputSchema.properties), sources: a.sources, origin: 'canary' };
+  const ref = `canary-${a.name}-${Object.values(params).join('-') || 'default'}-${stamp}`;
+  const intent = { api: a.name, fields: Object.keys(a.outputSchema.properties), sources: defaultSources(a), params, origin: 'canary' };
   // Price 0: the canary takes no payment, so it books no revenue (TEST MODE).
   await stdb.call(canaryToken, 'create_order', [ref, CANARY_SENDER, a.sampleRequest, JSON.stringify(intent), 0]);
+  if (Object.keys(params).length) await stdb.call(canaryToken, 'set_order_params', [ref, JSON.stringify(params)]);
   await stdb.call(canaryToken, 'record_payment', [ref, 'canary-no-payment']);
   const [created] = await stdb.sql(canaryToken, `SELECT * FROM orders WHERE ref = ${sqlString(ref)}`);
   if (!created) throw new Error(`order ${ref} was not created`);
@@ -99,6 +106,7 @@ const runOne = async (a: SeededApi, stamp: string) => {
   if (timedOut) verdict.reasons.unshift(`timed out after ${Math.round(TIMEOUT_MS / 1000)} s`);
   return {
     api: a.name,
+    params,
     pass: verdict.pass && !timedOut,
     reasons: verdict.reasons,
     orderId,
@@ -134,8 +142,8 @@ const runOne = async (a: SeededApi, stamp: string) => {
 };
 
 const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-const settled = await Promise.allSettled(apis.map((a) => runOne(a, stamp)));
-const results = settled.map((s, i) => (s.status === 'fulfilled' ? s.value : { api: apis[i]!.name, pass: false, reasons: [`canary error: ${String(s.reason)}`] }));
+const settled = await Promise.allSettled(apis.map((x) => runOne(x.api!, x.params, stamp)));
+const results = settled.map((s, i) => (s.status === 'fulfilled' ? s.value : { api: apis[i]!.api!.name, params: apis[i]!.params, pass: false, reasons: [`canary error: ${String(s.reason)}`] }));
 
 const out = {
   mode: 'TEST MODE',

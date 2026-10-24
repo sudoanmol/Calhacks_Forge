@@ -30,6 +30,18 @@ for (const a of CATALOG) {
   if (!row) {
     await stdb.call(founder, 'create_api', [JSON.stringify(apiSpec(a)), task.id, 'task']);
     apiAction = 'created';
+  } else {
+    // update_api changes only what may change (description, params, sources, page cap); the schema stays.
+    const spec = apiSpec(a);
+    const patch: Record<string, unknown> = {};
+    if (row.description !== spec.description) patch.description = spec.description;
+    if (JSON.stringify(JSON.parse(String(row.inputs))) !== JSON.stringify(spec.inputs)) patch.inputs = spec.inputs;
+    if (JSON.stringify(JSON.parse(String(row.sources))) !== JSON.stringify(spec.sources)) patch.sources = spec.sources;
+    if (Number(row.page_cap) !== spec.pageCap) patch.pageCap = spec.pageCap;
+    if (Object.keys(patch).length) {
+      await stdb.call(founder, 'update_api', [a.name, JSON.stringify(patch)]);
+      apiAction = `updated ${Object.keys(patch).join(', ')}`;
+    }
   }
   const [api] = await stdb.sql(founder, `SELECT * FROM api WHERE name = ${sqlString(a.name)}`);
   if (api?.current_version_id !== undefined) {

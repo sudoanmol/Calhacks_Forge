@@ -1,0 +1,203 @@
+{
+  "mode": "TEST MODE",
+  "recordedAt": "2026-10-24T22:57:09.206Z",
+  "database": "https://maincloud.spacetimedb.com / forge",
+  "criterion": "order reaches auditing, every source page loads, verified rate >= 0.8 over all value rows",
+  "results": [
+    {
+      "api": "gpu-listings",
+      "params": {
+        "query": "rtx-4090"
+      },
+      "pass": true,
+      "reasons": [],
+      "orderId": 187,
+      "ref": "canary-gpu-listings-rtx-4090-2026-10-24T22-56-00-816Z",
+      "finalStatus": "auditing",
+      "decisionReason": "Canary: scripted order on the seeded API gpu-listings.",
+      "elapsedMs": 67130,
+      "transitions": [
+        {
+          "status": "accepted",
+          "atMs": 1075
+        },
+        {
+          "status": "running",
+          "atMs": 4207
+        },
+        {
+          "status": "auditing",
+          "atMs": 67129
+        }
+      ],
+      "values": 40,
+      "rows": 20,
+      "valuesByStatus": {
+        "verified": 40
+      },
+      "verifiedRate": 1,
+      "failedPages": 0,
+      "apify": {
+        "runId": "OuACRtJzbwVH9miE3",
+        "status": "SUCCEEDED",
+        "runCostCents": 0,
+        "usageTotalUsd": 0.0019703302158912027,
+        "runTimeSecs": 53.806,
+        "datasetUrl": "https://api.apify.com/v2/datasets/mZxzJdhnRCPwNDUNy/items?clean=1&format=json",
+        "consoleUrl": "https://console.apify.com/view/runs/OuACRtJzbwVH9miE3",
+        "pages": [
+          {
+            "url": "https://www.newegg.com/p/pl?d=rtx-4090",
+            "status": "ok",
+            "method": "unlocker",
+            "country": "us",
+            "truncated": false,
+            "error": null,
+            "ladderAttempts": 1
+          }
+        ],
+        "llmUsage": {
+          "inputTokens": 10412,
+          "outputTokens": 9492,
+          "pages": 1
+        },
+        "webhookNudges": 0
+      },
+      "brightDataEvidenceRows": 1,
+      "evidence": [
+        {
+          "url": "https://www.newegg.com/p/pl?d=rtx-4090",
+          "method": "unlocker",
+          "country": "us",
+          "httpStatus": 200,
+          "attempt": 1,
+          "ms": 1080,
+          "reason": ""
+        }
+      ],
+      "auditTask": [],
+      "sampleValues": [
+        {
+          "row": 0,
+          "metric": "name",
+          "value": "GIGABYTE Gaming GeForce RTX 4090 24GB GDDR6X PCI Express 4.0 x16 ATX Video Card GV-N4090GAMING OC-24GD",
+          "status": "verified",
+          "excerpt": "GIGABYTE Gaming GeForce RTX 4090 24GB GDDR6X PCI Express 4.0 x16 ATX Video Card GV-N4090GAMING OC-24GD"
+        },
+        {
+          "row": 0,
+          "metric": "price",
+          "value": "$ 5,099 .00",
+          "status": "verified",
+          "excerpt": "$ 5,099 .00"
+        },
+        {
+          "row": 1,
+          "metric": "name",
+          "value": "MSI Gaming (MSI) GeForce RTX 4090 24GB GDDR6X PCI Express 4.0 Video Card RTX 4090 GAMING X TRIO 24G",
+          "status": "verified",
+          "excerpt": "MSI Gaming (MSI) GeForce RTX 4090 24GB GDDR6X PCI Express 4.0 Video Card RTX 4090 GAMING X TRIO 24G"
+        }
+      ]
+    },
+    {
+      "api": "gpu-listings",
+      "params": {},
+      "pass": true,
+      "reasons": [],
+      "orderId": 186,
+      "ref": "canary-gpu-listings-default-2026-10-24T22-56-00-816Z",
+      "finalStatus": "auditing",
+      "decisionReason": "Canary: scripted order on the seeded API gpu-listings.",
+      "elapsedMs": 44990,
+      "transitions": [
+        {
+          "status": "accepted",
+          "atMs": 951
+        },
+        {
+          "status": "running",
+          "atMs": 4094
+        },
+        {
+          "status": "verifying",
+          "atMs": 41845
+        },
+        {
+          "status": "auditing",
+          "atMs": 44990
+        }
+      ],
+      "values": 40,
+      "rows": 20,
+      "valuesByStatus": {
+        "unverifiable": 1,
+        "verified": 39
+      },
+      "verifiedRate": 0.975,
+      "failedPages": 0,
+      "apify": {
+        "runId": "9fLnaqMogpXQ0KXBv",
+        "status": "SUCCEEDED",
+        "runCostCents": 0,
+        "usageTotalUsd": 0.001416367817438311,
+        "runTimeSecs": 31.005,
+        "datasetUrl": "https://api.apify.com/v2/datasets/2c2zwNDRkc0gXia28/items?clean=1&format=json",
+        "consoleUrl": "https://console.apify.com/view/runs/9fLnaqMogpXQ0KXBv",
+        "pages": [
+          {
+            "url": "https://www.newegg.com/p/pl?d=rtx-5080",
+            "status": "ok",
+            "method": "unlocker",
+            "country": "us",
+            "truncated": false,
+            "error": null,
+            "ladderAttempts": 1
+          }
+        ],
+        "llmUsage": {
+          "inputTokens": 9258,
+          "outputTokens": 8753,
+          "pages": 1
+        },
+        "webhookNudges": 0
+      },
+      "brightDataEvidenceRows": 1,
+      "evidence": [
+        {
+          "url": "https://www.newegg.com/p/pl?d=rtx-5080",
+          "method": "unlocker",
+          "country": "us",
+          "httpStatus": 200,
+          "attempt": 1,
+          "ms": 2443,
+          "reason": ""
+        }
+      ],
+      "auditTask": [],
+      "sampleValues": [
+        {
+          "row": 3,
+          "metric": "name",
+          "value": "MSI Suprim GeForce RTX 5080 16GB GDDR7 PCI Express 5.0 Graphics Card RTX 5080 16G SUPRIM LIQUID SOC",
+          "status": "unverifiable",
+          "excerpt": "MSI Suprim GeForce RTX 5080 16GB GDDR7 PCI Express 5.0 Graphics Card RTX 5080 16G SUPRIM LIQUID SOC"
+        },
+        {
+          "row": 0,
+          "metric": "name",
+          "value": "GIGABYTE AORUS GeForce RTX 5080 INFINITY WOOD 16G Graphics Card, 16GB 256-bit GDDR7, PCIe 5.0, WINDFORCE HYPERBURST cooling system, GV-N5080AORUSIF WD-16GD Graphics Card",
+          "status": "verified",
+          "excerpt": "GIGABYTE AORUS GeForce RTX 5080 INFINITY WOOD 16G Graphics Card, 16GB 256-bit GDDR7, PCIe 5.0, WINDFORCE HYPERBURST cool"
+        },
+        {
+          "row": 0,
+          "metric": "price",
+          "value": "$ 3,286 .90",
+          "status": "verified",
+          "excerpt": "$ 3,286 .90"
+        }
+      ]
+    }
+  ]
+}

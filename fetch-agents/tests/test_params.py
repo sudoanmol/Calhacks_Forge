@@ -13,6 +13,18 @@ OPEN_ROLES = {
     "inputs": {"board": {"type": "string", "description": "Greenhouse board token", "default": "discord"}},
     "sources": ["https://boards-api.greenhouse.io/v1/boards/{board}/departments"],
 }
+YC_DIRECTORY = {
+    "name": "yc-directory",
+    "description": "One Y Combinator company's public page.",
+    "inputs": {"company": {"type": "string", "description": "YC company slug", "default": "airbnb"}},
+    "sources": ["https://www.ycombinator.com/companies/{company}"],
+}
+GPU_LISTINGS = {
+    "name": "gpu-listings",
+    "description": "GPU listings on Newegg for a search query.",
+    "inputs": {"query": {"type": "string", "description": "Newegg search, words joined by hyphens", "default": "rtx-5080"}},
+    "sources": ["https://www.newegg.com/p/pl?d={query}"],
+}
 
 
 def test_slug_candidates():
@@ -50,6 +62,11 @@ def test_undeclared_keys_are_dropped():
     assert res.params == {"board": "lattice"}
 
 
+def test_non_greenhouse_params_become_slugs():
+    assert params.resolve_values(YC_DIRECTORY, {"company": "Stripe"}).params == {"company": "stripe"}
+    assert params.resolve_values(GPU_LISTINGS, {"query": "RTX 4090"}).params == {"query": "rtx-4090"}
+
+
 @pytest.mark.skipif(not os.environ.get("ASI1_API_KEY") or not os.environ.get("SPACETIME_HOST"),
                     reason="needs ASI1_API_KEY and SPACETIME_HOST")
 def test_live_catalog_routes_lattice_to_open_roles():
@@ -62,6 +79,13 @@ def test_live_catalog_routes_lattice_to_open_roles():
 
 @pytest.mark.skipif(not os.environ.get("ASI1_API_KEY") or not os.environ.get("SPACETIME_HOST"),
                     reason="needs ASI1_API_KEY and SPACETIME_HOST")
-def test_live_catalog_no_params_for_gpu_request():
-    res = params.resolve("RTX 5080 listings on Newegg with price and stock", stdb.catalog())
-    assert res.params == {}, res
+def test_live_catalog_routes_gpu_query():
+    res = params.resolve("RTX 4090 listings on Newegg with price and stock", stdb.catalog())
+    assert res.api == "gpu-listings" and res.params == {"query": "rtx-4090"}, res
+
+
+@pytest.mark.skipif(not os.environ.get("ASI1_API_KEY") or not os.environ.get("SPACETIME_HOST"),
+                    reason="needs ASI1_API_KEY and SPACETIME_HOST")
+def test_live_catalog_routes_yc_company():
+    res = params.resolve("Stripe's Y Combinator company page: batch, status and one-liner", stdb.catalog())
+    assert res.api == "yc-directory" and res.params == {"company": "stripe"}, res

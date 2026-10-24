@@ -1,0 +1,168 @@
+{
+  "mode": "TEST MODE",
+  "recordedAt": "2026-10-24T22:55:09.558Z",
+  "database": "https://maincloud.spacetimedb.com / forge",
+  "criterion": "order reaches auditing, every source page loads, verified rate >= 0.8 over all value rows",
+  "results": [
+    {
+      "api": "yc-directory",
+      "params": {
+        "company": "stripe"
+      },
+      "pass": true,
+      "reasons": [],
+      "orderId": 185,
+      "ref": "canary-yc-directory-stripe-2026-10-24T22-53-54-900Z",
+      "finalStatus": "auditing",
+      "decisionReason": "Canary: scripted order on the seeded API yc-directory.",
+      "elapsedMs": 35108,
+      "transitions": [
+        {
+          "status": "accepted",
+          "atMs": 926
+        },
+        {
+          "status": "running",
+          "atMs": 4011
+        },
+        {
+          "status": "auditing",
+          "atMs": 35108
+        }
+      ],
+      "values": 5,
+      "rows": 1,
+      "valuesByStatus": {
+        "verified": 5
+      },
+      "verifiedRate": 1,
+      "failedPages": 0,
+      "apify": {
+        "runId": "LKVe9iajbXKuZSjc5",
+        "status": "SUCCEEDED",
+        "runCostCents": 0,
+        "usageTotalUsd": 0.001408432297339042,
+        "runTimeSecs": 21.129,
+        "datasetUrl": "https://api.apify.com/v2/datasets/3l33Ebyu0xu0Ayk8N/items?clean=1&format=json",
+        "consoleUrl": "https://console.apify.com/view/runs/LKVe9iajbXKuZSjc5",
+        "pages": [
+          {
+            "url": "https://www.ycombinator.com/companies/stripe",
+            "status": "ok",
+            "method": "unlocker",
+            "country": "us",
+            "truncated": false,
+            "error": null,
+            "ladderAttempts": 1
+          }
+        ],
+        "llmUsage": {
+          "inputTokens": 1763,
+          "outputTokens": 257,
+          "pages": 1
+        },
+        "webhookNudges": 0
+      },
+      "brightDataEvidenceRows": 1,
+      "evidence": [
+        {
+          "url": "https://www.ycombinator.com/companies/stripe",
+          "method": "unlocker",
+          "country": "us",
+          "httpStatus": 200,
+          "attempt": 1,
+          "ms": 1497,
+          "reason": ""
+        }
+      ],
+      "auditTask": [],
+      "sampleValues": [
+        {
+          "row": 0,
+          "metric": "name",
+          "value": "Stripe",
+          "status": "verified",
+          "excerpt": "Stripe\nEconomic infrastructure for the internet.\nSummer 2009"
+        },
+        {
+          "row": 0,
+          "metric": "one_liner",
+          "value": "Economic infrastructure for the internet.",
+          "status": "verified",
+          "excerpt": "Stripe\nEconomic infrastructure for the internet.\nSummer 2009"
+        },
+        {
+          "row": 0,
+          "metric": "website",
+          "value": "http://stripe.com",
+          "status": "verified",
+          "excerpt": "News\nhttp://stripe.com\nEconomic infrastructure for the internet."
+        }
+      ]
+    },
+    {
+      "api": "gpu-listings",
+      "params": {
+        "query": "rtx-4090"
+      },
+      "pass": false,
+      "reasons": [
+        "no values ingested"
+      ],
+      "orderId": 184,
+      "ref": "canary-gpu-listings-rtx-4090-2026-10-24T22-53-54-900Z",
+      "finalStatus": "auditing",
+      "decisionReason": "Canary: scripted order on the seeded API gpu-listings.",
+      "elapsedMs": 73482,
+      "transitions": [
+        {
+          "status": "accepted",
+          "atMs": 1054
+        },
+        {
+          "status": "running",
+          "atMs": 4201
+        },
+        {
+          "status": "auditing",
+          "atMs": 73482
+        }
+      ],
+      "values": 0,
+      "rows": 0,
+      "valuesByStatus": {},
+      "verifiedRate": 0,
+      "failedPages": 0,
+      "apify": {
+        "runId": "97hMSBZVsEJgDfxlz",
+        "status": "SUCCEEDED",
+        "runCostCents": 0,
+        "usageTotalUsd": 0.0033666803802765077,
+        "runTimeSecs": 62.772,
+        "datasetUrl": "https://api.apify.com/v2/datasets/MZgfgWfXYbS9bTFbD/items?clean=1&format=json",
+        "consoleUrl": "https://console.apify.com/view/runs/97hMSBZVsEJgDfxlz",
+        "pages": [
+          {
+            "url": "https://www.newegg.com/p/pl?d=rtx-4090",
+            "status": "ok",
+            "method": "unlocker",
+            "country": "us",
+            "truncated": false,
+            "error": "unparseable LLM output (stop: max_tokens): Expected ',' or ']' after array element in JSON at position 19084 (line 1 column 19085)",
+            "ladderAttempts": 1
+          }
+        ],
+        "llmUsage": {
+          "inputTokens": 10407,
+          "outputTokens": 16000,
+          "pages": 1
+        },
+        "webhookNudges": 0
+      },
+      "brightDataEvidenceRows": 0,
+      "evidence": [],
+      "auditTask": [],
+      "sampleValues": []
+    }
+  ]
+}
