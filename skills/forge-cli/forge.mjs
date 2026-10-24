@@ -99,7 +99,9 @@ async function order(orderId) {
   return {
     order: {
       id: o.id, ref: o.ref, status: o.status, requestText: o.requestText, intent: parseJson(o.intent, o.intent),
-      params: parseJson(o.params, {}), priceCents: o.priceCents, api: apis[0]?.name ?? null, apiVersionId: o.apiVersionId, datasetUrl: o.datasetUrl,
+      params: parseJson(o.params, {}), priceCents: o.priceCents, api: apis[0]?.name ?? null,
+      apiDescription: apis[0]?.description ?? null, apiFields: Object.keys(parseJson(apis[0]?.outputSchema, {}).properties ?? {}),
+      apiVersionId: o.apiVersionId, datasetUrl: o.datasetUrl,
       decisionReason: o.decisionReason, createdAt: o.createdAt, updatedAt: o.updatedAt,
     },
     gateChecks: gates.filter((g) => g.orderId === orderId)

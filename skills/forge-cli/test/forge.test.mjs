@@ -68,6 +68,8 @@ test('order <id> reads a real order with decoded columns', async () => {
   assert.equal(r.out.order.id, orderId);
   assert.equal(r.out.order.status, 'auditing');
   assert.equal(typeof r.out.order.apiVersionId, 'number');
+  assert.ok(r.out.order.apiDescription, 'the API description is shown so agents can judge fit');
+  assert.ok(r.out.order.apiFields.length > 0);
   assert.match(r.out.order.createdAt, /^\d{4}-\d\d-\d\dT/);
   assert.ok(Array.isArray(r.out.values));
   const total = Object.values(r.out.valueCounts).reduce((s, n) => s + n, 0);
