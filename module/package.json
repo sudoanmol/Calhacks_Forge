@@ -1,0 +1,17 @@
+{
+  "name": "@forge/module",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "spacetime build -p .",
+    "typecheck": "tsc --noEmit -p .",
+    "publish:local": "spacetime publish -s local -p . --delete-data=always -y forge-test",
+    "test:api": "node --test \"test/**/*.test.mjs\""
+  },
+  "dependencies": {
+    "spacetimedb": "2.13.*"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3"
+  }
+}
