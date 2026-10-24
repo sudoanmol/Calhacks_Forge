@@ -1,0 +1,18 @@
+{
+  "name": "@forge/droid-runner",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "hello": "node --env-file=../../.env src/hello.ts"
+  },
+  "dependencies": {
+    "@factory/droid-sdk": "^0.10.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "~5.9.3"
+  }
+}

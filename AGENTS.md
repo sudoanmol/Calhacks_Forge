@@ -421,7 +421,9 @@ const call = (reducer, body) => fetch(`${db}/call/${reducer}`, {
 - `@factory/droid-sdk` 0.10 (`/node` subpath). It spawns the `droid` CLI from `PATH`, so the `droid-runner` host needs `droid` installed. Reads `FACTORY_API_KEY`.
 - Claims `compile` / `enhancement` / `warranty` tasks through `claim_task`. Creates a worktree with `/actors/template` copied to `/actors/<api>` (no secrets). Writes fixtures from the API's saved Tier 0 pages and audited values.
 - The ticket prompt is narrow: "implement `extract(page)` so fixtures, live and contract tests pass; do not change the template plumbing."
-- `createSession({cwd, autonomyLevel: AutonomyLevel.Low, disabledToolIds, permissionHandler})`. `disabledToolIds` only removes tools; the SDK has no allowlist, so the allowlist lives in `permissionHandler`. The handler gets `{toolUses: [{toolUse: {id, name, input}, details: {type, fullCommand?, filePath?}}], options}` and auto-approves: running tests, a local Actor run against fixtures, and live pages through Bright Data. Anything else creates `approval(droid_action)` and waits for the founder's decision.
+- Droid runs locally: the SDK spawns the `droid` CLI on the worker host and tools run in the worktree; only model calls go to Factory.
+- Lockdown (`src/lockdown.ts`, verified Gate 0): sessions inherit the host's global tools (MCP, web, Task, Script), so `disabledToolIds` removes everything except Read, LS, Glob, Grep, Create, Edit, ApplyPatch, TodoWrite. Force `toolExecutionMode: 'direct_only'` at session init (the SDK doesn't forward it; patched in `lockdown.ts`), otherwise calls go through one opaque `Script` tool.
+- Autonomy **Low**. At Off the CLI hides Create/Edit (read-only); at Low it auto-runs any `Execute` command the model rates low-risk (it ran `curl`). So `Execute` is disabled and shell commands go only through our SDK MCP tool `run_command` (`src/runTool.ts`), which applies `policy.ts`: tests and local fixture runs auto-allowed; network, deploy, secrets denied; anything else needs `approval(droid_action)`. `permissionHandler` applies the same policy to whatever the CLI still asks about.
 - Every streamed message (`assistant`, `tool_call`, `tool_result`, `error`, `result`) is logged with `log_droid_event`.
 - Follow-ups on the same API use `resumeSession(id)` (`session.id` is stored on `api_version.droidSessionId`). `resumeSession` reuses the original cwd, so keep the worktree path stable per API.
 - The worker, never Droid, runs `apify push`, and only after `api_ship` is approved.
@@ -429,13 +431,11 @@ const call = (reducer, body) => fetch(`${db}/call/${reducer}`, {
 - README includes a control table: trigger | allowed tools | denied tools | needs approval | where it's visible.
 
 ```ts
-import { createSession, AutonomyLevel, ToolConfirmationOutcome } from '@factory/droid-sdk/node';
-const session = await createSession({
-  cwd: worktree, autonomyLevel: AutonomyLevel.Low,
-  permissionHandler: async ({ toolUses }) =>
-    allowlisted(toolUses) ? ToolConfirmationOutcome.ProceedOnce
-      : (await founderApproves(toolUses)) ? ToolConfirmationOutcome.ProceedOnce
-      : ToolConfirmationOutcome.Cancel,
+import { createLockedSession } from './lockdown.ts';
+const { session } = await createLockedSession({
+  cwd: worktree,
+  onCommand: (d) => logDroidEvent(task.id, { kind: 'tool_decision', ...d }), // badge: auto-allowed / denied / needs-approval
+  permissionHandler: policyHandler(worktree),
 });
 try { for await (const msg of session.stream(compilePrompt(task))) await logDroidEvent(task.id, msg); }
 finally { await session.close(); }
