@@ -1,0 +1,330 @@
+{
+  "measuredAt": "2026-10-24T16:44:36.467Z",
+  "totals": {
+    "anthropic/claude-haiku-5-5": {
+      "total": 302,
+      "verified": 296,
+      "verifiedRate": 0.9801324503311258
+    }
+  },
+  "results": [
+    {
+      "target": "open-roles (Greenhouse job-board API)",
+      "url": "https://boards-api.greenhouse.io/v1/boards/stripe/jobs",
+      "fetch": {
+        "method": "unlocker",
+        "country": "us",
+        "attempts": [
+          {
+            "method": "unlocker",
+            "country": "us",
+            "status": 200,
+            "ms": 1614,
+            "ok": true,
+            "reason": null
+          }
+        ],
+        "chars": 448764
+      },
+      "refetch": "ok",
+      "perLLM": [
+        {
+          "provider": "anthropic",
+          "model": "claude-haiku-5-5",
+          "ms": 42284,
+          "usage": {
+            "inputTokens": 25837,
+            "outputTokens": 15243
+          },
+          "error": null,
+          "truncated": true,
+          "total": 190,
+          "extracted": 184,
+          "unverifiable": 6,
+          "anchorRate": 0.968421052631579,
+          "verified": 184,
+          "verifiedRate": 0.968421052631579,
+          "sample": [
+            {
+              "row": 0,
+              "entity": "Abuse Investigator (8172510)",
+              "metric": "title",
+              "value": "Abuse Investigator",
+              "excerpt": "\"location\":{\"name\":\"Seattle, San Francisco, New York City\"},\"metadata\":null,\"id\":8172510,\"updated_at\":\"2026-10-22T09:17:09-04:00\",\"requisition_id\":\"See Opening ID\",\"title\":\"Abuse Investigator\"",
+              "sourceUrl": "https://boards-api.greenhouse.io/v1/boards/stripe/jobs",
+              "snapshotHash": "feb2814f4e1104127603faae1b12c3b2c09e3a1a5005666127eb12a316ec8d7a",
+              "observedAt": "2026-10-24T16:42:39.441Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 0,
+              "entity": "Abuse Investigator (8172510)",
+              "metric": "location",
+              "value": "Seattle, San Francisco, New York City",
+              "excerpt": "\"location\":{\"name\":\"Seattle, San Francisco, New York City\"}",
+              "sourceUrl": "https://boards-api.greenhouse.io/v1/boards/stripe/jobs",
+              "snapshotHash": "feb2814f4e1104127603faae1b12c3b2c09e3a1a5005666127eb12a316ec8d7a",
+              "observedAt": "2026-10-24T16:42:39.441Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 1,
+              "entity": "Abuse Investigator (8172508)",
+              "metric": "title",
+              "value": "Abuse Investigator",
+              "excerpt": "\"location\":{\"name\":\"Dublin\"},\"metadata\":null,\"id\":8172508,\"updated_at\":\"2026-10-22T09:16:15-04:00\",\"requisition_id\":\"See Opening ID\",\"title\":\"Abuse Investigator\"",
+              "sourceUrl": "https://boards-api.greenhouse.io/v1/boards/stripe/jobs",
+              "snapshotHash": "feb2814f4e1104127603faae1b12c3b2c09e3a1a5005666127eb12a316ec8d7a",
+              "observedAt": "2026-10-24T16:42:39.441Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 1,
+              "entity": "Abuse Investigator (8172508)",
+              "metric": "location",
+              "value": "Dublin",
+              "excerpt": "\"location\":{\"name\":\"Dublin\"},\"metadata\":null,\"id\":8172508",
+              "sourceUrl": "https://boards-api.greenhouse.io/v1/boards/stripe/jobs",
+              "snapshotHash": "feb2814f4e1104127603faae1b12c3b2c09e3a1a5005666127eb12a316ec8d7a",
+              "observedAt": "2026-10-24T16:42:39.441Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 2,
+              "entity": "Abuse Investigator (8172487)",
+              "metric": "title",
+              "value": "Abuse Investigator",
+              "excerpt": "\"location\":{\"name\":\"Dublin\"},\"metadata\":null,\"id\":8172487,\"updated_at\":\"2026-10-22T09:16:14-04:00\",\"requisition_id\":\"See Opening ID\",\"title\":\"Abuse Investigator\"",
+              "sourceUrl": "https://boards-api.greenhouse.io/v1/boards/stripe/jobs",
+              "snapshotHash": "feb2814f4e1104127603faae1b12c3b2c09e3a1a5005666127eb12a316ec8d7a",
+              "observedAt": "2026-10-24T16:42:39.441Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "target": "yc-directory (YC company page)",
+      "url": "https://www.ycombinator.com/companies/airbnb",
+      "fetch": {
+        "method": "unlocker",
+        "country": "us",
+        "attempts": [
+          {
+            "method": "unlocker",
+            "country": "us",
+            "status": 200,
+            "ms": 4518,
+            "ok": true,
+            "reason": null
+          }
+        ],
+        "chars": 5609
+      },
+      "refetch": "ok",
+      "perLLM": [
+        {
+          "provider": "anthropic",
+          "model": "claude-haiku-5-5",
+          "ms": 1485,
+          "usage": {
+            "inputTokens": 3098,
+            "outputTokens": 250
+          },
+          "error": null,
+          "truncated": false,
+          "total": 5,
+          "extracted": 5,
+          "unverifiable": 0,
+          "anchorRate": 1,
+          "verified": 5,
+          "verifiedRate": 1,
+          "sample": [
+            {
+              "row": 0,
+              "entity": "Airbnb",
+              "metric": "name",
+              "value": "Airbnb",
+              "excerpt": "Airbnb\nBook accommodations around the world.\nWinter 2009",
+              "sourceUrl": "https://www.ycombinator.com/companies/airbnb",
+              "snapshotHash": "7046acbf2bc4cdfd64b09bc84db53f575749c83b196df8430d60ea427cd6bd02",
+              "observedAt": "2026-10-24T16:43:39.625Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 0,
+              "entity": "Airbnb",
+              "metric": "one_liner",
+              "value": "Book accommodations around the world.",
+              "excerpt": "Book accommodations around the world.\nWinter 2009",
+              "sourceUrl": "https://www.ycombinator.com/companies/airbnb",
+              "snapshotHash": "7046acbf2bc4cdfd64b09bc84db53f575749c83b196df8430d60ea427cd6bd02",
+              "observedAt": "2026-10-24T16:43:39.625Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 0,
+              "entity": "Airbnb",
+              "metric": "website",
+              "value": "http://airbnb.com",
+              "excerpt": "http://airbnb.com",
+              "sourceUrl": "https://www.ycombinator.com/companies/airbnb",
+              "snapshotHash": "7046acbf2bc4cdfd64b09bc84db53f575749c83b196df8430d60ea427cd6bd02",
+              "observedAt": "2026-10-24T16:43:39.625Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 0,
+              "entity": "Airbnb",
+              "metric": "batch",
+              "value": "Winter 2009",
+              "excerpt": "Batch: Winter 2009",
+              "sourceUrl": "https://www.ycombinator.com/companies/airbnb",
+              "snapshotHash": "7046acbf2bc4cdfd64b09bc84db53f575749c83b196df8430d60ea427cd6bd02",
+              "observedAt": "2026-10-24T16:43:39.625Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 0,
+              "entity": "Airbnb",
+              "metric": "status",
+              "value": "Public",
+              "excerpt": "Status:\nPublic",
+              "sourceUrl": "https://www.ycombinator.com/companies/airbnb",
+              "snapshotHash": "7046acbf2bc4cdfd64b09bc84db53f575749c83b196df8430d60ea427cd6bd02",
+              "observedAt": "2026-10-24T16:43:39.625Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "target": "gpu-listings (Newegg search)",
+      "url": "https://www.newegg.com/p/pl?d=rtx+5080",
+      "fetch": {
+        "method": "unlocker",
+        "country": "us",
+        "attempts": [
+          {
+            "method": "unlocker",
+            "country": "us",
+            "status": 200,
+            "ms": 2780,
+            "ok": true,
+            "reason": null
+          }
+        ],
+        "chars": 20047
+      },
+      "refetch": "ok",
+      "perLLM": [
+        {
+          "provider": "anthropic",
+          "model": "claude-haiku-5-5",
+          "ms": 37161,
+          "usage": {
+            "inputTokens": 11413,
+            "outputTokens": 13944
+          },
+          "error": null,
+          "truncated": false,
+          "total": 107,
+          "extracted": 107,
+          "unverifiable": 0,
+          "anchorRate": 1,
+          "verified": 107,
+          "verifiedRate": 1,
+          "sample": [
+            {
+              "row": 0,
+              "entity": "GIGABYTE AORUS GeForce RTX 5080 INFINITY WOOD 16G Graphics Card",
+              "metric": "name",
+              "value": "GIGABYTE AORUS GeForce RTX 5080 INFINITY WOOD 16G Graphics Card, 16GB 256-bit GDDR7, PCIe 5.0, WINDFORCE HYPERBURST cooling system, GV-N5080AORUSIF WD-16GD Graphics Card",
+              "excerpt": "GIGABYTE AORUS GeForce RTX 5080 INFINITY WOOD 16G Graphics Card, 16GB 256-bit GDDR7, PCIe 5.0, WINDFORCE HYPERBURST cooling system, GV-N5080AORUSIF WD-16GD Graphics Card $ 3,286 .90",
+              "sourceUrl": "https://www.newegg.com/p/pl?d=rtx+5080",
+              "snapshotHash": "151136c273c7e2b5f6822b93cce360106c4eecdce43484f8c517370dea96c0bc",
+              "observedAt": "2026-10-24T16:43:59.304Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 0,
+              "entity": "GIGABYTE AORUS GeForce RTX 5080 INFINITY WOOD 16G Graphics Card",
+              "metric": "price",
+              "value": "$ 3,286 .90",
+              "excerpt": "GIGABYTE AORUS GeForce RTX 5080 INFINITY WOOD 16G Graphics Card, 16GB 256-bit GDDR7, PCIe 5.0, WINDFORCE HYPERBURST cooling system, GV-N5080AORUSIF WD-16GD Graphics Card $ 3,286 .90",
+              "sourceUrl": "https://www.newegg.com/p/pl?d=rtx+5080",
+              "snapshotHash": "151136c273c7e2b5f6822b93cce360106c4eecdce43484f8c517370dea96c0bc",
+              "observedAt": "2026-10-24T16:43:59.304Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 0,
+              "entity": "GIGABYTE AORUS GeForce RTX 5080 INFINITY WOOD 16G Graphics Card",
+              "metric": "stock",
+              "value": "Add to cart",
+              "excerpt": "More options from $1,949.99 - $3,286.90 Free Shipping Add to cart",
+              "sourceUrl": "https://www.newegg.com/p/pl?d=rtx+5080",
+              "snapshotHash": "151136c273c7e2b5f6822b93cce360106c4eecdce43484f8c517370dea96c0bc",
+              "observedAt": "2026-10-24T16:43:59.304Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 1,
+              "entity": "ASUS ROG Astral GeForce RTX 5080 16GB GDDR7 OC Edition ROG-ASTRAL-RTX5080-O16G-GAMING",
+              "metric": "name",
+              "value": "ASUS ROG Astral GeForce RTX 5080 16GB GDDR7 OC Edition ROG-ASTRAL-RTX5080-O16G-GAMING PCI-Express 5.0 DLSS 4.0 Graphics Card",
+              "excerpt": "ASUS ROG Astral GeForce RTX 5080 16GB GDDR7 OC Edition ROG-ASTRAL-RTX5080-O16G-GAMING PCI-Express 5.0 DLSS 4.0 Graphics Card $ 2,689 .99",
+              "sourceUrl": "https://www.newegg.com/p/pl?d=rtx+5080",
+              "snapshotHash": "151136c273c7e2b5f6822b93cce360106c4eecdce43484f8c517370dea96c0bc",
+              "observedAt": "2026-10-24T16:43:59.304Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 1,
+              "entity": "ASUS ROG Astral GeForce RTX 5080 16GB GDDR7 OC Edition ROG-ASTRAL-RTX5080-O16G-GAMING",
+              "metric": "price",
+              "value": "$ 2,689 .99",
+              "excerpt": "ASUS ROG Astral GeForce RTX 5080 16GB GDDR7 OC Edition ROG-ASTRAL-RTX5080-O16G-GAMING PCI-Express 5.0 DLSS 4.0 Graphics Card $ 2,689 .99",
+              "sourceUrl": "https://www.newegg.com/p/pl?d=rtx+5080",
+              "snapshotHash": "151136c273c7e2b5f6822b93cce360106c4eecdce43484f8c517370dea96c0bc",
+              "observedAt": "2026-10-24T16:43:59.304Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

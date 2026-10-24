@@ -49,6 +49,27 @@ test('unparseable LLM output yields no items and an error', async () => {
   assert.match(r.error, /unparseable/);
 });
 
+test('structured tool_use reply is used directly', async () => {
+  const fetchImpl = async () => ({
+    ok: true,
+    json: async () => ({ stop_reason: 'tool_use', usage: { input_tokens: 1, output_tokens: 1 }, content: [{ type: 'tool_use', name: 'record_rows',
+      input: { rows: [{ entity: 'GeForce RTX 5080', values: [{ field: 'price', value: '$1,199.99', excerpt: 'Price: $1,199.99' }] }] } }] }),
+  });
+  const r = await extractFromPage({ url: 'u', page, outputSchema, observedAt: 't', llm: { provider: 'anthropic', apiKey: 'k', model: 'm', fetchImpl } });
+  assert.equal(r.items.length, 1);
+  assert.equal(r.items[0].status, 'extracted');
+  assert.equal(r.error, null);
+});
+
+test('hitting the token limit is reported', async () => {
+  const fetchImpl = async () => ({
+    ok: true,
+    json: async () => ({ stop_reason: 'max_tokens', usage: {}, content: [{ type: 'tool_use', name: 'record_rows', input: { rows: [] } }] }),
+  });
+  const r = await extractFromPage({ url: 'u', page, outputSchema, observedAt: 't', llm: { provider: 'anthropic', apiKey: 'k', model: 'm', fetchImpl } });
+  assert.match(r.error, /token limit/);
+});
+
 test('parseJsonObject strips code fences', () => {
   assert.deepEqual(parseJsonObject('```json\n{"rows":[]}\n```'), { rows: [] });
 });

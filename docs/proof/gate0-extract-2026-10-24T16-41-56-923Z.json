@@ -1,0 +1,264 @@
+{
+  "measuredAt": "2026-10-24T16:41:56.923Z",
+  "totals": {
+    "anthropic/claude-haiku-5-5": {
+      "total": 33,
+      "verified": 33,
+      "verifiedRate": 1
+    }
+  },
+  "results": [
+    {
+      "target": "open-roles (Greenhouse job-board API)",
+      "url": "https://boards-api.greenhouse.io/v1/boards/stripe/jobs",
+      "fetch": {
+        "method": "unlocker",
+        "country": "us",
+        "attempts": [
+          {
+            "method": "unlocker",
+            "country": "us",
+            "status": 200,
+            "ms": 2941,
+            "ok": true,
+            "reason": null
+          }
+        ],
+        "chars": 448764
+      },
+      "refetch": "ok",
+      "perLLM": [
+        {
+          "provider": "anthropic",
+          "model": "claude-haiku-5-5",
+          "ms": 24640,
+          "usage": {
+            "inputTokens": 25225,
+            "outputTokens": 8000
+          },
+          "error": "unparseable LLM output: Expected ',' or ']' after array element in JSON at position 8326 (line 1 column 8327)",
+          "truncated": true,
+          "total": 0,
+          "extracted": 0,
+          "unverifiable": 0,
+          "anchorRate": 0,
+          "verified": 0,
+          "verifiedRate": 0,
+          "sample": []
+        }
+      ]
+    },
+    {
+      "target": "yc-directory (YC company page)",
+      "url": "https://www.ycombinator.com/companies/airbnb",
+      "fetch": {
+        "method": "unlocker",
+        "country": "us",
+        "attempts": [
+          {
+            "method": "unlocker",
+            "country": "us",
+            "status": 200,
+            "ms": 1482,
+            "ok": true,
+            "reason": null
+          }
+        ],
+        "chars": 5609
+      },
+      "refetch": "ok",
+      "perLLM": [
+        {
+          "provider": "anthropic",
+          "model": "claude-haiku-5-5",
+          "ms": 2379,
+          "usage": {
+            "inputTokens": 2486,
+            "outputTokens": 238
+          },
+          "error": null,
+          "truncated": false,
+          "total": 5,
+          "extracted": 5,
+          "unverifiable": 0,
+          "anchorRate": 1,
+          "verified": 5,
+          "verifiedRate": 1,
+          "sample": [
+            {
+              "row": 0,
+              "entity": "Airbnb",
+              "metric": "name",
+              "value": "Airbnb",
+              "excerpt": "Airbnb\nBook accommodations around the world.\nWinter 2009",
+              "sourceUrl": "https://www.ycombinator.com/companies/airbnb",
+              "snapshotHash": "7046acbf2bc4cdfd64b09bc84db53f575749c83b196df8430d60ea427cd6bd02",
+              "observedAt": "2026-10-24T16:41:34.301Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 0,
+              "entity": "Airbnb",
+              "metric": "one_liner",
+              "value": "Book accommodations around the world.",
+              "excerpt": "Airbnb\nBook accommodations around the world.\nWinter 2009",
+              "sourceUrl": "https://www.ycombinator.com/companies/airbnb",
+              "snapshotHash": "7046acbf2bc4cdfd64b09bc84db53f575749c83b196df8430d60ea427cd6bd02",
+              "observedAt": "2026-10-24T16:41:34.301Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 0,
+              "entity": "Airbnb",
+              "metric": "website",
+              "value": "http://airbnb.com",
+              "excerpt": "News\nhttp://airbnb.com",
+              "sourceUrl": "https://www.ycombinator.com/companies/airbnb",
+              "snapshotHash": "7046acbf2bc4cdfd64b09bc84db53f575749c83b196df8430d60ea427cd6bd02",
+              "observedAt": "2026-10-24T16:41:34.301Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 0,
+              "entity": "Airbnb",
+              "metric": "batch",
+              "value": "Winter 2009",
+              "excerpt": "Batch: Winter 2009",
+              "sourceUrl": "https://www.ycombinator.com/companies/airbnb",
+              "snapshotHash": "7046acbf2bc4cdfd64b09bc84db53f575749c83b196df8430d60ea427cd6bd02",
+              "observedAt": "2026-10-24T16:41:34.301Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 0,
+              "entity": "Airbnb",
+              "metric": "status",
+              "value": "Public",
+              "excerpt": "Status:\nPublic",
+              "sourceUrl": "https://www.ycombinator.com/companies/airbnb",
+              "snapshotHash": "7046acbf2bc4cdfd64b09bc84db53f575749c83b196df8430d60ea427cd6bd02",
+              "observedAt": "2026-10-24T16:41:34.301Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "target": "gpu-listings (Newegg search)",
+      "url": "https://www.newegg.com/p/pl?d=rtx+5080",
+      "fetch": {
+        "method": "unlocker",
+        "country": "us",
+        "attempts": [
+          {
+            "method": "unlocker",
+            "country": "us",
+            "status": 200,
+            "ms": 2866,
+            "ok": true,
+            "reason": null
+          }
+        ],
+        "chars": 20089
+      },
+      "refetch": "ok",
+      "perLLM": [
+        {
+          "provider": "anthropic",
+          "model": "claude-haiku-5-5",
+          "ms": 15708,
+          "usage": {
+            "inputTokens": 10826,
+            "outputTokens": 4877
+          },
+          "error": null,
+          "truncated": false,
+          "total": 28,
+          "extracted": 28,
+          "unverifiable": 0,
+          "anchorRate": 1,
+          "verified": 28,
+          "verifiedRate": 1,
+          "sample": [
+            {
+              "row": 0,
+              "entity": "GIGABYTE AORUS GeForce RTX 5080 INFINITY WOOD 16G",
+              "metric": "name",
+              "value": "GIGABYTE AORUS GeForce RTX 5080 INFINITY WOOD 16G Graphics Card",
+              "excerpt": "GIGABYTE AORUS GeForce RTX 5080 INFINITY WOOD 16G Graphics Card, 16GB 256-bit GDDR7, PCIe 5.0",
+              "sourceUrl": "https://www.newegg.com/p/pl?d=rtx+5080",
+              "snapshotHash": "2e5a3d6a6c198cc304fc07f814a8af556f0848c63bd3c1c7dc805019165bd739",
+              "observedAt": "2026-10-24T16:41:41.213Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 0,
+              "entity": "GIGABYTE AORUS GeForce RTX 5080 INFINITY WOOD 16G",
+              "metric": "price",
+              "value": "$ 3,286 .90",
+              "excerpt": "Graphics Card $ 3,286 .90",
+              "sourceUrl": "https://www.newegg.com/p/pl?d=rtx+5080",
+              "snapshotHash": "2e5a3d6a6c198cc304fc07f814a8af556f0848c63bd3c1c7dc805019165bd739",
+              "observedAt": "2026-10-24T16:41:41.213Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 1,
+              "entity": "ASUS ROG Astral GeForce RTX 5080 16GB GDDR7 OC Edition ROG-ASTRAL-RTX5080-O16G-GAMING",
+              "metric": "name",
+              "value": "ASUS ROG Astral GeForce RTX 5080 16GB GDDR7 OC Edition ROG-ASTRAL-RTX5080-O16G-GAMING PCI-Express 5.0 DLSS 4.0 Graphics Card",
+              "excerpt": "ASUS ROG Astral GeForce RTX 5080 16GB GDDR7 OC Edition ROG-ASTRAL-RTX5080-O16G-GAMING PCI-Express 5.0 DLSS 4.0 Graphics Card $ 2,689 .99",
+              "sourceUrl": "https://www.newegg.com/p/pl?d=rtx+5080",
+              "snapshotHash": "2e5a3d6a6c198cc304fc07f814a8af556f0848c63bd3c1c7dc805019165bd739",
+              "observedAt": "2026-10-24T16:41:41.213Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 1,
+              "entity": "ASUS ROG Astral GeForce RTX 5080 16GB GDDR7 OC Edition ROG-ASTRAL-RTX5080-O16G-GAMING",
+              "metric": "price",
+              "value": "$ 2,689 .99",
+              "excerpt": "Graphics Card $ 2,689 .99",
+              "sourceUrl": "https://www.newegg.com/p/pl?d=rtx+5080",
+              "snapshotHash": "2e5a3d6a6c198cc304fc07f814a8af556f0848c63bd3c1c7dc805019165bd739",
+              "observedAt": "2026-10-24T16:41:41.213Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            },
+            {
+              "row": 2,
+              "entity": "MSI SHADOW GeForce RTX 5080 16G SHADOW 3X OC",
+              "metric": "name",
+              "value": "MSI SHADOW GeForce RTX 5080 16GB GDDR7 PCI Express 5.0 Graphics Card RTX 5080 16G SHADOW 3X OC",
+              "excerpt": "MSI SHADOW GeForce RTX 5080 16GB GDDR7 PCI Express 5.0 Graphics Card RTX 5080 16G SHADOW 3X OC $ 2,082 .62",
+              "sourceUrl": "https://www.newegg.com/p/pl?d=rtx+5080",
+              "snapshotHash": "2e5a3d6a6c198cc304fc07f814a8af556f0848c63bd3c1c7dc805019165bd739",
+              "observedAt": "2026-10-24T16:41:41.213Z",
+              "method": "unlocker",
+              "country": "us",
+              "status": "extracted"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

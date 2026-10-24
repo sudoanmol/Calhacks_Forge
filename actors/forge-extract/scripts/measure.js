@@ -41,11 +41,19 @@ for (const target of targets) {
   const perLLM = [];
   for (const llm of candidates) {
     const t0 = Date.now();
-    const r = await extractFromPage({ url: target.url, page, outputSchema: target.outputSchema, instructions: target.instructions, llm, observedAt: new Date().toISOString() });
+    let r;
+    try {
+      r = await extractFromPage({ url: target.url, page, outputSchema: target.outputSchema, instructions: target.instructions, llm, observedAt: new Date().toISOString() });
+    } catch (err) {
+      console.log(`  ${llm.provider}/${llm.model}: LLM error ${err.message}`);
+      perLLM.push({ provider: llm.provider, model: llm.model, error: err.message, total: 0, extracted: 0, verified: 0, verifiedRate: 0 });
+      continue;
+    }
     const verified = r.items.filter((i) => i.status === 'extracted' && fresh.status === 'ok' && anchored(fresh.text, i.excerpt, i.value)).length;
     const s = summarize(r.items);
     perLLM.push({ provider: llm.provider, model: llm.model, ms: Date.now() - t0, usage: r.usage, error: r.error, truncated: r.truncated,
-      ...s, verified, verifiedRate: s.total ? verified / s.total : 0, sample: r.items.slice(0, 5) });
+      ...s, verified, verifiedRate: s.total ? verified / s.total : 0, sample: r.items.slice(0, 5),
+      notVerified: r.items.filter((i) => i.status !== 'extracted' || !(fresh.status === 'ok' && anchored(fresh.text, i.excerpt, i.value))) });
     console.log(`  ${llm.provider}/${llm.model}: ${s.extracted}/${s.total} anchored, ${verified}/${s.total} verified on re-fetch${r.error ? ` (${r.error})` : ''}`);
   }
   results.push({ target: target.name, url: target.url, fetch: { method: page.method, country: page.country, attempts: page.attempts, chars: page.text.length }, refetch: fresh.status, perLLM });
