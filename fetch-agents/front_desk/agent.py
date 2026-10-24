@@ -28,7 +28,7 @@ from uagents_core.contrib.protocols.payment import (
 )
 
 from front_desk.gate import run_layer2
-from front_desk.intent import parse_intent
+from front_desk.intent import NotARequest, parse_intent, strip_mentions
 from front_desk.payments import create_checkout, is_paid
 from front_desk.stdb import gate_config
 
@@ -65,21 +65,34 @@ async def reply(ctx: Context, to: str, body: str) -> None:
 @chat.on_message(ChatMessage)
 async def on_chat(ctx: Context, sender: str, msg: ChatMessage) -> None:
     await ctx.send(sender, ChatAcknowledgement(timestamp=_now(), acknowledged_msg_id=msg.msg_id))
-    text = " ".join(c.text for c in msg.content if isinstance(c, TextContent)).strip()
+    text = strip_mentions(" ".join(c.text for c in msg.content if isinstance(c, TextContent)))
     if not text:
         return
     pending = ctx.storage.get(f"quote:{sender}")
-    if pending and text.lower().strip(" .!") in PAY_WORDS:
-        await request_payment(ctx, sender, pending)
+    if text.lower().strip(" .!") in PAY_WORDS:
+        if pending:
+            await request_payment(ctx, sender, pending)
+        else:
+            await reply(ctx, sender, "There's no open quote to pay yet. Tell me what public data you need first.")
         return
 
     try:
         intent = await asyncio.to_thread(parse_intent, text)
         blocked, cap = await asyncio.to_thread(gate_config)
+    except NotARequest:
+        ctx.logger.info(f"not a request {sender[:16]}: {text[:80]!r}")
+        # ASI:One's own assistant answers our messages; replying every time would ping-pong forever.
+        if ctx.storage.get(f"nudged:{sender}"):
+            return
+        ctx.storage.set(f"nudged:{sender}", True)
+        await reply(ctx, sender, "I couldn't read that as a data request. Tell me which public site and which fields "
+                                 "you want, e.g. \"open roles at Stripe by team and location\".")
+        return
     except Exception as err:  # noqa: BLE001 - the customer gets a reply, the log gets the cause
         ctx.logger.exception("intent/gate failed")
         await reply(ctx, sender, f"Sorry, I couldn't read that request right now ({type(err).__name__}). Please try again.")
         return
+    ctx.storage.remove(f"nudged:{sender}")
     result = run_layer2(fields=intent.fields, sources=intent.sources, request_text=text,
                         estimated_pages=intent.estimated_pages, blocked_domains=blocked, page_cap=cap)
     ctx.logger.info(f"gate {sender[:16]} {result.check} passed={result.passed}")
@@ -147,6 +160,8 @@ async def on_reject(ctx: Context, sender: str, msg: RejectPayment) -> None:
 # Delayed-message test (AGENTS.md §7 Fetch): does ASI:One show a message the agent sends
 # on its own, a minute after the last exchange? Status updates for long orders depend on it.
 def schedule_followup(ctx: Context, sender: str) -> None:
+    if ctx.storage.get(f"followed_up:{sender}"):
+        return
     due = ctx.storage.get("followups") or {}
     due[sender] = time.time() + DELAYED_AFTER_S
     ctx.storage.set("followups", due)
@@ -160,6 +175,7 @@ async def send_followups(ctx: Context) -> None:
     for sender in ready:
         await reply(ctx, sender, f"Status check from the Front Desk, sent on my own {DELAYED_AFTER_S}s after your last message.")
         del due[sender]
+        ctx.storage.set(f"followed_up:{sender}", True)
     if ready:
         ctx.storage.set("followups", due)
 
