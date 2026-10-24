@@ -14,7 +14,7 @@ if (existsSync(worktree)) execFileSync('git', ['-C', repo, 'worktree', 'remove',
 mkdirSync(join(repo, '.worktrees'), { recursive: true });
 execFileSync('git', ['-C', repo, 'worktree', 'add', '-b', branch, worktree, 'HEAD'], { stdio: 'ignore' });
 
-const decisions: Array<Decision & { tool: string; detail: string }> = [];
+const decisions: Array<{ outcome: Decision['outcome'] | 'founder-approved'; reason: string; tool: string; detail: string }> = [];
 const lock = await createLockedSession({
   cwd: worktree,
   onCommand: (d) => {

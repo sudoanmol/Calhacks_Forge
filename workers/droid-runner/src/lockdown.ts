@@ -17,7 +17,7 @@ export const KEPT_TOOL_IDS = ['Read', 'LS', 'Glob', 'Grep', 'Create', 'Edit', 'A
 
 const TOOL_NOTE = `Tool access in this session: call these tools directly: ${KEPT_TOOL_IDS.join(', ')}, and run_command for shell commands. No other tools exist here. If a call is denied, do not retry it or work around it; report the denial.`;
 
-async function disabledToolIdsFor(cwd: string, apiKey?: string): Promise<string[]> {
+export async function disabledToolIdsFor(cwd: string, apiKey?: string): Promise<string[]> {
   const probe = await createSession({ cwd, apiKey, autonomyLevel: AutonomyLevel.Low });
   try {
     const all = (await probe.listTools()) as Array<{ id: string }>;
@@ -27,7 +27,7 @@ async function disabledToolIdsFor(cwd: string, apiKey?: string): Promise<string[
   }
 }
 
-type LockOptions = { onCommand: (d: CommandLog) => void | Promise<void>; command?: CommandServerOptions };
+export type LockOptions = { onCommand: (d: CommandLog) => void | Promise<void>; command?: CommandServerOptions };
 
 export async function createLockedSession(
   options: CreateSessionOptions & LockOptions & { cwd: string },

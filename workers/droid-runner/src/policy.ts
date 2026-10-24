@@ -51,12 +51,19 @@ export function decide(worktree: string, use: ToolUseInfo): Decision {
 }
 
 // Compile sessions: Droid may change only the extractor of the Actor it is compiling and run its
-// tests. Everything else is denied outright (there is no founder approval path in a compile).
+// tests. File writes elsewhere, shell operators, network, deploys, secrets and paths outside the Actor
+// are denied outright. Any other plain command needs a founder droid_action approval.
 const PLUMBING = /^src\/(lib\/|main\.js$|run\.js$|fetchers\.js$)/;
 const COMPILE_COMMANDS: RegExp[] = [
   /^pnpm( run)? test$/,
   /^pnpm run test:(fixtures|contract)$/,
   /^node --test( [\w./*"-]+)*$/,
+];
+const COMPILE_DENIED: RegExp[] = [
+  ...DENIED_COMMANDS,
+  /\btest:live\b/, // the live test reaches the network; the worker runs it after the turn
+  /(^|\s)["']?[/~]/, // absolute and home paths
+  /(^|[\s/"'])\.\.(\/|\s|["']|$)/, // parent directories
 ];
 const SHELL_META = /[;&|<>`$\\\n(){}]/;
 
@@ -72,8 +79,9 @@ export function decideCompile(actorDir: string, use: ToolUseInfo): Decision {
   if (use.type === 'exec') {
     const cmd = (use.command ?? '').trim();
     if (SHELL_META.test(cmd)) return { outcome: 'denied', reason: `shell operators are not allowed: ${cmd}` };
+    if (COMPILE_DENIED.some((re) => re.test(cmd))) return { outcome: 'denied', reason: `network, deploy, secrets or a path outside the Actor: ${cmd}` };
     if (COMPILE_COMMANDS.some((re) => re.test(cmd))) return { outcome: 'auto-allowed', reason: `test command: ${cmd}` };
-    return { outcome: 'denied', reason: `only the Actor's tests may run: ${cmd}` };
+    return { outcome: 'needs-approval', reason: `not a test command; the founder decides: ${cmd}` };
   }
   return { outcome: 'denied', reason: `tool ${use.name} (${use.type}) is not allowed in a compile` };
 }

@@ -3,13 +3,17 @@ import { z } from 'zod';
 import { createSdkMcpServer, tool } from '@factory/droid-sdk/node';
 import { decide, type Decision, type ToolUseInfo } from './policy.ts';
 
-export type CommandLog = Decision & { tool: 'run_command'; detail: string; exitCode?: number | null };
+export type CommandOutcome = Decision['outcome'] | 'founder-approved';
+export type CommandLog = { outcome: CommandOutcome; reason: string; tool: 'run_command'; detail: string; exitCode?: number | null };
 
 export type CommandServerOptions = {
   // Defaults to the general worktree policy; a compile passes its narrower one.
   decide?: (worktree: string, use: ToolUseInfo) => Decision;
   // Environment for allowed commands. Defaults to the host's environment.
   env?: NodeJS.ProcessEnv;
+  // Asks the founder about a needs-approval command and resolves with the decision.
+  // Without it a needs-approval command is refused.
+  approve?: (command: string, reason: string) => Promise<boolean>;
 };
 
 // Droid's only way to run shell commands. The built-in Execute tool is disabled because at Low
@@ -24,8 +28,14 @@ export function commandServer(worktree: string, onDecision: (d: CommandLog) => v
         'Run a shell command in the worktree. Only tests and local fixture runs are allowed; network, deploy and secret access are denied.',
         { command: z.string().describe('The shell command to run') },
         async ({ command }) => {
-          const d = policy(worktree, { name: 'run_command', type: 'exec', command });
-          if (d.outcome !== 'auto-allowed') {
+          let d: { outcome: CommandOutcome; reason: string } = policy(worktree, { name: 'run_command', type: 'exec', command });
+          if (d.outcome === 'needs-approval' && opts.approve) {
+            const approved = await opts.approve(command, d.reason);
+            d = approved
+              ? { outcome: 'founder-approved', reason: `founder approved: ${d.reason}` }
+              : { outcome: 'denied', reason: `founder did not approve: ${d.reason}` };
+          }
+          if (d.outcome !== 'auto-allowed' && d.outcome !== 'founder-approved') {
             await onDecision({ ...d, tool: 'run_command', detail: command });
             return { isError: true, content: [{ type: 'text', text: `${d.outcome}: ${d.reason}` }] };
           }

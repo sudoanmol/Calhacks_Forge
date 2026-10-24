@@ -6,7 +6,8 @@
     "typecheck": "tsc -p .",
     "test": "node --test \"test/**/*.test.ts\"",
     "hello": "node --env-file=../../.env src/hello.ts",
-    "compile": "node src/compile.ts"
+    "compile": "node src/compile.ts",
+    "runner": "node src/runner.ts"
   },
   "dependencies": {
     "@factory/droid-sdk": "^0.10.0",
