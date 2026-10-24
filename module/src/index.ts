@@ -1,5 +1,6 @@
 import { schema, table, t, SenderError, Router, SyncResponse, type InferSchema, type ReducerCtx, type ProcedureCtx } from 'spacetimedb/server';
-import { ScheduleAt, Timestamp, type Identity } from 'spacetimedb';
+import { ScheduleAt, TimeDuration, Timestamp, type Identity } from 'spacetimedb';
+import { anchored, base64, classify } from './text';
 
 const LEASE_MS = 10 * 60 * 1000;
 const LEASE_SWEEP_EVERY_MICROS = 15_000_000n;
@@ -112,10 +113,269 @@ const leaseSweepSchedule = table(
   },
 );
 
+// ---- Gate 1 schema (frozen after Gate 1: additive changes only) ----
+
+const customer = table(
+  { name: 'customer', public: true },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    asiSender: t.string().unique(),
+    createdAt: t.timestamp(),
+  },
+);
+
+// A named, re-runnable API over public web data (AGENTS.md §3).
+const api = table(
+  { name: 'api', public: true },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    name: t.string().unique(),
+    description: t.string(),
+    inputs: t.string(), // JSON
+    sources: t.string(), // JSON array of URLs, URL patterns or search queries
+    outputSchema: t.string(), // JSON Schema
+    volatility: t.string(), // stable | volatile
+    freshnessWindowMin: t.u32(),
+    pageCap: t.u32(),
+    tier: t.u8(),
+    currentVersionId: t.option(t.u64()),
+    buyerCount: t.u32(),
+    verifiedRateBp: t.u32(), // basis points over the last compile_window_runs runs
+    costPerCallCents: t.u32(),
+    createdAt: t.timestamp(),
+  },
+);
+
+const apiVersion = table(
+  { name: 'api_version', public: true },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    apiId: t.u64().index('btree'),
+    version: t.string(),
+    tier: t.u8(),
+    engine: t.string(), // task | actor
+    apifyId: t.string(),
+    fields: t.string(), // JSON array of output field names
+    droidSessionId: t.string(),
+    testsPassed: t.bool(),
+    shippedAt: t.option(t.timestamp()),
+  },
+);
+
+const gateCheck = table(
+  { name: 'gate_check', public: true },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    orderId: t.option(t.u64()),
+    ticketId: t.option(t.u64()),
+    check: t.string(),
+    result: t.string(), // pass | fail | unclear
+    citationUrl: t.string(),
+    citationText: t.string(),
+    at: t.timestamp(),
+  },
+);
+
+// "order" is an SQL keyword, so the table is "orders".
+const orders = table(
+  { name: 'orders', public: true },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    ref: t.string().unique(), // chosen by the Front Desk so it can find the row it created
+    customerId: t.u64().index('btree'),
+    apiId: t.option(t.u64()),
+    requestText: t.string(),
+    intent: t.string(), // JSON from the Front Desk's ASI-1 parse
+    params: t.string(), // JSON
+    priceCents: t.u32(),
+    // quoted | rejected_at_desk | paid | triaging | accepted | counteroffered | rejected | researching
+    // | running | verifying | auditing | delivered | audit_rejected | failed
+    status: t.string(),
+    apiVersionId: t.option(t.u64()),
+    apifyRunId: t.string(),
+    datasetUrl: t.string(),
+    stripeSessionId: t.string(),
+    decisionReason: t.string(),
+    createdAt: t.timestamp(),
+    updatedAt: t.timestamp(),
+  },
+);
+
+const ticket = table(
+  { name: 'ticket', public: true },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    orderId: t.option(t.u64()),
+    apiId: t.option(t.u64()),
+    label: t.string(), // challenge | enhancement | coverage | format | question | status | compile | warranty
+    text: t.string(),
+    confidenceBp: t.u32(),
+    status: t.string(),
+    createdAt: t.timestamp(),
+  },
+);
+
+const valueRecord = table(
+  { name: 'value_record', public: true },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    orderId: t.u64().index('btree'),
+    apiId: t.u64(),
+    row: t.u32(),
+    entity: t.string(),
+    metric: t.string(),
+    value: t.string(),
+    sourceUrl: t.string(),
+    excerpt: t.string(),
+    snapshotKey: t.string(),
+    snapshotHash: t.string(),
+    observedAt: t.timestamp(),
+    verifiedAt: t.option(t.timestamp()),
+    apiVersionId: t.u64(),
+    tier: t.u8(),
+    method: t.string(),
+    status: t.string(), // extracted | verified | stale | mismatch | unverifiable | corrected
+    freshValue: t.string(),
+    supersedesId: t.option(t.u64()),
+  },
+);
+
+// One row per Bright Data attempt (the fallback ladder is visible here).
+const evidence = table(
+  { name: 'evidence', public: true },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    valueRecordId: t.option(t.u64()),
+    orderId: t.option(t.u64()),
+    url: t.string(),
+    method: t.string(), // unlocker | browser
+    country: t.string(),
+    httpStatus: t.u32(),
+    attempt: t.u32(),
+    ms: t.u32(),
+    matched: t.bool(),
+    reason: t.string(),
+    snapshotHash: t.string(),
+    fetchedAt: t.timestamp(),
+  },
+);
+
+const challenge = table(
+  { name: 'challenge', public: true },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    orderId: t.u64(),
+    valueRecordId: t.u64(),
+    reason: t.string(),
+    status: t.string(), // open | rechecked | upheld | rejected
+    verdict: t.string(),
+    auditorReason: t.string(),
+    createdAt: t.timestamp(),
+    resolvedAt: t.option(t.timestamp()),
+  },
+);
+
+const approval = table(
+  { name: 'approval', public: true },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    kind: t.string(), // spend_over_cap | api_ship | droid_action | refund_over_limit
+    refType: t.string(),
+    refId: t.u64(),
+    amountCents: t.u32(),
+    detail: t.string(),
+    status: t.string(), // pending | approved | rejected
+    createdAt: t.timestamp(),
+    decidedAt: t.option(t.timestamp()),
+  },
+);
+
+const budget = table(
+  { name: 'budget', public: true },
+  {
+    name: t.string().primaryKey(),
+    capCents: t.u32(),
+    reservedCents: t.u32(),
+    spentCents: t.u32(),
+  },
+);
+
+const bonus = table(
+  { name: 'bonus', public: true },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    role: t.string(),
+    orderId: t.option(t.u64()),
+    taskId: t.option(t.u64()),
+    amountCents: t.u32(),
+    status: t.string(), // accrued | paid | clawed_back
+    createdAt: t.timestamp(),
+  },
+);
+
+// Double-entry ledger. Private: the dashboard reads the books summary instead.
+const ledger = table(
+  { name: 'ledger' },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    txId: t.u64().index('btree'),
+    account: t.string(),
+    amountCents: t.i64(),
+    memo: t.string(),
+    at: t.timestamp(),
+  },
+);
+
+// Public per-account balances maintained by the Treasurer helpers.
+const books = table(
+  { name: 'books', public: true },
+  {
+    account: t.string().primaryKey(),
+    balanceCents: t.i64(),
+    updatedAt: t.timestamp(),
+  },
+);
+
+// One-shot schedules: reducers queue outbound work here; the procedures do the IO.
+const apiRunSchedule = table(
+  { name: 'api_run_schedule' },
+  {
+    scheduledId: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+    orderId: t.u64(),
+  },
+);
+const verifySchedule = table(
+  { name: 'verify_schedule' },
+  {
+    scheduledId: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+    orderId: t.u64(),
+  },
+);
+
+const dispatchSchedule = table(
+  { name: 'dispatch_schedule' },
+  {
+    scheduledId: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+  },
+);
 const spacetimedb = schema(
-  { config, staff, task, event, run, callbackToken, leaseSweepSchedule },
+  {
+    config, staff, task, event, run, callbackToken, leaseSweepSchedule,
+    customer, api, apiVersion, gateCheck, orders, ticket, valueRecord, evidence, challenge,
+    approval, budget, bonus, ledger, books, apiRunSchedule, verifySchedule, dispatchSchedule,
+  },
   // Set at publish time from the shell environment (spacetime publish reads declared names).
-  { env: { CREAO_API_KEY: t.option(t.string()), PUBLIC_ROUTE_BASE: t.option(t.string()) } },
+  {
+    env: {
+      CREAO_API_KEY: t.option(t.string()), PUBLIC_ROUTE_BASE: t.option(t.string()),
+      APIFY_TOKEN: t.option(t.string()), BRIGHTDATA_API_KEY: t.option(t.string()), BRIGHTDATA_UNLOCKER_ZONE: t.option(t.string()),
+      CREAO_APP_ID_COO: t.option(t.string()), CREAO_APP_ID_RESEARCH: t.option(t.string()),
+      CREAO_APP_ID_CFO: t.option(t.string()), CREAO_APP_ID_AUDITOR: t.option(t.string()),
+    },
+  },
 );
 export default spacetimedb;
 
@@ -149,6 +409,8 @@ export const init = spacetimedb.init((ctx) => {
   }
   ctx.db.staff.insert({ identity: ctx.sender, role: 'founder', label: 'founder', addedAt: ctx.timestamp });
   ctx.db.leaseSweepSchedule.insert({ scheduledId: 0n, scheduledAt: ScheduleAt.interval(LEASE_SWEEP_EVERY_MICROS) });
+  ctx.db.budget.insert({ name: 'engineering', capCents: 2000, reservedCents: 0, spentCents: 0 });
+  ctx.db.dispatchSchedule.insert({ scheduledId: 0n, scheduledAt: ScheduleAt.interval(DISPATCH_EVERY_MICROS) });
   logEvent(ctx, 'founder', 'module_init', 'config', 0n, { configKeys: Object.keys(CONFIG_DEFAULTS).length });
 });
 
@@ -235,6 +497,200 @@ export const lease_sweep = spacetimedb.reducer(
   },
 );
 
+// ---- Treasurer (code, not an LLM). Every txId's entries sum to zero. ----
+
+function postTx(ctx: Ctx, memo: string, entries: [account: string, cents: bigint][]) {
+  const sum = entries.reduce((s, [, c]) => s + c, 0n);
+  if (sum !== 0n) throw new Error(`unbalanced tx ${memo}: ${sum}`);
+  let txId = 0n;
+  for (const [account, amountCents] of entries) {
+    const row = ctx.db.ledger.insert({ id: 0n, txId, account, amountCents, memo, at: ctx.timestamp });
+    // The first entry's row id names the transaction.
+    if (txId === 0n) { txId = row.id; ctx.db.ledger.id.update({ ...row, txId }); }
+    const cur = ctx.db.books.account.find(account);
+    if (cur) ctx.db.books.account.update({ ...cur, balanceCents: cur.balanceCents + amountCents, updatedAt: ctx.timestamp });
+    else ctx.db.books.insert({ account, balanceCents: amountCents, updatedAt: ctx.timestamp });
+  }
+  return txId;
+}
+
+function cfgInt(ctx: Ctx, key: string): number {
+  const v = Number(ctx.db.config.key.find(key)?.value);
+  if (!Number.isFinite(v)) throw new Error(`config ${key} is not a number`);
+  return v;
+}
+
+// ---- Orders (flow A, AGENTS.md §6) ----
+
+type Order = NonNullable<ReturnType<Ctx['db']['orders']['id']['find']>>;
+
+function setOrder(ctx: Ctx, o: Order, patch: Partial<Order>, actor: string, kind: string, payload: unknown = {}) {
+  const next = { ...o, ...patch, updatedAt: ctx.timestamp };
+  ctx.db.orders.id.update(next);
+  logEvent(ctx, actor, kind, 'order', o.id, { status: next.status, ...(payload as object) });
+  return next;
+}
+
+function findOrder(ctx: Ctx, id: bigint): Order {
+  const o = ctx.db.orders.id.find(id);
+  if (!o) throw new SenderError(`no order ${id}`);
+  return o;
+}
+
+function customerFor(ctx: Ctx, asiSender: string) {
+  const existing = ctx.db.customer.asiSender.find(asiSender);
+  if (existing) return existing;
+  const row = ctx.db.customer.insert({ id: 0n, asiSender, createdAt: ctx.timestamp });
+  logEvent(ctx, 'front_desk', 'customer_registered', 'customer', row.id, {});
+  return row;
+}
+
+function queueTask(ctx: Ctx, kind: string, role: string, orderId: bigint | undefined, input: unknown) {
+  const row = ctx.db.task.insert({
+    id: 0n, kind, role, status: 'queued', orderId, ticketId: undefined,
+    leaseOwner: undefined, leaseUntil: undefined, attempt: 0, input: JSON.stringify(input), output: '',
+    createdAt: ctx.timestamp, updatedAt: ctx.timestamp,
+  });
+  logEvent(ctx, 'rules', 'task_queued', 'task', row.id, { kind, role, orderId: orderId?.toString() ?? '' });
+  return row;
+}
+
+function closeTasks(ctx: Ctx, orderId: bigint, kind: string, output: unknown) {
+  for (const row of ctx.db.task.kind.filter(kind)) {
+    if (row.orderId === orderId && row.status !== 'done') {
+      ctx.db.task.id.update({ ...row, status: 'done', output: JSON.stringify(output), leaseUntil: undefined, updatedAt: ctx.timestamp });
+    }
+  }
+}
+
+export const create_order = spacetimedb.reducer(
+  { ref: t.string(), asiSender: t.string(), requestText: t.string(), intent: t.string(), priceCents: t.u32() },
+  (ctx, { ref, asiSender, requestText, intent, priceCents }) => {
+    requireRole(ctx, 'front_desk', 'canary');
+    if (ctx.db.orders.ref.find(ref)) throw new SenderError(`order ref ${ref} exists`);
+    const c = customerFor(ctx, asiSender);
+    const o = ctx.db.orders.insert({
+      id: 0n, ref, customerId: c.id, apiId: undefined, requestText, intent, params: '{}', priceCents, status: 'quoted',
+      apiVersionId: undefined, apifyRunId: '', datasetUrl: '', stripeSessionId: '', decisionReason: '',
+      createdAt: ctx.timestamp, updatedAt: ctx.timestamp,
+    });
+    ctx.db.gateCheck.insert({ id: 0n, orderId: o.id, ticketId: undefined, check: 'layer2', result: 'pass', citationUrl: '', citationText: '', at: ctx.timestamp });
+    logEvent(ctx, 'front_desk', 'order_quoted', 'order', o.id, { priceCents, customerId: c.id.toString() });
+  },
+);
+
+export const reject_at_desk = spacetimedb.reducer(
+  { ref: t.string(), asiSender: t.string(), requestText: t.string(), intent: t.string(), check: t.string(), reason: t.string() },
+  (ctx, { ref, asiSender, requestText, intent, check, reason }) => {
+    requireRole(ctx, 'front_desk', 'canary');
+    if (ctx.db.orders.ref.find(ref)) throw new SenderError(`order ref ${ref} exists`);
+    const c = customerFor(ctx, asiSender);
+    const o = ctx.db.orders.insert({
+      id: 0n, ref, customerId: c.id, apiId: undefined, requestText, intent, params: '{}', priceCents: 0, status: 'rejected_at_desk',
+      apiVersionId: undefined, apifyRunId: '', datasetUrl: '', stripeSessionId: '', decisionReason: reason,
+      createdAt: ctx.timestamp, updatedAt: ctx.timestamp,
+    });
+    ctx.db.gateCheck.insert({ id: 0n, orderId: o.id, ticketId: undefined, check, result: 'fail', citationUrl: '', citationText: reason, at: ctx.timestamp });
+    logEvent(ctx, 'front_desk', 'order_rejected_at_desk', 'order', o.id, { check, reason });
+  },
+);
+
+// The Front Desk calls this only after Stripe reports the checkout session as paid.
+export const record_payment = spacetimedb.reducer(
+  { ref: t.string(), stripeSessionId: t.string() },
+  (ctx, { ref, stripeSessionId }) => {
+    requireRole(ctx, 'front_desk', 'canary');
+    const o = ctx.db.orders.ref.find(ref);
+    if (!o) throw new SenderError(`no order ref ${ref}`);
+    if (o.status !== 'quoted') throw new SenderError(`order ${o.id} is ${o.status}, not quoted`);
+    const paid = setOrder(ctx, o, { status: 'paid', stripeSessionId }, 'front_desk', 'order_paid', { priceCents: o.priceCents });
+    postTx(ctx, `payment order ${o.id} (TEST MODE)`, [['treasury', BigInt(o.priceCents)], [`customer:${o.id}`, -BigInt(o.priceCents)]]);
+    queueTask(ctx, 'coo_triage', 'coo', paid.id, { orderId: paid.id.toString() });
+  },
+);
+
+// Founder seeds the catalog; the COO creates APIs after accepting a new request (Gate 2).
+export const create_api = spacetimedb.reducer(
+  { spec: t.string(), apifyId: t.string(), engine: t.string() },
+  (ctx, { spec, apifyId, engine }) => {
+    const actor = requireRole(ctx, 'founder', 'coo');
+    const s = JSON.parse(spec) as {
+      name: string; description: string; inputs?: unknown; sources: unknown[]; outputSchema: { properties?: Record<string, unknown> };
+      volatility: string; freshnessWindowMin?: number; pageCap?: number;
+    };
+    if (!/^[a-z0-9-]{3,40}$/.test(s.name)) throw new SenderError('api name must be 3-40 chars of a-z, 0-9, -');
+    if (ctx.db.api.name.find(s.name)) throw new SenderError(`api ${s.name} exists`);
+    if (!['stable', 'volatile'].includes(s.volatility)) throw new SenderError('volatility must be stable or volatile');
+    if (!['task', 'actor'].includes(engine)) throw new SenderError('engine must be task or actor');
+    const a = ctx.db.api.insert({
+      id: 0n, name: s.name, description: s.description, inputs: JSON.stringify(s.inputs ?? {}), sources: JSON.stringify(s.sources),
+      outputSchema: JSON.stringify(s.outputSchema), volatility: s.volatility, freshnessWindowMin: s.freshnessWindowMin ?? 0,
+      pageCap: s.pageCap ?? cfgInt(ctx, 'page_cap'), tier: 0, currentVersionId: undefined, buyerCount: 0, verifiedRateBp: 0,
+      costPerCallCents: 0, createdAt: ctx.timestamp,
+    });
+    const v = ctx.db.apiVersion.insert({
+      id: 0n, apiId: a.id, version: '0.1', tier: 0, engine, apifyId,
+      fields: JSON.stringify(Object.keys(s.outputSchema.properties ?? {})), droidSessionId: '', testsPassed: false, shippedAt: ctx.timestamp,
+    });
+    ctx.db.api.id.update({ ...a, currentVersionId: v.id });
+    logEvent(ctx, actor, 'api_created', 'api', a.id, { name: s.name, tier: 0, apifyId });
+  },
+);
+
+const COO_DECISIONS = ['ACCEPT', 'COUNTEROFFER', 'REQUEST_RESEARCH', 'REJECT'];
+
+export const coo_decide = spacetimedb.reducer(
+  { orderId: t.u64(), decision: t.string(), apiName: t.string(), reason: t.string() },
+  (ctx, { orderId, decision, apiName, reason }) => {
+    requireRole(ctx, 'coo');
+    if (!COO_DECISIONS.includes(decision)) throw new SenderError(`decision must be one of ${COO_DECISIONS.join(', ')}`);
+    if (!reason.trim()) throw new SenderError('a reason is required');
+    const o = findOrder(ctx, orderId);
+    if (o.status !== 'paid' && o.status !== 'triaging') throw new SenderError(`order ${orderId} is ${o.status}; nothing to decide`);
+    closeTasks(ctx, orderId, 'coo_triage', { decision, apiName, reason });
+    if (decision === 'ACCEPT') {
+      const a = ctx.db.api.name.find(apiName);
+      if (!a) throw new SenderError(`no api ${apiName}; use REQUEST_RESEARCH for a new API`);
+      setOrder(ctx, o, { status: 'accepted', apiId: a.id, apiVersionId: a.currentVersionId, decisionReason: reason }, 'coo', 'coo_accepted', { api: apiName, reason });
+      ctx.db.apiRunSchedule.insert({ scheduledId: 0n, scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch), orderId });
+    } else if (decision === 'REQUEST_RESEARCH') {
+      setOrder(ctx, o, { status: 'researching', decisionReason: reason }, 'coo', 'coo_requested_research', { reason });
+      queueTask(ctx, 'research_gate', 'research', orderId, { orderId: orderId.toString() });
+    } else {
+      const status = decision === 'REJECT' ? 'rejected' : 'counteroffered';
+      setOrder(ctx, o, { status, decisionReason: reason }, 'coo', `coo_${status}`, { reason });
+    }
+  },
+);
+
+export const audit_verdict = spacetimedb.reducer(
+  { orderId: t.u64(), verdict: t.string(), reason: t.string() },
+  (ctx, { orderId, verdict, reason }) => {
+    requireRole(ctx, 'auditor');
+    if (verdict !== 'ACCEPT' && verdict !== 'REJECT') throw new SenderError('verdict must be ACCEPT or REJECT');
+    if (!reason.trim()) throw new SenderError('a reason is required');
+    const o = findOrder(ctx, orderId);
+    if (o.status !== 'auditing') throw new SenderError(`order ${orderId} is ${o.status}, not auditing`);
+    closeTasks(ctx, orderId, 'audit', { verdict, reason });
+    if (verdict === 'REJECT') {
+      setOrder(ctx, o, { status: 'audit_rejected', decisionReason: reason }, 'auditor', 'audit_rejected', { reason });
+      return;
+    }
+    setOrder(ctx, o, { status: 'delivered', decisionReason: reason }, 'auditor', 'audit_accepted', { reason });
+    // Bonuses accrue only on accepted work.
+    for (const role of ['coo', 'auditor']) {
+      const cents = Math.floor((o.priceCents * cfgInt(ctx, `bonus_rate.${role}`)) / 100);
+      if (cents <= 0) continue;
+      ctx.db.bonus.insert({ id: 0n, role, orderId, taskId: undefined, amountCents: cents, status: 'accrued', createdAt: ctx.timestamp });
+      postTx(ctx, `bonus ${role} order ${orderId}`, [[`seat:${role}`, BigInt(cents)], ['treasury', -BigInt(cents)]]);
+    }
+    if (o.apiId !== undefined) {
+      const a = ctx.db.api.id.find(o.apiId);
+      const priorBuyer = [...ctx.db.orders.iter()].some((x) => x.id !== o.id && x.apiId === o.apiId && x.customerId === o.customerId && x.status === 'delivered');
+      if (a && !priorBuyer) ctx.db.api.id.update({ ...a, buyerCount: a.buyerCount + 1 });
+    }
+  },
+);
 // Gate 0 smoke test: a procedure that calls the outside world with no transaction open.
 export const http_smoke = spacetimedb.procedure({ url: t.string() }, t.unit(), (ctx, { url }) => {
   ctx.withTx((tx) => requireRole(tx, 'founder', 'canary'));
@@ -349,6 +805,12 @@ function refreshCreaoRun(ctx: IoCtx, runRef: bigint, actor: string) {
       resultText: result.slice(0, RESULT_TEXT_MAX), endedAt: done ? tx.timestamp : cur.endedAt,
     });
     logEvent(tx, actor, `creao_run_${status}`, 'run', runRef, { externalId: cur.externalId, threadId: fresh.threadId ?? '', resultChars: result.length });
+    const task = done && cur.taskId !== undefined ? tx.db.task.id.find(cur.taskId) : undefined;
+    if (task && task.status === 'dispatched') {
+      // The agent acts only through reducers; a run that ends without one leaves the task undecided.
+      tx.db.task.id.update({ ...task, status: 'failed', output: JSON.stringify({ runStatus: status, result: result.slice(0, 2000) }), updatedAt: tx.timestamp });
+      logEvent(tx, actor, 'task_ended_without_decision', 'task', task.id, { runRef: runRef.toString(), runStatus: status });
+    }
     return { changed: true, status };
   });
 }
@@ -382,6 +844,322 @@ export const creao_callback = spacetimedb.httpHandler((ctx, req) => {
   }
   return new SyncResponse('ok', { status: 200 });
 });
+// ---- Outbound work for flow A. Pattern: read in a tx, close it, fetch, write in a new tx. ----
+
+const APIFY_BASE = 'https://api.apify.com/v2';
+const APIFY_TERMINAL = ['SUCCEEDED', 'FAILED', 'ABORTED', 'TIMED-OUT'];
+const ROLE_APP_ENV = { coo: 'CREAO_APP_ID_COO', research: 'CREAO_APP_ID_RESEARCH', cfo: 'CREAO_APP_ID_CFO', auditor: 'CREAO_APP_ID_AUDITOR' } as const;
+const CREAO_ROLES = Object.keys(ROLE_APP_ENV);
+const DISPATCH_EVERY_MICROS = 5_000_000n;
+
+function envOrThrow(env: IoCtx['env'], name: 'APIFY_TOKEN' | 'BRIGHTDATA_API_KEY' | 'BRIGHTDATA_UNLOCKER_ZONE'): string {
+  const v = env.get(name);
+  if (!v) throw new Error(`${name} is not set on the module`);
+  return v;
+}
+
+function failOrder(tx: Ctx, orderId: bigint, actor: string, reason: string) {
+  const o = tx.db.orders.id.find(orderId);
+  if (o) setOrder(tx, o, { status: 'failed', decisionReason: reason }, actor, 'order_failed', { reason });
+}
+
+export const start_api_run = spacetimedb.procedure(
+  { onSchedule: apiRunSchedule },
+  { arg: apiRunSchedule.rowType },
+  t.unit(),
+  (ctx, { arg }) => {
+    const token = ctx.newUuidV4().toString();
+    const job = ctx.withTx((tx) => {
+      const o = tx.db.orders.id.find(arg.orderId);
+      if (!o || o.status !== 'accepted') return null;
+      const v = o.apiVersionId !== undefined ? tx.db.apiVersion.id.find(o.apiVersionId) : undefined;
+      if (!v || !v.apifyId) { failOrder(tx, o.id, 'procedure', 'api has no runnable version'); return null; }
+      const run = tx.db.run.insert({
+        id: 0n, provider: 'apify', externalId: '', appId: v.apifyId, taskId: undefined, threadId: o.id.toString(), status: 'starting',
+        resultText: '', shareUrl: '', costCents: 0, startedAt: tx.timestamp, endedAt: undefined,
+      });
+      tx.db.callbackToken.insert({ token, provider: 'apify', runRef: run.id, usedAt: undefined });
+      return { orderId: o.id, apifyId: v.apifyId, engine: v.engine, runRef: run.id };
+    });
+    if (!job) return {};
+    const base = ctx.env.get('PUBLIC_ROUTE_BASE');
+    const hooks = base ? [{ eventTypes: ['ACTOR.RUN.SUCCEEDED', 'ACTOR.RUN.FAILED', 'ACTOR.RUN.ABORTED', 'ACTOR.RUN.TIMED_OUT'], requestUrl: `${base}/apify-callback?token=${token}` }] : [];
+    const path = job.engine === 'task' ? `actor-tasks/${job.apifyId}` : `acts/${job.apifyId}`;
+    let status = 0;
+    let text = '';
+    try {
+      const res = ctx.http.fetch(`${APIFY_BASE}/${path}/runs?webhooks=${encodeURIComponent(base64(JSON.stringify(hooks)))}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${envOrThrow(ctx.env, 'APIFY_TOKEN')}`, 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      status = res.status;
+      text = res.text();
+    } catch (err) {
+      text = String(err);
+    }
+    ctx.withTx((tx) => {
+      const run = tx.db.run.id.find(job.runRef)!;
+      let data: { id?: string; status?: string } = {};
+      try { data = (JSON.parse(text) as { data?: typeof data }).data ?? {}; } catch { /* error body */ }
+      if (status !== 201 || !data.id) {
+        tx.db.run.id.update({ ...run, status: 'start_failed', resultText: text.slice(0, 2000), endedAt: tx.timestamp });
+        failOrder(tx, job.orderId, 'procedure', `apify start failed (http ${status})`);
+        return;
+      }
+      tx.db.run.id.update({ ...run, externalId: data.id, status: data.status ?? 'READY',
+        shareUrl: `https://console.apify.com/view/runs/${data.id}` });
+      const o = tx.db.orders.id.find(job.orderId)!;
+      setOrder(tx, o, { status: 'running', apifyRunId: data.id }, 'procedure', 'api_run_started', { apifyRunId: data.id, engine: job.engine });
+    });
+    return {};
+  },
+);
+
+type ApifyItem = {
+  row?: number; entity?: string; metric?: string; value?: string | null; excerpt?: string | null; sourceUrl?: string;
+  snapshotKey?: string; snapshotHash?: string; observedAt?: string; method?: string; status?: string; reason?: string;
+};
+
+// Re-fetches an Apify run with our key and ingests its dataset once. Webhook bodies are never trusted.
+function refreshApifyRun(ctx: IoCtx, runRef: bigint, actor: string): string {
+  const row = ctx.withTx((tx) => tx.db.run.id.find(runRef));
+  if (!row || !row.externalId) return row?.status ?? 'missing';
+  if (APIFY_TERMINAL.includes(row.status)) return row.status;
+  const key = envOrThrow(ctx.env, 'APIFY_TOKEN');
+  const res = ctx.http.fetch(`${APIFY_BASE}/actor-runs/${row.externalId}`, { headers: { Authorization: `Bearer ${key}` } });
+  if (res.status !== 200) {
+    ctx.withTx((tx) => logEvent(tx, actor, 'apify_refresh_failed', 'run', runRef, { httpStatus: res.status }));
+    return row.status;
+  }
+  const run = (JSON.parse(res.text()) as { data: { status: string; defaultDatasetId: string; usageTotalUsd?: number } }).data;
+  if (!APIFY_TERMINAL.includes(run.status)) {
+    ctx.withTx((tx) => { const cur = tx.db.run.id.find(runRef)!; if (cur.status !== run.status) tx.db.run.id.update({ ...cur, status: run.status }); });
+    return run.status;
+  }
+  let items: ApifyItem[] = [];
+  if (run.status === 'SUCCEEDED') {
+    const r = ctx.http.fetch(`${APIFY_BASE}/datasets/${run.defaultDatasetId}/items?clean=1&format=json`, { headers: { Authorization: `Bearer ${key}` } });
+    if (r.status === 200) items = JSON.parse(r.text()) as ApifyItem[];
+  }
+  const datasetUrl = `${APIFY_BASE}/datasets/${run.defaultDatasetId}/items?clean=1&format=json`;
+  ctx.withTx((tx) => {
+    const cur = tx.db.run.id.find(runRef)!;
+    if (APIFY_TERMINAL.includes(cur.status)) return; // a retry already ingested this run
+    const costCents = Math.round((run.usageTotalUsd ?? 0) * 100);
+    tx.db.run.id.update({ ...cur, status: run.status, costCents, endedAt: tx.timestamp });
+    const orderId = BigInt(cur.threadId);
+    const o = tx.db.orders.id.find(orderId);
+    if (!o || o.status !== 'running') return;
+    if (costCents > 0) postTx(tx, `apify run ${cur.externalId}`, [['vendor:apify', BigInt(costCents)], ['treasury', -BigInt(costCents)]]);
+    if (run.status !== 'SUCCEEDED') { failOrder(tx, orderId, actor, `apify run ${run.status}`); return; }
+    const v = o.apiVersionId !== undefined ? tx.db.apiVersion.id.find(o.apiVersionId) : undefined;
+    const rows = new Map<string, number>();
+    let extracted = 0;
+    for (const it of items) {
+      const k = `${it.sourceUrl}#${it.row ?? 'page'}`;
+      if (!rows.has(k)) rows.set(k, rows.size);
+      const pageFailed = it.metric === undefined;
+      const status = it.status === 'extracted' ? 'extracted' : 'unverifiable';
+      if (status === 'extracted') extracted++;
+      tx.db.valueRecord.insert({
+        id: 0n, orderId, apiId: o.apiId ?? 0n, row: rows.get(k)!, entity: pageFailed ? 'page' : String(it.entity ?? ''),
+        metric: pageFailed ? '_page' : String(it.metric), value: String(it.value ?? ''),
+        sourceUrl: String(it.sourceUrl ?? ''), excerpt: pageFailed ? String(it.reason ?? '') : String(it.excerpt ?? ''),
+        snapshotKey: String(it.snapshotKey ?? ''), snapshotHash: String(it.snapshotHash ?? ''),
+        observedAt: it.observedAt ? Timestamp.fromDate(new Date(it.observedAt)) : tx.timestamp, verifiedAt: undefined,
+        apiVersionId: o.apiVersionId ?? 0n, tier: v?.tier ?? 0, method: String(it.method ?? ''), status, freshValue: '', supersedesId: undefined,
+      });
+    }
+    setOrder(tx, o, { status: 'verifying', datasetUrl }, actor, 'api_run_ingested', { values: items.length, extracted, costCents });
+    tx.db.verifySchedule.insert({ scheduledId: 0n, scheduledAt: ScheduleAt.time(tx.timestamp.microsSinceUnixEpoch), orderId });
+  });
+  return run.status;
+}
+
+export const apify_poll = spacetimedb.procedure({ runRef: t.u64() }, t.unit(), (ctx, { runRef }) => {
+  ctx.withTx((tx) => requireRole(tx, 'founder', 'canary'));
+  refreshApifyRun(ctx, runRef, 'procedure');
+  return {};
+});
+
+export const apify_callback = spacetimedb.httpHandler((ctx, req) => {
+  const token = decodeURIComponent(/[?&]token=([^&]+)/.exec(String(req.uri))?.[1] ?? '');
+  const claim = ctx.withTx((tx) => {
+    const row = token ? tx.db.callbackToken.token.find(token) : undefined;
+    if (!row || row.provider !== 'apify') return { ok: false as const, reason: 'unknown token' };
+    if (row.usedAt) return { ok: false as const, reason: 'token already used' };
+    return { ok: true as const, runRef: row.runRef };
+  });
+  if (!claim.ok) {
+    ctx.withTx((tx) => logEvent(tx, 'route', 'apify_callback_rejected', 'run', 0n, { reason: claim.reason }));
+    return new SyncResponse(claim.reason, { status: 403 });
+  }
+  const status = refreshApifyRun(ctx, claim.runRef, 'route');
+  if (APIFY_TERMINAL.includes(status)) {
+    ctx.withTx((tx) => { const row = tx.db.callbackToken.token.find(token)!; tx.db.callbackToken.token.update({ ...row, usedAt: tx.timestamp }); });
+  }
+  return new SyncResponse('ok', { status: 200 });
+});
+
+// Bright Data Web Unlocker with one retry from another country on a block or timeout
+// (the module cannot drive the Browser API rung; a JS shell stays unverifiable here).
+function unlockerFetch(ctx: IoCtx, url: string, orderId: bigint): { ok: boolean; text: string; reason: string } {
+  let last = { ok: false, text: '', reason: 'not fetched' };
+  let attempt = 0;
+  for (const country of ['us', 'gb']) {
+    attempt++;
+    const t0 = Date.now();
+    let status = 0;
+    let body = '';
+    let brdError = '';
+    let thrown = '';
+    try {
+      const res = ctx.http.fetch('https://api.brightdata.com/request', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${envOrThrow(ctx.env, 'BRIGHTDATA_API_KEY')}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ zone: envOrThrow(ctx.env, 'BRIGHTDATA_UNLOCKER_ZONE'), url, format: 'raw', country }),
+        timeout: TimeDuration.fromMillis(45_000),
+      });
+      status = res.status;
+      body = res.text();
+      brdError = res.headers.get('x-brd-error') ?? '';
+    } catch (err) {
+      thrown = String(err);
+    }
+    const ms = Date.now() - t0;
+    const c = thrown ? { ok: false, kind: /timed? ?out/i.test(thrown) ? 'timeout' : 'error', reason: thrown.slice(0, 200), text: '' } : classify(status, body, brdError);
+    ctx.withTx((tx) => tx.db.evidence.insert({
+      id: 0n, valueRecordId: undefined, orderId, url, method: 'unlocker', country, httpStatus: status, attempt, ms: Math.max(0, ms),
+      matched: false, reason: c.ok ? '' : c.reason, snapshotHash: '', fetchedAt: tx.timestamp,
+    }));
+    last = { ok: c.ok, text: c.text, reason: c.reason };
+    if (c.ok || !['blocked', 'timeout'].includes(c.kind)) break;
+  }
+  return last;
+}
+
+// Independent re-fetch of every anchored value (AGENTS.md §3 Addition 1), then hand-off to the Auditor.
+export const verify_values = spacetimedb.procedure(
+  { onSchedule: verifySchedule },
+  { arg: verifySchedule.rowType },
+  t.unit(),
+  (ctx, { arg }) => {
+    const job = ctx.withTx((tx) => {
+      const o = tx.db.orders.id.find(arg.orderId);
+      if (!o || o.status !== 'verifying') return null;
+      const a = o.apiId !== undefined ? tx.db.api.id.find(o.apiId) : undefined;
+      const recs = [...tx.db.valueRecord.orderId.filter(o.id)].filter((r) => r.status === 'extracted');
+      return { orderId: o.id, volatility: a?.volatility ?? 'stable', urls: [...new Set(recs.map((r) => r.sourceUrl))] };
+    });
+    if (!job) return {};
+    const pages = new Map<string, { ok: boolean; text: string; reason: string }>();
+    for (const url of job.urls) pages.set(url, unlockerFetch(ctx, url, job.orderId));
+    ctx.withTx((tx) => {
+      const o = tx.db.orders.id.find(job.orderId);
+      if (!o || o.status !== 'verifying') return;
+      const counts: Record<string, number> = {};
+      for (const r of tx.db.valueRecord.orderId.filter(o.id)) {
+        if (r.status !== 'extracted') { counts[r.status] = (counts[r.status] ?? 0) + 1; continue; }
+        const page = pages.get(r.sourceUrl);
+        const status = !page?.ok ? 'unverifiable'
+          : anchored(page.text, r.excerpt, r.value) ? 'verified'
+          : job.volatility === 'volatile' ? 'stale' : 'mismatch';
+        counts[status] = (counts[status] ?? 0) + 1;
+        tx.db.valueRecord.id.update({ ...r, status, verifiedAt: status === 'verified' ? tx.timestamp : undefined });
+      }
+      const total = Object.values(counts).reduce((s, n) => s + n, 0);
+      if (o.apiId !== undefined) {
+        const a = tx.db.api.id.find(o.apiId);
+        if (a && total) tx.db.api.id.update({ ...a, verifiedRateBp: Math.round(((counts.verified ?? 0) / total) * 10_000) });
+      }
+      setOrder(tx, o, { status: 'auditing' }, 'procedure', 'values_verified', { counts, pages: pages.size });
+      queueTask(tx, 'audit', 'auditor', o.id, { orderId: o.id.toString(), counts });
+    });
+    return {};
+  },
+);
+
+// The only thing that starts CREAO runs. Respects creao_max_concurrency; a role with no
+// saved agent (CREAO_APP_ID_<ROLE> unset) keeps its tasks queued.
+export const dispatch = spacetimedb.procedure(
+  { onSchedule: dispatchSchedule },
+  { arg: dispatchSchedule.rowType },
+  t.unit(),
+  (ctx, _args) => {
+    const apps: Record<string, string> = {};
+    for (const [role, name] of Object.entries(ROLE_APP_ENV)) { const v = ctx.env.get(name); if (v) apps[role] = v; }
+    if (!Object.keys(apps).length) return {};
+    const picks = ctx.withTx((tx) => {
+      const inFlight = [...tx.db.run.iter()].filter((r) => r.provider === 'creao' && ['starting', 'pending', 'running', 'queued'].includes(r.status)).length;
+      const free = cfgInt(tx, 'creao_max_concurrency') - inFlight;
+      if (free <= 0) return [];
+      const queued = [...tx.db.task.iter()]
+        .filter((r) => r.status === 'queued' && CREAO_ROLES.includes(r.role) && apps[r.role])
+        .sort((a, b) => (a.id < b.id ? -1 : 1))
+        .slice(0, free);
+      return queued.map((task) => {
+        tx.db.task.id.update({ ...task, status: 'dispatched', attempt: task.attempt + 1, updatedAt: tx.timestamp });
+        const run = tx.db.run.insert({
+          id: 0n, provider: 'creao', externalId: '', appId: apps[task.role], taskId: task.id, threadId: '', status: 'starting',
+          resultText: '', shareUrl: '', costCents: 0, startedAt: tx.timestamp, endedAt: undefined,
+        });
+        logEvent(tx, 'dispatch', 'task_dispatched', 'task', task.id, { role: task.role, kind: task.kind, runRef: run.id.toString() });
+        return { task, runRef: run.id };
+      });
+    });
+    const base = ctx.env.get('PUBLIC_ROUTE_BASE');
+    for (const { task, runRef } of picks) {
+      const token = ctx.newUuidV4().toString();
+      ctx.withTx((tx) => tx.db.callbackToken.insert({ token, provider: 'creao', runRef, usedAt: undefined }));
+      const body: Record<string, unknown> = {
+        appId: apps[task.role],
+        inputs: { task: JSON.stringify({ kind: task.kind, taskId: task.id.toString(), orderId: task.orderId?.toString() ?? '', input: JSON.parse(task.input) }) },
+        idempotencyKey: `forge-task-${task.id}-${task.attempt + 1}`,
+      };
+      if (base) body.webhookUrl = `${base}/creao-callback?token=${token}`;
+      let status = 0;
+      let text = '';
+      try {
+        const res = ctx.http.fetch(`${CREAO_BASE}/api/v1/runs`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${creaoKey(ctx.env)}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        status = res.status;
+        text = res.text();
+      } catch (err) {
+        text = String(err);
+      }
+      ctx.withTx((tx) => {
+        const run = tx.db.run.id.find(runRef)!;
+        let parsed: CreaoRun = {};
+        try { parsed = JSON.parse(text); } catch { /* error body */ }
+        const ok = status === 202 || status === 200;
+        tx.db.run.id.update({ ...run, externalId: parsed.id ?? parsed.runId ?? '', status: ok ? (parsed.status ?? 'pending') : 'start_failed',
+          resultText: ok ? '' : text.slice(0, 2000), endedAt: ok ? undefined : tx.timestamp });
+        if (!ok) {
+          const cur = tx.db.task.id.find(task.id)!;
+          tx.db.task.id.update({ ...cur, status: 'queued', updatedAt: tx.timestamp });
+        }
+        logEvent(tx, 'dispatch', ok ? 'creao_run_started' : 'creao_run_start_failed', 'run', runRef, { role: task.role, taskId: task.id.toString(), httpStatus: status });
+      });
+    }
+    return {};
+  },
+);
+// Founder: insert config keys and rows added after the database was first initialized.
+export const ensure_defaults = spacetimedb.reducer((ctx) => {
+  requireRole(ctx, 'founder');
+  const added: string[] = [];
+  for (const [key, value] of Object.entries(CONFIG_DEFAULTS)) {
+    if (!ctx.db.config.key.find(key)) { ctx.db.config.insert({ key, value, updatedAt: ctx.timestamp }); added.push(key); }
+  }
+  if (!ctx.db.budget.name.find('engineering')) { ctx.db.budget.insert({ name: 'engineering', capCents: 2000, reservedCents: 0, spentCents: 0 }); added.push('budget:engineering'); }
+  if (ctx.db.dispatchSchedule.count() === 0n) { ctx.db.dispatchSchedule.insert({ scheduledId: 0n, scheduledAt: ScheduleAt.interval(DISPATCH_EVERY_MICROS) }); added.push('dispatch_schedule'); }
+  logEvent(ctx, 'founder', 'defaults_ensured', 'config', 0n, { added });
+});
+
 export const routes = spacetimedb.httpRouter(
-  new Router().post('/ping', ping).post('/creao-callback', creao_callback),
+  new Router().post('/ping', ping).post('/creao-callback', creao_callback).post('/apify-callback', apify_callback),
 );
