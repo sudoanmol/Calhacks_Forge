@@ -173,3 +173,22 @@ test('volatile re-check finds a changed listing price through the product name o
   assert.equal(p.status, 'stale');
   assert.match(p.freshValue, /^\$ \d[\d,]* \.\d\d$/);
 });
+
+test('dispatch skips test kinds and canary orders; only the founder may cancel a queued task', async () => {
+  const kind = `fx-${stamp}-kind`;
+  ok(await call(founder, 'enqueue_task', [kind, 'coo', '{}']));
+  const ref = `fx-${stamp}-dispatch`;
+  const o = await newOrder(ref);
+  await sleep(12_000); // more than two dispatch ticks
+  const [junk] = await sql(founder, `SELECT * FROM task WHERE kind = '${kind}'`);
+  assert.equal(junk.status, 'queued');
+  const triage = (await sql(founder, "SELECT * FROM task WHERE kind = 'coo_triage'")).find((r) => opt(r.order_id) === o.id);
+  assert.equal(triage.status, 'queued');
+  assert.equal((await call(coo, 'cancel_task', [junk.id, 'nope'])).ok, false);
+  assert.equal((await call(founder, 'cancel_task', [junk.id, ''])).status, 530);
+  ok(await call(founder, 'cancel_task', [junk.id, 'test fixture']));
+  ok(await call(founder, 'cancel_task', [triage.id, 'test fixture']));
+  assert.equal((await call(founder, 'cancel_task', [junk.id, 'again'])).status, 530);
+  const [after] = await sql(founder, `SELECT * FROM task WHERE id = ${junk.id}`);
+  assert.equal(after.status, 'cancelled');
+});

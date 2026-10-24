@@ -36,6 +36,7 @@ import {
 // Import all reducer arg schemas
 import AuditVerdictReducer from "./audit_verdict_reducer";
 import BackfillCanaryOrdersReducer from "./backfill_canary_orders_reducer";
+import CancelTaskReducer from "./cancel_task_reducer";
 import ClaimTaskReducer from "./claim_task_reducer";
 import CompleteTaskReducer from "./complete_task_reducer";
 import CooDecideReducer from "./coo_decide_reducer";
@@ -367,6 +368,7 @@ const tablesSchema = __schema({
 const reducersSchema = __reducers(
   __reducerSchema("audit_verdict", AuditVerdictReducer),
   __reducerSchema("backfill_canary_orders", BackfillCanaryOrdersReducer),
+  __reducerSchema("cancel_task", CancelTaskReducer),
   __reducerSchema("claim_task", ClaimTaskReducer),
   __reducerSchema("complete_task", CompleteTaskReducer),
   __reducerSchema("coo_decide", CooDecideReducer),

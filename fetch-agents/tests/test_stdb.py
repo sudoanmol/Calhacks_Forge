@@ -3,6 +3,7 @@
 import os
 from uuid import uuid4
 
+import httpx
 import pytest
 
 from front_desk import stdb
@@ -32,6 +33,17 @@ def test_order_is_created_read_back_and_paid():
     with pytest.raises(stdb.StdbError, match="not quoted") as err:
         stdb.record_payment(ref, "cs_test_pytest")
     assert err.value.status == 530
+    _coo_reject(paid["id"])
+
+
+def _coo_reject(order_id: int) -> None:
+    # A paid order queues a coo_triage task; close it now so dispatch doesn't spend a real CREAO run on test data.
+    token = os.environ.get("SPACETIME_TOKEN_COO")
+    if not token:
+        return
+    r = httpx.post(f"{stdb._base()}/call/coo_decide", json=[order_id, "REJECT", "-", "pytest order, closed by the test"],
+                   headers={"Authorization": f"Bearer {token}"}, timeout=15)
+    assert r.status_code == 200, r.text
 
 
 def test_orders_for_sender_newest_first():

@@ -8,6 +8,7 @@ import { type Infer as __Infer } from "spacetimedb";
 // Import all reducer arg schemas
 import AuditVerdictReducer from "../audit_verdict_reducer";
 import BackfillCanaryOrdersReducer from "../backfill_canary_orders_reducer";
+import CancelTaskReducer from "../cancel_task_reducer";
 import ClaimTaskReducer from "../claim_task_reducer";
 import CompleteTaskReducer from "../complete_task_reducer";
 import CooDecideReducer from "../coo_decide_reducer";
@@ -25,6 +26,7 @@ import UpdateApiReducer from "../update_api_reducer";
 
 export type AuditVerdictParams = __Infer<typeof AuditVerdictReducer>;
 export type BackfillCanaryOrdersParams = __Infer<typeof BackfillCanaryOrdersReducer>;
+export type CancelTaskParams = __Infer<typeof CancelTaskReducer>;
 export type ClaimTaskParams = __Infer<typeof ClaimTaskReducer>;
 export type CompleteTaskParams = __Infer<typeof CompleteTaskReducer>;
 export type CooDecideParams = __Infer<typeof CooDecideReducer>;

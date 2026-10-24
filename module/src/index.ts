@@ -523,6 +523,16 @@ export const enqueue_task = spacetimedb.reducer(
   },
 );
 
+export const cancel_task = spacetimedb.reducer({ id: t.u64(), reason: t.string() }, (ctx, { id, reason }) => {
+  const actor = requireRole(ctx, 'founder');
+  const row = ctx.db.task.id.find(id);
+  if (!row) throw new SenderError(`task ${id} not found`);
+  if (row.status !== 'queued') throw new SenderError(`task ${id} is ${row.status}, only queued tasks can be cancelled`);
+  if (!reason.trim()) throw new SenderError('reason required');
+  ctx.db.task.id.update({ ...row, status: 'cancelled', output: JSON.stringify({ reason }), updatedAt: ctx.timestamp });
+  logEvent(ctx, actor, 'task_cancelled', 'task', id, { reason });
+});
+
 export const claim_task = spacetimedb.reducer({ kind: t.string() }, (ctx, { kind }) => {
   const role = requireRole(ctx, ...ROLES.filter((r) => r !== 'founder'));
   const next = [...ctx.db.task.kind.filter(kind)]
@@ -1021,6 +1031,9 @@ const APIFY_BASE = 'https://api.apify.com/v2';
 const APIFY_TERMINAL = ['SUCCEEDED', 'FAILED', 'ABORTED', 'TIMED-OUT'];
 const ROLE_APP_ENV = { coo: 'CREAO_APP_ID_COO', research: 'CREAO_APP_ID_RESEARCH', cfo: 'CREAO_APP_ID_CFO', auditor: 'CREAO_APP_ID_AUDITOR' } as const;
 const CREAO_ROLES = Object.keys(ROLE_APP_ENV);
+// Tasks of any other kind (test fixtures, worker-only kinds) and canary orders' tasks are never sent to a paid CREAO run;
+// the canary plays the COO itself.
+const CREAO_KINDS = ['coo_triage', 'research_gate', 'audit'];
 const DISPATCH_EVERY_MICROS = 5_000_000n;
 
 function envOrThrow(env: IoCtx['env'], name: 'APIFY_TOKEN' | 'BRIGHTDATA_API_KEY' | 'BRIGHTDATA_UNLOCKER_ZONE'): string {
@@ -1420,7 +1433,8 @@ export const dispatch = spacetimedb.procedure(
       const free = cfgInt(tx, 'creao_max_concurrency') - inFlight;
       if (free <= 0) return [];
       const queued = [...tx.db.task.iter()]
-        .filter((r) => r.status === 'queued' && CREAO_ROLES.includes(r.role) && apps[r.role])
+        .filter((r) => r.status === 'queued' && CREAO_ROLES.includes(r.role) && CREAO_KINDS.includes(r.kind) && apps[r.role]
+          && !(r.orderId !== undefined && isCanary(tx, r.orderId)))
         .sort((a, b) => (a.id < b.id ? -1 : 1))
         .slice(0, free);
       return queued.map((task) => {
