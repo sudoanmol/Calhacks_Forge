@@ -1,7 +1,8 @@
 import { schema, table, t, SenderError, Router, SyncResponse, type InferSchema, type ReducerCtx, type ProcedureCtx } from 'spacetimedb/server';
 import { ScheduleAt, TimeDuration, Timestamp, type Identity } from 'spacetimedb';
-import { base64, classify, compareChallenge, verifyValue } from './text';
+import { base64, classify, compareChallenge, verifyValue, type Rung } from './text';
 import { parseParams, resolveSources, validateApiInputs } from './params';
+import { compareTexts, hostOf, looksLikeHtml, quotedOn, robotsUrlFor, robotsVerdict, splitUrl, textHash } from './research';
 
 const LEASE_MS = 10 * 60 * 1000;
 const LEASE_SWEEP_EVERY_MICROS = 15_000_000n;
@@ -488,18 +489,92 @@ const recheckSchedule = table(
   },
 );
 
+// ---- Research seat (flow B): layer-3 gate fetches, reports and Tier 0 Task creation ----
+
+// One row per research_fetch call. The fetched text is private (research_page_text) because it can be
+// hundreds of KB; record_gate_check checks quotes against it.
+const researchPage = table(
+  { name: 'research_page', public: true },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    orderId: t.u64().index('btree'),
+    kind: t.string(), // page | robots | search
+    target: t.string(), // what Research asked for: a URL or a search query
+    url: t.string(), // what was fetched: the page, its robots.txt, or the Google search URL
+    ok: t.bool(),
+    httpStatus: t.u32(),
+    reason: t.string(),
+    chars: t.u32(),
+    textHash: t.string(),
+    summary: t.string(), // JSON: robots verdict, search results count, or the comparison with the previous fetch
+    ms: t.u32(),
+    fetchedAt: t.timestamp(),
+  },
+);
+
+const researchPageText = table(
+  { name: 'research_page_text' },
+  {
+    pageId: t.u64().primaryKey(),
+    text: t.string(),
+  },
+);
+
+// The research_report reducer's findings (the table cannot share the reducer's name).
+const researchFindings = table(
+  { name: 'research_findings', public: true },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    orderId: t.u64().index('btree'),
+    taskId: t.option(t.u64()),
+    summary: t.string(),
+    sources: t.string(), // JSON array of URLs or URL templates
+    fields: t.string(), // JSON array of output field names
+    volatility: t.string(), // stable | volatile
+    freshnessWindowMin: t.u32(),
+    confidenceBp: t.u32(),
+    checks: t.string(), // JSON: the latest gate check per check name when the report was filed
+    createdAt: t.timestamp(),
+  },
+);
+
+// The Apify Task of forge-extract behind a COO-created Tier 0 API. Orders accepted before it exists wait.
+const apifyTaskJob = table(
+  { name: 'apify_task_job', public: true },
+  {
+    apiId: t.u64().primaryKey(),
+    status: t.string(), // pending | created | failed
+    apifyTaskId: t.string(),
+    input: t.string(), // JSON Task input for forge-extract
+    error: t.string(),
+    createdAt: t.timestamp(),
+    updatedAt: t.timestamp(),
+  },
+);
+
+const apifyTaskSchedule = table(
+  { name: 'apify_task_schedule' },
+  {
+    scheduledId: t.u64().primaryKey().autoInc(),
+    scheduledAt: t.scheduleAt(),
+    apiId: t.u64(),
+  },
+);
+
 const spacetimedb = schema(
   {
     config, staff, task, event, run, callbackToken, leaseSweepSchedule,
     customer, api, apiVersion, gateCheck, orders, ticket, valueRecord, evidence, challenge,
     approval, budget, bonus, ledger, books, apiRunSchedule, verifySchedule, dispatchSchedule,
     canaryOrder, apiRetired, runCost, apiCost, costSettleSchedule, challengeCheck, refund, recheckSchedule,
+    researchPage, researchPageText, researchFindings, apifyTaskJob, apifyTaskSchedule,
   },
   // Set at publish time from the shell environment (spacetime publish reads declared names).
   {
     env: {
       CREAO_API_KEY: t.option(t.string()), PUBLIC_ROUTE_BASE: t.option(t.string()),
       APIFY_TOKEN: t.option(t.string()), BRIGHTDATA_API_KEY: t.option(t.string()), BRIGHTDATA_UNLOCKER_ZONE: t.option(t.string()),
+      BRIGHTDATA_SERP_ZONE: t.option(t.string()),
       CREAO_APP_ID_COO: t.option(t.string()), CREAO_APP_ID_RESEARCH: t.option(t.string()),
       CREAO_APP_ID_CFO: t.option(t.string()), CREAO_APP_ID_AUDITOR: t.option(t.string()),
     },
@@ -774,15 +849,17 @@ export const create_api = spacetimedb.reducer(
   { spec: t.string(), apifyId: t.string(), engine: t.string() },
   (ctx, { spec, apifyId, engine }) => {
     const actor = requireRole(ctx, 'founder', 'coo');
-    const s = JSON.parse(spec) as {
+    let s: {
       name: string; description: string; inputs?: unknown; sources: unknown[]; outputSchema: { properties?: Record<string, unknown> };
-      volatility: string; freshnessWindowMin?: number; pageCap?: number;
+      volatility: string; freshnessWindowMin?: number; pageCap?: number; instructions?: unknown; markers?: unknown;
     };
+    try { s = JSON.parse(spec); } catch { throw new SenderError('spec is not valid JSON'); }
     if (!/^[a-z0-9-]{3,40}$/.test(s.name)) throw new SenderError('api name must be 3-40 chars of a-z, 0-9, -');
     if (ctx.db.api.name.find(s.name)) throw new SenderError(`api ${s.name} exists`);
     if (!['stable', 'volatile'].includes(s.volatility)) throw new SenderError('volatility must be stable or volatile');
     if (!['task', 'actor'].includes(engine)) throw new SenderError('engine must be task or actor');
     try { validateApiInputs(JSON.stringify(s.inputs ?? {}), JSON.stringify(s.sources)); } catch (err) { throw new SenderError((err as Error).message); }
+    const taskInput = actor === 'coo' ? cooTaskInput(ctx, s, apifyId, engine) : null;
     const a = ctx.db.api.insert({
       id: 0n, name: s.name, description: s.description, inputs: JSON.stringify(s.inputs ?? {}), sources: JSON.stringify(s.sources),
       outputSchema: JSON.stringify(s.outputSchema), volatility: s.volatility, freshnessWindowMin: s.freshnessWindowMin ?? 0,
@@ -795,6 +872,11 @@ export const create_api = spacetimedb.reducer(
     });
     ctx.db.api.id.update({ ...a, currentVersionId: v.id });
     logEvent(ctx, actor, 'api_created', 'api', a.id, { name: s.name, tier: 0, apifyId });
+    if (taskInput) {
+      ctx.db.apifyTaskJob.insert({ apiId: a.id, status: 'pending', apifyTaskId: '', input: JSON.stringify(taskInput), error: '', createdAt: ctx.timestamp, updatedAt: ctx.timestamp });
+      ctx.db.apifyTaskSchedule.insert({ scheduledId: 0n, scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch), apiId: a.id });
+      logEvent(ctx, actor, 'apify_task_queued', 'api', a.id, { name: s.name, sources: taskInput.sources });
+    }
   },
 );
 
@@ -819,6 +901,9 @@ export const coo_decide = spacetimedb.reducer(
       setOrder(ctx, o, { status: 'accepted', apiId: a.id, apiVersionId: a.currentVersionId, decisionReason: reason }, 'coo', 'coo_accepted', { api: apiName, reason });
       ctx.db.apiRunSchedule.insert({ scheduledId: 0n, scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch), orderId });
     } else if (decision === 'REQUEST_RESEARCH') {
+      if ([...ctx.db.researchFindings.orderId.filter(orderId)].length) {
+        throw new SenderError(`order ${orderId} already has a research report; decide ACCEPT, COUNTEROFFER or REJECT on its gate checks`);
+      }
       setOrder(ctx, o, { status: 'researching', decisionReason: reason }, 'coo', 'coo_requested_research', { reason });
       queueTask(ctx, 'research_gate', 'research', orderId, { orderId: orderId.toString() });
     } else {
@@ -1252,7 +1337,7 @@ const CREAO_ROLES = Object.keys(ROLE_APP_ENV);
 const CREAO_KINDS = ['coo_triage', 'research_gate', 'audit', 'audit_challenge'];
 const DISPATCH_EVERY_MICROS = 5_000_000n;
 
-function envOrThrow(env: IoCtx['env'], name: 'APIFY_TOKEN' | 'BRIGHTDATA_API_KEY' | 'BRIGHTDATA_UNLOCKER_ZONE'): string {
+function envOrThrow(env: IoCtx['env'], name: 'APIFY_TOKEN' | 'BRIGHTDATA_API_KEY' | 'BRIGHTDATA_UNLOCKER_ZONE' | 'BRIGHTDATA_SERP_ZONE'): string {
   const v = env.get(name);
   if (!v) throw new Error(`${name} is not set on the module`);
   return v;
@@ -1280,6 +1365,11 @@ export const start_api_run = spacetimedb.procedure(
       const o = tx.db.orders.id.find(arg.orderId);
       if (!o || o.status !== 'accepted') return null;
       const v = o.apiVersionId !== undefined ? tx.db.apiVersion.id.find(o.apiVersionId) : undefined;
+      if (v && !v.apifyId && tx.db.apifyTaskJob.apiId.find(v.apiId)?.status === 'pending') {
+        // create_apify_task schedules this run again once the Tier 0 Task exists.
+        logEvent(tx, 'procedure', 'api_run_waiting_for_task', 'order', o.id, { apiId: v.apiId.toString() });
+        return null;
+      }
       if (!v || !v.apifyId) { failOrder(tx, o.id, 'procedure', 'api has no runnable version'); return null; }
       const a = o.apiId !== undefined ? tx.db.api.id.find(o.apiId) : undefined;
       if (!a) { failOrder(tx, o.id, 'procedure', 'order has no api'); return null; }
@@ -1532,10 +1622,17 @@ export const apify_callback = spacetimedb.httpHandler((ctx, req) => {
   return new SyncResponse('ok', { status: 200 });
 });
 
+// Research reuses the ladder for robots.txt and SERP JSON, which the page classifier would call too short.
+type LadderOpts = {
+  zone?: 'BRIGHTDATA_UNLOCKER_ZONE' | 'BRIGHTDATA_SERP_ZONE';
+  method?: string;
+  rung?: (status: number, body: string, brdError: string) => Rung;
+};
+
 // Bright Data Web Unlocker with one retry from another country on a block or timeout
 // (the module cannot drive the Browser API rung; a JS shell stays unverifiable here).
-function unlockerFetch(ctx: IoCtx, url: string, orderId: bigint | undefined, valueRecordId?: bigint): { ok: boolean; text: string; reason: string; evidenceIds: bigint[] } {
-  let last = { ok: false, text: '', reason: 'not fetched' };
+function unlockerFetch(ctx: IoCtx, url: string, orderId: bigint | undefined, valueRecordId?: bigint, opts: LadderOpts = {}): { ok: boolean; text: string; reason: string; httpStatus: number; evidenceIds: bigint[] } {
+  let last = { ok: false, text: '', reason: 'not fetched', httpStatus: 0 };
   const evidenceIds: bigint[] = [];
   let attempt = 0;
   for (const country of ['us', 'gb']) {
@@ -1549,7 +1646,7 @@ function unlockerFetch(ctx: IoCtx, url: string, orderId: bigint | undefined, val
       const res = ctx.http.fetch('https://api.brightdata.com/request', {
         method: 'POST',
         headers: { Authorization: `Bearer ${envOrThrow(ctx.env, 'BRIGHTDATA_API_KEY')}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ zone: envOrThrow(ctx.env, 'BRIGHTDATA_UNLOCKER_ZONE'), url, format: 'raw', country }),
+        body: JSON.stringify({ zone: envOrThrow(ctx.env, opts.zone ?? 'BRIGHTDATA_UNLOCKER_ZONE'), url, format: 'raw', country }),
         timeout: TimeDuration.fromMillis(45_000),
       });
       status = res.status;
@@ -1559,12 +1656,12 @@ function unlockerFetch(ctx: IoCtx, url: string, orderId: bigint | undefined, val
       thrown = String(err);
     }
     const ms = Date.now() - t0;
-    const c = thrown ? { ok: false, kind: /timed? ?out/i.test(thrown) ? 'timeout' : 'error', reason: thrown.slice(0, 200), text: '' } : classify(status, body, brdError);
+    const c = thrown ? { ok: false, kind: /timed? ?out/i.test(thrown) ? 'timeout' : 'error', reason: thrown.slice(0, 200), text: '' } : (opts.rung ?? classify)(status, body, brdError);
     evidenceIds.push(ctx.withTx((tx) => tx.db.evidence.insert({
-      id: 0n, valueRecordId, orderId, url, method: 'unlocker', country, httpStatus: status, attempt, ms: Math.max(0, ms),
+      id: 0n, valueRecordId, orderId, url, method: opts.method ?? 'unlocker', country, httpStatus: status, attempt, ms: Math.max(0, ms),
       matched: false, reason: c.ok ? '' : c.reason, snapshotHash: '', fetchedAt: tx.timestamp,
     }).id));
-    last = { ok: c.ok, text: c.text, reason: c.reason };
+    last = { ok: c.ok, text: c.text, reason: c.reason, httpStatus: status };
     if (c.ok || !['blocked', 'timeout'].includes(c.kind)) break;
   }
   return { ...last, evidenceIds };
@@ -1705,6 +1802,340 @@ export const verify_probe = spacetimedb.procedure(
   },
 );
 
+// ---- Research seat: the layer-3 admission gate (AGENTS.md §3, flow B) ----
+// research_fetch does the IO (Bright Data Unlocker for pages and robots.txt, SERP for searches) and
+// stores what it read; record_gate_check accepts a citation only if it points at a page fetched for
+// this order and, where it is a quote, the quote is on that page. research_report hands the order back
+// to the COO, who can create a Tier 0 API only over sources that passed robots, terms and reachability.
+
+const GATE_CHECKS = ['robots', 'terms', 'reachability', 'volatility'];
+const GATE_RESULTS = ['pass', 'fail', 'unclear'];
+const RESEARCH_KINDS = ['page', 'robots', 'search'];
+// Per order: bounds what one Research run can spend on Bright Data.
+const RESEARCH_MAX_FETCHES = 30;
+const RESEARCH_TEXT_MAX = 400_000;
+const VOLATILITY_MIN_GAP_MS = 120_000;
+const MIN_QUOTE_CHARS = 20;
+const FIELD_NAME = /^[a-z][a-z0-9_]{0,39}$/;
+
+type GateCheckRow = NonNullable<ReturnType<Ctx['db']['gateCheck']['id']['find']>>;
+
+function latestGateChecks(ctx: Ctx, orderId: bigint): Record<string, GateCheckRow> {
+  const out: Record<string, GateCheckRow> = {};
+  for (const g of ctx.db.gateCheck.iter()) {
+    if (g.orderId !== orderId || !GATE_CHECKS.includes(g.check)) continue;
+    const cur = out[g.check];
+    if (!cur || g.id > cur.id) out[g.check] = g;
+  }
+  return out;
+}
+
+function blockedHost(ctx: Ctx, host: string): string | undefined {
+  let blocked: unknown = [];
+  try { blocked = JSON.parse(ctx.db.config.key.find('blocked_domains')?.value ?? '[]'); } catch { /* none */ }
+  const h = host.replace(/^www\./, '');
+  return (Array.isArray(blocked) ? blocked : []).map(String).find((d) => h === d || h.endsWith(`.${d}`));
+}
+
+function httpUrl(ctx: Ctx, raw: string, what: string): string {
+  const url = raw.trim();
+  const u = splitUrl(url);
+  if (!u || url.length > 2000) throw new SenderError(`${what} must be an http(s) URL under 2000 chars, got ${JSON.stringify(raw.slice(0, 200))}`);
+  const b = blockedHost(ctx, u.host);
+  if (b) throw new SenderError(`${u.host} is on the blocked domain list (${b})`);
+  return url;
+}
+
+// Robots and SERP bodies are short or JSON: only transport failures and blocks are failures here.
+// A 4xx robots.txt (other than 403/429) means the site has none, which RFC 9309 reads as allow-all.
+const rawRung = (status: number, body: string, brdError: string): Rung => {
+  if (brdError || status === 0 || status === 403 || status === 429 || status >= 500) return classify(status, body, brdError);
+  if (status >= 400) return { ok: true, kind: 'ok', reason: `http ${status}`, text: '' };
+  if (!body.trim()) return { ok: false, kind: 'shell', reason: 'empty body', text: '' };
+  return { ok: true, kind: 'ok', reason: '', text: body };
+};
+
+type SerpResult = { rank: number; title: string; link: string; description: string };
+
+function serpResults(body: string): SerpResult[] {
+  let data: { organic?: { rank?: number; title?: string; link?: string; description?: string }[] } = {};
+  try { data = JSON.parse(body); } catch { return []; }
+  return (data.organic ?? []).slice(0, 10).map((o, i) => ({
+    rank: o.rank ?? i + 1, title: String(o.title ?? '').slice(0, 200), link: String(o.link ?? ''), description: String(o.description ?? '').slice(0, 400),
+  }));
+}
+
+// Research seat (and the founder, for diagnostics): one fetch for an order in `researching`.
+//   kind page:   target is a URL, fetched through the Unlocker ladder. A second fetch of the same URL
+//                is compared with the first (the measured volatility check).
+//   kind robots: target is a source URL; its site's /robots.txt is fetched and the target's path is
+//                judged in code (RFC 9309, user-agent *).
+//   kind search: target is a search query, run through the Bright Data SERP zone (Google, brd_json=1).
+// Returns JSON with the page text, so forge-cli can print and search it.
+export const research_fetch = spacetimedb.procedure(
+  { orderId: t.u64(), kind: t.string(), target: t.string() },
+  t.string(),
+  (ctx, { orderId, kind, target }) => {
+    const plan = ctx.withTx((tx) => {
+      requireRole(tx, 'research', 'founder');
+      if (!RESEARCH_KINDS.includes(kind)) throw new SenderError(`kind must be one of ${RESEARCH_KINDS.join(', ')}`);
+      const o = findOrder(tx, orderId);
+      if (o.status !== 'researching') throw new SenderError(`order ${orderId} is ${o.status}; research fetches are only for an order in researching`);
+      const pages = [...tx.db.researchPage.orderId.filter(orderId)];
+      if (pages.length >= RESEARCH_MAX_FETCHES) throw new SenderError(`order ${orderId} has used all ${RESEARCH_MAX_FETCHES} research fetches`);
+      const q = target.trim();
+      if (!q) throw new SenderError('target is required');
+      if (kind === 'search') {
+        if (q.length > 300) throw new SenderError('search query must be under 300 chars');
+        return { url: `https://www.google.com/search?q=${encodeURIComponent(q)}&brd_json=1`, target: q, previous: null };
+      }
+      const pageUrl = httpUrl(tx, q, 'target');
+      if (kind === 'robots') return { url: robotsUrlFor(pageUrl), target: pageUrl, previous: null };
+      const prev = pages.filter((p) => p.kind === 'page' && p.ok && p.url === pageUrl).sort((a, b) => (a.id < b.id ? 1 : -1))[0];
+      const prevText = prev ? tx.db.researchPageText.pageId.find(prev.id)?.text ?? '' : '';
+      return { url: pageUrl, target: pageUrl, previous: prev ? { id: prev.id, at: prev.fetchedAt, text: prevText } : null };
+    });
+
+    const t0 = Date.now();
+    const fetched = kind === 'search'
+      ? unlockerFetch(ctx, plan.url, orderId, undefined, { zone: 'BRIGHTDATA_SERP_ZONE', method: 'serp', rung: rawRung })
+      : kind === 'robots'
+        ? unlockerFetch(ctx, plan.url, orderId, undefined, { method: 'unlocker', rung: rawRung })
+        : unlockerFetch(ctx, plan.url, orderId);
+    const ms = Date.now() - t0;
+
+    let summary: Record<string, unknown> = {};
+    let text = fetched.text;
+    if (kind === 'robots' && fetched.ok) {
+      const found = fetched.httpStatus < 400 && !looksLikeHtml(text);
+      summary = found
+        ? { found, ...robotsVerdict(text, plan.target) }
+        : { found, allowed: true, rule: null, path: splitUrl(plan.target)?.path ?? '/', note: `no robots.txt (http ${fetched.httpStatus}${fetched.httpStatus < 400 ? ', an HTML page' : ''}); RFC 9309 allows all paths` };
+    } else if (kind === 'search' && fetched.ok) {
+      const results = serpResults(text);
+      summary = { results };
+      text = JSON.stringify(results, null, 1);
+    }
+    const stored = text.slice(0, RESEARCH_TEXT_MAX);
+
+    return ctx.withTx((tx) => {
+      let compare: unknown = null;
+      if (kind === 'page' && fetched.ok && plan.previous) {
+        const gapMs = Number((tx.timestamp.microsSinceUnixEpoch - plan.previous.at.microsSinceUnixEpoch) / 1000n);
+        compare = { previousId: plan.previous.id.toString(), secondsApart: Math.round(gapMs / 1000), enoughGap: gapMs >= VOLATILITY_MIN_GAP_MS, ...compareTexts(plan.previous.text, stored) };
+        summary = { compare };
+      }
+      const row = tx.db.researchPage.insert({
+        id: 0n, orderId, kind, target: plan.target, url: plan.url, ok: fetched.ok, httpStatus: fetched.httpStatus, reason: fetched.reason,
+        chars: stored.length, textHash: fetched.ok ? textHash(text) : '', summary: JSON.stringify(summary).slice(0, 20_000), ms: Math.max(0, ms), fetchedAt: tx.timestamp,
+      });
+      if (fetched.ok && stored) tx.db.researchPageText.insert({ pageId: row.id, text: stored });
+      logEvent(tx, 'research', 'research_fetched', 'order', orderId, {
+        researchPageId: row.id.toString(), kind, target: plan.target, url: plan.url, ok: fetched.ok, httpStatus: fetched.httpStatus,
+        reason: fetched.reason, chars: stored.length, ms, attempts: fetched.evidenceIds.length,
+        ...(kind === 'robots' ? { allowed: summary.allowed, rule: summary.rule } : {}),
+        ...(compare ? { suggestedVolatility: (compare as { suggested: string }).suggested } : {}),
+      });
+      return JSON.stringify({
+        researchPageId: row.id.toString(), orderId: orderId.toString(), kind, target: plan.target, url: plan.url, ok: fetched.ok,
+        httpStatus: fetched.httpStatus, reason: fetched.reason, ms, attempts: fetched.evidenceIds.length,
+        chars: stored.length, truncated: text.length > stored.length, textHash: row.textHash, fetchedAt: row.fetchedAt.toDate().toISOString(),
+        ...summary, text: stored,
+      });
+    });
+  },
+);
+
+// Research seat: one layer-3 finding with its citation. citationUrl is a URL fetched for this order with
+// research_fetch (for robots, the robots.txt URL). A pass/fail on robots, terms or reachability quotes
+// the fetched page verbatim (up to whitespace and case); an `unclear` explains why in its own words.
+// Volatility needs two fetches of the page at least VOLATILITY_MIN_GAP_MS apart.
+export const record_gate_check = spacetimedb.reducer(
+  { orderId: t.u64(), check: t.string(), result: t.string(), citationUrl: t.string(), citationText: t.string() },
+  (ctx, { orderId, check, result, citationUrl, citationText }) => {
+    requireRole(ctx, 'research');
+    if (!GATE_CHECKS.includes(check)) throw new SenderError(`check must be one of ${GATE_CHECKS.join(', ')}`);
+    if (!GATE_RESULTS.includes(result)) throw new SenderError(`result must be one of ${GATE_RESULTS.join(', ')}`);
+    const o = findOrder(ctx, orderId);
+    if (o.status !== 'researching') throw new SenderError(`order ${orderId} is ${o.status}, not researching`);
+    const url = citationUrl.trim();
+    const quote = citationText.trim();
+    if (!quote) throw new SenderError('citationText is required');
+    const fetched = [...ctx.db.researchPage.orderId.filter(orderId)].filter((p) => p.ok && p.url === url);
+    const want = check === 'robots' ? ['robots'] : check === 'reachability' ? ['page', 'search'] : ['page'];
+    const pages = fetched.filter((p) => want.includes(p.kind));
+    if (!pages.length) {
+      const how = check === 'robots' ? 'forge robots' : check === 'reachability' ? 'forge research-fetch or forge search' : 'forge research-fetch';
+      throw new SenderError(`${url || '(empty)'} was not fetched for order ${orderId}; fetch it with ${how} and cite the fetched URL`);
+    }
+    const onPage = () => pages.some((p) => quotedOn(ctx.db.researchPageText.pageId.find(p.id)?.text ?? '', quote));
+
+    if (check === 'robots') {
+      const verdicts = pages.map((p) => JSON.parse(p.summary) as { found?: boolean; allowed?: boolean; rule?: string | null; path?: string });
+      const denied = verdicts.filter((v) => v.allowed === false);
+      if (result === 'pass' && denied.length) throw new SenderError(`robots.txt disallows ${denied.map((v) => `${v.path} (${v.rule})`).join(', ')}; the result is fail`);
+      if (result === 'fail' && !denied.length) throw new SenderError('robots.txt allows every path checked for this order; the result is pass');
+      if (result !== 'unclear' && verdicts.some((v) => v.found) && !onPage()) throw new SenderError('citationText must quote a line of the robots.txt that was fetched (e.g. the deciding rule or "User-agent: *")');
+    } else if (check === 'volatility') {
+      const times = pages.filter((p) => p.kind === 'page').map((p) => p.fetchedAt.microsSinceUnixEpoch).sort();
+      const gapMs = times.length >= 2 ? Number((times[times.length - 1]! - times[0]!) / 1000n) : 0;
+      if (result !== 'unclear' && gapMs < VOLATILITY_MIN_GAP_MS) {
+        throw new SenderError(`volatility is measured: fetch ${url} twice at least ${VOLATILITY_MIN_GAP_MS / 1000} s apart (now ${times.length} fetch(es), ${Math.round(gapMs / 1000)} s apart)`);
+      }
+    } else if (result !== 'unclear') {
+      if (check === 'terms' && quote.length < MIN_QUOTE_CHARS) throw new SenderError(`a terms finding quotes the clause (at least ${MIN_QUOTE_CHARS} chars)`);
+      if (!onPage()) throw new SenderError(`citationText is not on the page fetched from ${url}; quote it verbatim or record unclear`);
+    }
+
+    const row = ctx.db.gateCheck.insert({
+      id: 0n, orderId, ticketId: undefined, check, result, citationUrl: url, citationText: quote.slice(0, 2000), at: ctx.timestamp,
+    });
+    logEvent(ctx, 'research', 'gate_check_recorded', 'order', orderId, { gateCheckId: row.id.toString(), check, result, citationUrl: url, citationText: quote.slice(0, 300) });
+  },
+);
+
+function parseJsonArray(raw: string, what: string): unknown[] {
+  let v: unknown;
+  try { v = JSON.parse(raw); } catch { throw new SenderError(`${what} is not valid JSON`); }
+  if (!Array.isArray(v)) throw new SenderError(`${what} must be a JSON array`);
+  return v;
+}
+
+// Research seat, once per order after all four checks: the findings the COO decides on.
+export const research_report = spacetimedb.reducer(
+  {
+    orderId: t.u64(), summary: t.string(), sources: t.string(), fields: t.string(),
+    volatility: t.string(), freshnessWindowMin: t.u32(), confidence: t.f64(),
+  },
+  (ctx, { orderId, summary, sources, fields, volatility, freshnessWindowMin, confidence }) => {
+    requireRole(ctx, 'research');
+    const o = findOrder(ctx, orderId);
+    if (o.status !== 'researching') throw new SenderError(`order ${orderId} is ${o.status}, not researching`);
+    if (!summary.trim()) throw new SenderError('summary is required');
+    const checks = latestGateChecks(ctx, orderId);
+    const missing = GATE_CHECKS.filter((c) => !checks[c]);
+    if (missing.length) throw new SenderError(`record every gate check first; missing: ${missing.join(', ')}`);
+    const src = parseJsonArray(sources, 'sources');
+    if (!src.length || !src.every((s) => typeof s === 'string')) throw new SenderError('sources must be a non-empty JSON array of URL strings');
+    const cap = cfgInt(ctx, 'page_cap');
+    if (src.length > cap) throw new SenderError(`at most ${cap} sources (config page_cap)`);
+    for (const s of src as string[]) httpUrl(ctx, s, 'each source');
+    const fl = parseJsonArray(fields, 'fields');
+    if (fl.length > 30 || !fl.every((f) => typeof f === 'string' && FIELD_NAME.test(f))) throw new SenderError(`fields must be a JSON array of up to 30 names matching ${FIELD_NAME}`);
+    if (!['stable', 'volatile'].includes(volatility)) throw new SenderError('volatility must be stable or volatile');
+    if (volatility === 'volatile' && (freshnessWindowMin < 1 || freshnessWindowMin > 1440)) throw new SenderError('a volatile source needs freshnessWindowMin between 1 and 1440');
+    if (!Number.isFinite(confidence) || confidence < 0 || confidence > 1) throw new SenderError('confidence must be between 0 and 1');
+    const gate = [...ctx.db.task.kind.filter('research_gate')].filter((x) => x.orderId === orderId).sort((a, b) => (a.id < b.id ? 1 : -1))[0];
+    const checkSummary = Object.fromEntries(GATE_CHECKS.map((c) => [c, { result: checks[c]!.result, citationUrl: checks[c]!.citationUrl, gateCheckId: checks[c]!.id.toString() }]));
+    const rep = ctx.db.researchFindings.insert({
+      id: 0n, orderId, taskId: gate?.id, summary: summary.trim().slice(0, 4000), sources: JSON.stringify(src), fields: JSON.stringify(fl),
+      volatility, freshnessWindowMin: volatility === 'volatile' ? freshnessWindowMin : 0, confidenceBp: Math.round(confidence * 10_000),
+      checks: JSON.stringify(checkSummary), createdAt: ctx.timestamp,
+    });
+    closeTasks(ctx, orderId, 'research_gate', { researchReportId: rep.id.toString() });
+    const triaging = setOrder(ctx, o, { status: 'triaging' }, 'research', 'research_reported', { researchReportId: rep.id.toString(), checks: checkSummary, volatility });
+    queueTask(ctx, 'coo_triage', 'coo', triaging.id, {
+      orderId: orderId.toString(), researchReportId: rep.id.toString(),
+      checks: Object.fromEntries(GATE_CHECKS.map((c) => [c, checks[c]!.result])),
+    });
+  },
+);
+
+// Hosts the COO may build a Tier 0 API on: sources of research reports whose robots, terms and
+// reachability checks all passed.
+function clearedHosts(ctx: Ctx): Set<string> {
+  const out = new Set<string>();
+  for (const r of ctx.db.researchFindings.iter()) {
+    const checks = latestGateChecks(ctx, r.orderId);
+    if (!['robots', 'terms', 'reachability'].every((c) => checks[c]?.result === 'pass')) continue;
+    for (const s of JSON.parse(r.sources) as string[]) out.add(hostOf(s));
+  }
+  return out;
+}
+
+// The COO's create_api: Tier 0 only, within the page cap, over researched sources. Returns the
+// forge-extract Task input that create_apify_task saves on Apify.
+function cooTaskInput(
+  ctx: Ctx,
+  s: { name: string; description: string; inputs?: unknown; sources: unknown[]; outputSchema: { properties?: Record<string, unknown> }; pageCap?: number; instructions?: unknown; markers?: unknown },
+  apifyId: string,
+  engine: string,
+) {
+  if (apifyId || engine !== 'task') throw new SenderError('the COO creates Tier 0 APIs only: pass an empty apifyId and engine task; the Apify Task is created for you');
+  if (!s.description?.trim()) throw new SenderError('description is required');
+  const fields = Object.keys(s.outputSchema?.properties ?? {});
+  if (!fields.length || !fields.every((f) => FIELD_NAME.test(f))) throw new SenderError(`outputSchema.properties must name the fields (names matching ${FIELD_NAME})`);
+  const cap = cfgInt(ctx, 'page_cap');
+  const pageCap = s.pageCap ?? cap;
+  if (!Number.isInteger(pageCap) || pageCap < 1 || pageCap > cap) throw new SenderError(`pageCap must be an integer 1-${cap} (config page_cap)`);
+  let resolved;
+  try { resolved = resolveSources(JSON.stringify(s.inputs ?? {}), JSON.stringify(s.sources), '{}'); } catch (err) { throw new SenderError((err as Error).message); }
+  if (!resolved.sources.length || resolved.sources.length > pageCap) throw new SenderError(`sources must have 1-${pageCap} entries (pageCap)`);
+  const cleared = clearedHosts(ctx);
+  for (const src of resolved.sources) {
+    httpUrl(ctx, src, 'each source');
+    if (!cleared.has(hostOf(src))) throw new SenderError(`${hostOf(src)} has no research report with robots, terms and reachability all passing; use REQUEST_RESEARCH first`);
+  }
+  const markers = Array.isArray(s.markers) ? s.markers.filter((m): m is string => typeof m === 'string' && m.trim().length > 0).slice(0, 5) : [];
+  return {
+    sources: resolved.sources,
+    outputSchema: s.outputSchema,
+    instructions: typeof s.instructions === 'string' && s.instructions.trim() ? s.instructions.trim().slice(0, 2000) : s.description,
+    pageCap,
+    ...(markers.length ? { markers } : {}),
+  };
+}
+
+// Saves a COO-created Tier 0 API as an Apify Task of forge-extract, then starts the orders waiting on it.
+export const create_apify_task = spacetimedb.procedure(
+  { onSchedule: apifyTaskSchedule },
+  { arg: apifyTaskSchedule.rowType },
+  t.unit(),
+  (ctx, { arg }) => {
+    const job = ctx.withTx((tx) => {
+      const j = tx.db.apifyTaskJob.apiId.find(arg.apiId);
+      const a = tx.db.api.id.find(arg.apiId);
+      return j && a && j.status === 'pending' ? { name: a.name, input: j.input } : null;
+    });
+    if (!job) return {};
+    let taskId = '';
+    let error = '';
+    try {
+      const auth = { Authorization: `Bearer ${envOrThrow(ctx.env, 'APIFY_TOKEN')}` };
+      const acts = ctx.http.fetch(`${APIFY_BASE}/acts?my=true&limit=1000`, { headers: auth });
+      if (acts.status !== 200) throw new Error(`list actors: http ${acts.status}`);
+      const act = (JSON.parse(acts.text()) as { data: { items: { id: string; name: string }[] } }).data.items.find((x) => x.name === 'forge-extract');
+      if (!act) throw new Error('forge-extract is not on the Apify account');
+      const res = ctx.http.fetch(`${APIFY_BASE}/actor-tasks`, {
+        method: 'POST',
+        headers: { ...auth, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actId: act.id, name: job.name, input: JSON.parse(job.input), options: { timeoutSecs: 300, memoryMbytes: 1024 } }),
+      });
+      const body = res.text();
+      if (res.status !== 201) throw new Error(`create task: http ${res.status} ${body.slice(0, 300)}`);
+      taskId = (JSON.parse(body) as { data: { id: string } }).data.id;
+    } catch (err) {
+      error = String(err).slice(0, 500);
+    }
+    ctx.withTx((tx) => {
+      const j = tx.db.apifyTaskJob.apiId.find(arg.apiId);
+      const a = tx.db.api.id.find(arg.apiId);
+      if (!j || !a || j.status !== 'pending') return;
+      tx.db.apifyTaskJob.apiId.update({ ...j, status: taskId ? 'created' : 'failed', apifyTaskId: taskId, error, updatedAt: tx.timestamp });
+      const waiting = [...tx.db.orders.iter()].filter((o) => o.apiId === a.id && o.status === 'accepted' && !o.apifyRunId);
+      if (!taskId) {
+        logEvent(tx, 'procedure', 'apify_task_failed', 'api', a.id, { name: a.name, error });
+        for (const o of waiting) failOrder(tx, o.id, 'procedure', `the API's Apify Task could not be created: ${error}`);
+        return;
+      }
+      const v = a.currentVersionId !== undefined ? tx.db.apiVersion.id.find(a.currentVersionId) : undefined;
+      if (v) tx.db.apiVersion.id.update({ ...v, apifyId: taskId });
+      logEvent(tx, 'procedure', 'apify_task_created', 'api', a.id, { name: a.name, apifyTaskId: taskId, waitingOrders: waiting.length });
+      for (const o of waiting) tx.db.apiRunSchedule.insert({ scheduledId: 0n, scheduledAt: ScheduleAt.time(tx.timestamp.microsSinceUnixEpoch), orderId: o.id });
+    });
+    return {};
+  },
+);
 // The only thing that starts CREAO runs. Respects creao_max_concurrency; a role with no
 // saved agent (CREAO_APP_ID_<ROLE> unset) keeps its tasks queued.
 export const dispatch = spacetimedb.procedure(

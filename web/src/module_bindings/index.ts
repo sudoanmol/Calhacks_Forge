@@ -47,8 +47,10 @@ import DecideApprovalReducer from "./decide_approval_reducer";
 import EnqueueTaskReducer from "./enqueue_task_reducer";
 import EnsureDefaultsReducer from "./ensure_defaults_reducer";
 import OpenChallengeReducer from "./open_challenge_reducer";
+import RecordGateCheckReducer from "./record_gate_check_reducer";
 import RecordPaymentReducer from "./record_payment_reducer";
 import RejectAtDeskReducer from "./reject_at_desk_reducer";
+import ResearchReportReducer from "./research_report_reducer";
 import RetireApiReducer from "./retire_api_reducer";
 import SetConfigReducer from "./set_config_reducer";
 import SetOrderParamsReducer from "./set_order_params_reducer";
@@ -60,6 +62,7 @@ import * as ApifyPollProcedure from "./apify_poll_procedure";
 import * as CreaoPollProcedure from "./creao_poll_procedure";
 import * as CreaoStartProcedure from "./creao_start_procedure";
 import * as HttpSmokeProcedure from "./http_smoke_procedure";
+import * as ResearchFetchProcedure from "./research_fetch_procedure";
 import * as VerifyProbeProcedure from "./verify_probe_procedure";
 
 // Import all table schema definitions
@@ -67,6 +70,7 @@ import ApiRow from "./api_table";
 import ApiCostRow from "./api_cost_table";
 import ApiRetiredRow from "./api_retired_table";
 import ApiVersionRow from "./api_version_table";
+import ApifyTaskJobRow from "./apify_task_job_table";
 import ApprovalRow from "./approval_table";
 import BonusRow from "./bonus_table";
 import BooksRow from "./books_table";
@@ -81,6 +85,8 @@ import EvidenceRow from "./evidence_table";
 import GateCheckRow from "./gate_check_table";
 import OrdersRow from "./orders_table";
 import RefundRow from "./refund_table";
+import ResearchFindingsRow from "./research_findings_table";
+import ResearchPageRow from "./research_page_table";
 import RunRow from "./run_table";
 import RunCostRow from "./run_cost_table";
 import StaffRow from "./staff_table";
@@ -143,6 +149,17 @@ const tablesSchema = __schema({
       { name: 'api_version_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, ApiVersionRow),
+  apifyTaskJob: __table({
+    name: 'apify_task_job',
+    indexes: [
+      { accessor: 'apiId', name: 'apify_task_job_api_id_idx_btree', algorithm: 'btree', columns: [
+        'apiId',
+      ] },
+    ],
+    constraints: [
+      { name: 'apify_task_job_api_id_key', constraint: 'unique', columns: ['apiId'] },
+    ],
+  }, ApifyTaskJobRow),
   approval: __table({
     name: 'approval',
     indexes: [
@@ -314,6 +331,34 @@ const tablesSchema = __schema({
       { name: 'refund_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, RefundRow),
+  researchFindings: __table({
+    name: 'research_findings',
+    indexes: [
+      { accessor: 'id', name: 'research_findings_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'orderId', name: 'research_findings_order_id_idx_btree', algorithm: 'btree', columns: [
+        'orderId',
+      ] },
+    ],
+    constraints: [
+      { name: 'research_findings_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, ResearchFindingsRow),
+  researchPage: __table({
+    name: 'research_page',
+    indexes: [
+      { accessor: 'id', name: 'research_page_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+      { accessor: 'orderId', name: 'research_page_order_id_idx_btree', algorithm: 'btree', columns: [
+        'orderId',
+      ] },
+    ],
+    constraints: [
+      { name: 'research_page_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, ResearchPageRow),
   run: __table({
     name: 'run',
     indexes: [
@@ -412,8 +457,10 @@ const reducersSchema = __reducers(
   __reducerSchema("enqueue_task", EnqueueTaskReducer),
   __reducerSchema("ensure_defaults", EnsureDefaultsReducer),
   __reducerSchema("open_challenge", OpenChallengeReducer),
+  __reducerSchema("record_gate_check", RecordGateCheckReducer),
   __reducerSchema("record_payment", RecordPaymentReducer),
   __reducerSchema("reject_at_desk", RejectAtDeskReducer),
+  __reducerSchema("research_report", ResearchReportReducer),
   __reducerSchema("retire_api", RetireApiReducer),
   __reducerSchema("set_config", SetConfigReducer),
   __reducerSchema("set_order_params", SetOrderParamsReducer),
@@ -427,6 +474,7 @@ const proceduresSchema = __procedures(
   __procedureSchema("creao_poll", CreaoPollProcedure.params, CreaoPollProcedure.returnType),
   __procedureSchema("creao_start", CreaoStartProcedure.params, CreaoStartProcedure.returnType),
   __procedureSchema("http_smoke", HttpSmokeProcedure.params, HttpSmokeProcedure.returnType),
+  __procedureSchema("research_fetch", ResearchFetchProcedure.params, ResearchFetchProcedure.returnType),
   __procedureSchema("verify_probe", VerifyProbeProcedure.params, VerifyProbeProcedure.returnType),
 );
 

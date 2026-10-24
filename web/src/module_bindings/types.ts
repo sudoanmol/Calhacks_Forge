@@ -66,6 +66,24 @@ export const ApiVersion = __t.object("ApiVersion", {
 });
 export type ApiVersion = __Infer<typeof ApiVersion>;
 
+export const ApifyTaskJob = __t.object("ApifyTaskJob", {
+  apiId: __t.u64(),
+  status: __t.string(),
+  apifyTaskId: __t.string(),
+  input: __t.string(),
+  error: __t.string(),
+  createdAt: __t.timestamp(),
+  updatedAt: __t.timestamp(),
+});
+export type ApifyTaskJob = __Infer<typeof ApifyTaskJob>;
+
+export const ApifyTaskSchedule = __t.object("ApifyTaskSchedule", {
+  scheduledId: __t.u64(),
+  scheduledAt: __t.scheduleAt(),
+  apiId: __t.u64(),
+});
+export type ApifyTaskSchedule = __Infer<typeof ApifyTaskSchedule>;
+
 export const Approval = __t.object("Approval", {
   id: __t.u64(),
   kind: __t.string(),
@@ -283,6 +301,44 @@ export const Refund = __t.object("Refund", {
   decidedAt: __t.option(__t.timestamp()),
 });
 export type Refund = __Infer<typeof Refund>;
+
+export const ResearchFindings = __t.object("ResearchFindings", {
+  id: __t.u64(),
+  orderId: __t.u64(),
+  taskId: __t.option(__t.u64()),
+  summary: __t.string(),
+  sources: __t.string(),
+  fields: __t.string(),
+  volatility: __t.string(),
+  freshnessWindowMin: __t.u32(),
+  confidenceBp: __t.u32(),
+  checks: __t.string(),
+  createdAt: __t.timestamp(),
+});
+export type ResearchFindings = __Infer<typeof ResearchFindings>;
+
+export const ResearchPage = __t.object("ResearchPage", {
+  id: __t.u64(),
+  orderId: __t.u64(),
+  kind: __t.string(),
+  target: __t.string(),
+  url: __t.string(),
+  ok: __t.bool(),
+  httpStatus: __t.u32(),
+  reason: __t.string(),
+  chars: __t.u32(),
+  textHash: __t.string(),
+  summary: __t.string(),
+  ms: __t.u32(),
+  fetchedAt: __t.timestamp(),
+});
+export type ResearchPage = __Infer<typeof ResearchPage>;
+
+export const ResearchPageText = __t.object("ResearchPageText", {
+  pageId: __t.u64(),
+  text: __t.string(),
+});
+export type ResearchPageText = __Infer<typeof ResearchPageText>;
 
 export const Run = __t.object("Run", {
   id: __t.u64(),

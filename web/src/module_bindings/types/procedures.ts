@@ -10,6 +10,7 @@ import * as ApifyPollProcedure from "../apify_poll_procedure";
 import * as CreaoPollProcedure from "../creao_poll_procedure";
 import * as CreaoStartProcedure from "../creao_start_procedure";
 import * as HttpSmokeProcedure from "../http_smoke_procedure";
+import * as ResearchFetchProcedure from "../research_fetch_procedure";
 import * as VerifyProbeProcedure from "../verify_probe_procedure";
 
 export type ApifyPollArgs = __Infer<typeof ApifyPollProcedure.params>;
@@ -20,6 +21,8 @@ export type CreaoStartArgs = __Infer<typeof CreaoStartProcedure.params>;
 export type CreaoStartResult = __Infer<typeof CreaoStartProcedure.returnType>;
 export type HttpSmokeArgs = __Infer<typeof HttpSmokeProcedure.params>;
 export type HttpSmokeResult = __Infer<typeof HttpSmokeProcedure.returnType>;
+export type ResearchFetchArgs = __Infer<typeof ResearchFetchProcedure.params>;
+export type ResearchFetchResult = __Infer<typeof ResearchFetchProcedure.returnType>;
 export type VerifyProbeArgs = __Infer<typeof VerifyProbeProcedure.params>;
 export type VerifyProbeResult = __Infer<typeof VerifyProbeProcedure.returnType>;
 
