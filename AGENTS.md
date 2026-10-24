@@ -601,7 +601,7 @@ Playful and game-like, themed on the product's own name: **a forge floor**, draw
 | Apify | The warehouse shelf of APIs (bronze Tier 0, gold Tier 1) |
 | Buyer agent | An outside customer arriving at the counter |
 
-Built with React + SVG + Framer Motion; no game engine. Build the plain version first and add the skin after Gate 3 (budget about 3–4 hours). The skin is cuttable; the dashboard isn't.
+Built with React + SVG + Framer Motion; no game engine. Build the plain version first and add the skin after Gate 3. The skin is cuttable; the dashboard isn't.
 
 ### Phone layout (second device)
 
@@ -656,19 +656,20 @@ Close: "One human approved the consequential actions. The company decided what t
 
 ---
 
-## 11. Gates (PT)
+## 11. Gates and schedule (PT, recomputed Sat Oct 24, 2:51 PM)
 
-| Gate | By | Done when |
-|---|---|---|
-| 0 | Fri night | A procedure makes an HTTP call; a route receives a callback; a web client subscribes. One CREAO API run end to end. Front Desk in ASI:One: chat reply, delayed-message test, payment card renders. Droid hello-world in a worktree. Apify and Bright Data smoke tests. **`forge-extract` prototype on 3 real public sites with the verified rate measured, for both candidate extraction LLMs.** |
-| 1 | Sat 4 AM | **Go/no-go on v2:** if the measured verified rate can't carry the pitch, switch to v1 (`AGENTS.md`) now. Otherwise: extraction LLM picked; roles and reducers; seeded APIs chosen; one existing-API order end to end (COO → Task run → verification → Auditor → delivered in chat). **Schema freeze.** |
-| 2 | Sat 9 AM | New-request flow with the full admission gate and real Research through Bright Data. Challenge flow works. |
-| 3 | Sat 2 PM | Full ASI:One order with payment. Dashboard live on two devices. All seeded APIs pass the canary. Open to Cal Hacks hackers (daily cap on). |
-| 4 | Sat 7 PM | Compile path (flow C) on one seeded API, including reject → repair → accept, founder ship approval, measured cost-per-call drop, and a second buyer. Budget-change moment works. |
-| 5 | Sat 7–11 PM | Iteration tickets, Time Machine, cards, x402 if eligible. |
-| Freeze | Sun 12 AM | No new features. Sun 12–7 AM: README, videos, rehearsal. Submit by **8:15 AM** (hard deadline 9:00 AM). |
+| Gate | Target | Done when | Status |
+|---|---|---|---|
+| 0 | done | A procedure makes an HTTP call; a route receives a callback; a web client subscribes. One CREAO API run end to end. Front Desk in ASI:One: chat reply, delayed-message test, payment card renders. Droid hello-world in a worktree. Apify and Bright Data smoke tests. **`forge-extract` prototype on 3 real public sites with the verified rate measured.** | done |
+| 1 | done | Extraction LLM picked; roles and reducers; seeded APIs chosen; one existing-API order end to end (COO → Task run → verification → Auditor → delivered). **Schema freeze.** | done except the founder's ASI:One order |
+| 2 | Sat 6 PM | New-request flow with the full admission gate and real Research through Bright Data. Challenge flow works. | in progress |
+| 3 | Sat 7 PM | Full ASI:One order with payment. Dashboard live on two devices. All seeded APIs pass the canary. Open to Cal Hacks hackers (daily cap on). | canary passes; rest pending |
+| 4 | Sat 10 PM | Compile path (flow C) on one seeded API, including reject → repair → accept, founder ship approval, measured cost-per-call drop, and a second buyer. Budget-change moment works. | template + droid-runner in progress |
+| 5 | Sun 12 AM | Iteration tickets, Time Machine, cards, forge-floor skin, x402 if eligible. | not started |
+| Cutoff | Sun 12–1 AM | Anything in this file still unfinished is dropped or best-effort only, following the cut order (§12). | |
+| Submit | Sun 1–8 AM | README, videos, rehearsal. Submit by **8:15 AM** (Devpost hard deadline 9:00 AM). | |
 
-If a gate fails, stop adding features and repair that path first.
+The goal is everything in this file. If a gate fails, repair that path before adding features.
 
 **Measured so far (Oct 24, `docs/proof/`):** `forge-extract` with Claude Haiku (`claude-haiku-5-5`, tool-use structured output) on the 3 seed sites: 296/302 values verified on an independent Bright Data re-fetch (98%). open-roles 184/190 (page truncated to 60K of 449K chars), yc-directory 5/5, gpu-listings 107/107. ASI-1 not yet measured. The module's 12 API tests pass on Maincloud (`forge`). The `/web` client subscribes on Maincloud; a task enqueued over HTTP appeared in the browser within ~0.75 s with no reload (agent-browser, `docs/proof/web-gate0-after.png`).
 
