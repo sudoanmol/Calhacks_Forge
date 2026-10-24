@@ -11,7 +11,7 @@ const outputSchema = { type: 'object', properties: { name: { type: 'string' }, p
 
 const fakeLLM = (reply) => async (url, init) => ({
   ok: true,
-  json: async () => ({ content: [{ type: 'text', text: typeof reply === 'string' ? reply : JSON.stringify(reply) }], usage: { input_tokens: 10, output_tokens: 5 } }),
+  json: async () => ({ stop_reason: 'end_turn', content: [{ type: 'text', text: typeof reply === 'string' ? reply : JSON.stringify(reply) }], usage: { input_tokens: 10, output_tokens: 5 } }),
 });
 
 const run = (reply) =>
@@ -49,27 +49,36 @@ test('unparseable LLM output yields no items and an error', async () => {
   assert.match(r.error, /unparseable/);
 });
 
-test('structured tool_use reply is used directly', async () => {
-  const fetchImpl = async () => ({
-    ok: true,
-    json: async () => ({ stop_reason: 'tool_use', usage: { input_tokens: 1, output_tokens: 1 }, content: [{ type: 'tool_use', name: 'record_rows',
-      input: { rows: [{ entity: 'GeForce RTX 5080', values: [{ field: 'price', value: '$1,199.99', excerpt: 'Price: $1,199.99' }] }] } }] }),
-  });
+test('the request asks for schema-constrained JSON output', async () => {
+  let sent;
+  const fetchImpl = async (url, init) => {
+    sent = JSON.parse(init.body);
+    return { ok: true, json: async () => ({ stop_reason: 'end_turn', usage: { input_tokens: 1, output_tokens: 1 },
+      content: [{ type: 'text', text: JSON.stringify({ rows: [{ entity: 'GeForce RTX 5080', values: [{ field: 'price', value: '$1,199.99', excerpt: 'Price: $1,199.99' }] }] }) }] }) };
+  };
   const r = await extractFromPage({ url: 'u', page, outputSchema, observedAt: 't', llm: { provider: 'anthropic', apiKey: 'k', model: 'm', fetchImpl } });
-  assert.equal(r.items.length, 1);
-  assert.equal(r.items[0].status, 'extracted');
+  assert.equal(sent.output_config.format.type, 'json_schema');
+  assert.equal(sent.output_config.format.schema.additionalProperties, false);
+  assert.equal(sent.tools, undefined);
+  assert.deepEqual(r.items.map((i) => i.status), ['extracted']);
   assert.equal(r.error, null);
 });
 
 test('hitting the token limit is reported', async () => {
   const fetchImpl = async () => ({
     ok: true,
-    json: async () => ({ stop_reason: 'max_tokens', usage: {}, content: [{ type: 'tool_use', name: 'record_rows', input: { rows: [] } }] }),
+    json: async () => ({ stop_reason: 'max_tokens', usage: {}, content: [{ type: 'text', text: '{"rows":[{"entity":"x","val' }] }),
   });
   const r = await extractFromPage({ url: 'u', page, outputSchema, observedAt: 't', llm: { provider: 'anthropic', apiKey: 'k', model: 'm', fetchImpl } });
-  assert.match(r.error, /token limit/);
+  assert.match(r.error, /unparseable|token limit/);
 });
 
 test('parseJsonObject strips code fences', () => {
   assert.deepEqual(parseJsonObject('```json\n{"rows":[]}\n```'), { rows: [] });
+});
+
+test('rows of an unusable type become an error, not a crash', async () => {
+  const r = await run({ rows: 42 });
+  assert.equal(r.items.length, 0);
+  assert.match(r.error, /unparseable/);
 });

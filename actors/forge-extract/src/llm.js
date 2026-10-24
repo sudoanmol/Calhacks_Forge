@@ -1,24 +1,28 @@
 // One raw-fetch client per candidate extraction LLM. Gate 0 measures both; Gate 1 keeps one.
 // When `jsonSchema` is given, the reply comes back as a parsed object (`json`) via the
-// provider's structured-output mode, so quotes copied from JSON pages can't break parsing.
+// provider's structured-output mode (constrained decoding), so it always matches the schema.
 export const callLLM = async ({ provider, apiKey, model, baseUrl, system, user, jsonSchema, maxTokens = 16000, fetchImpl = fetch }) => {
   if (provider === 'anthropic') {
-    const tool = jsonSchema && { name: 'record_rows', description: 'Record the extracted rows.', input_schema: jsonSchema };
     const res = await fetchImpl(`${baseUrl ?? 'https://api.anthropic.com'}/v1/messages`, {
       method: 'POST',
       headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
       // Current Claude models reject `temperature`; extraction relies on the prompt and the quote anchor instead.
       body: JSON.stringify({
         model, max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }],
-        ...(tool ? { tools: [tool], tool_choice: { type: 'tool', name: tool.name } } : {}),
+        ...(jsonSchema ? { output_config: { format: { type: 'json_schema', schema: jsonSchema } } } : {}),
       }),
     });
     const body = await res.json();
     if (!res.ok) throw new Error(`anthropic ${res.status}: ${JSON.stringify(body).slice(0, 300)}`);
-    const toolUse = body.content.find((c) => c.type === 'tool_use');
+    const text = body.content.filter((c) => c.type === 'text').map((c) => c.text).join('');
+    // Only a complete turn is guaranteed schema-valid; max_tokens cuts the JSON and a refusal replaces it.
+    let json;
+    if (jsonSchema && body.stop_reason === 'end_turn') {
+      try { json = JSON.parse(text); } catch { /* reported as unparseable by the caller */ }
+    }
     return {
-      text: body.content.filter((c) => c.type === 'text').map((c) => c.text).join(''),
-      json: toolUse?.input,
+      text,
+      json,
       stopReason: body.stop_reason,
       usage: { inputTokens: body.usage?.input_tokens ?? 0, outputTokens: body.usage?.output_tokens ?? 0 },
     };

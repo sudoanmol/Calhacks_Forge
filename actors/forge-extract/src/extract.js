@@ -18,14 +18,17 @@ const ROWS_SCHEMA = {
               type: 'object',
               properties: { field: { type: 'string' }, value: { type: 'string' }, excerpt: { type: 'string' } },
               required: ['field', 'value', 'excerpt'],
+              additionalProperties: false,
             },
           },
         },
         required: ['entity', 'values'],
+        additionalProperties: false,
       },
     },
   },
   required: ['rows'],
+  additionalProperties: false,
 };
 
 const SYSTEM = `You extract structured data from the text of one public web page.
@@ -57,6 +60,7 @@ export const extractFromPage = async ({ url, page, outputSchema, instructions, l
   let rows;
   try {
     rows = (json ?? parseJsonObject(text)).rows ?? [];
+    if (!Array.isArray(rows)) throw new Error(`rows is a ${typeof rows}`);
   } catch (err) {
     return { items: [], usage, stopReason, snapshotHash, truncated, error: `unparseable LLM output (stop: ${stopReason}): ${err.message}` };
   }
