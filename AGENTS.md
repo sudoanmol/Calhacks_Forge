@@ -670,7 +670,7 @@ Close: "One human approved the consequential actions. The company decided what t
 
 If a gate fails, stop adding features and repair that path first.
 
-**Measured so far (Oct 24, `docs/proof/`):** `forge-extract` with Claude Haiku (`claude-haiku-5-5`, tool-use structured output) on the 3 seed sites: 296/302 values verified on an independent Bright Data re-fetch (98%). open-roles 184/190 (page truncated to 60K of 449K chars), yc-directory 5/5, gpu-listings 107/107. ASI-1 not yet measured. The module's 12 API tests pass on Maincloud (`forge`).
+**Measured so far (Oct 24, `docs/proof/`):** `forge-extract` with Claude Haiku (`claude-haiku-5-5`, tool-use structured output) on the 3 seed sites: 296/302 values verified on an independent Bright Data re-fetch (98%). open-roles 184/190 (page truncated to 60K of 449K chars), yc-directory 5/5, gpu-listings 107/107. ASI-1 not yet measured. The module's 12 API tests pass on Maincloud (`forge`). The `/web` client subscribes on Maincloud; a task enqueued over HTTP appeared in the browser within ~0.75 s with no reload (agent-browser, `docs/proof/web-gate0-after.png`).
 
 ---
 
