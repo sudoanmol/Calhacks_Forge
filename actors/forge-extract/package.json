@@ -7,7 +7,8 @@
     "start": "node src/main.js",
     "test": "node --test \"test/**/*.test.js\"",
     "measure": "node --env-file=../../.env scripts/measure.js",
-    "fetch-smoke": "node --env-file=../../.env scripts/fetch-smoke.js"
+    "fetch-smoke": "node --env-file=../../.env scripts/fetch-smoke.js",
+    "apify-smoke": "node --env-file=../../.env scripts/apify-smoke.js"
   },
   "dependencies": {
     "apify": "^3.7.2",

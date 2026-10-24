@@ -24,6 +24,7 @@
     "pageCap": {
       "title": "Page cap",
       "type": "integer",
+      "description": "Maximum number of source pages fetched in one run.",
       "default": 10,
       "minimum": 1,
       "maximum": 50
@@ -31,6 +32,8 @@
     "render": {
       "title": "Render mode",
       "type": "string",
+      "description": "unlocker: Bright Data Web Unlocker first. browser: allow the Browser API rung for JS-rendered pages.",
+      "editor": "select",
       "enum": ["unlocker", "browser"],
       "default": "unlocker"
     },
