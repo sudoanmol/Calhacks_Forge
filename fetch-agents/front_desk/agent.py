@@ -161,6 +161,7 @@ async def on_commit(ctx: Context, sender: str, msg: CommitPayment) -> None:
     await send(ctx, sender, CompletePayment(transaction_id=session_id), "CompletePayment")
     ctx.storage.remove(f"quote:{sender}")
     await reply(ctx, sender, f"Payment confirmed (TEST MODE). Order for **{record['quote']['summary']}** is queued.")
+    schedule_followup(ctx, sender)
 
 
 @pay.on_message(RejectPayment)
@@ -171,9 +172,9 @@ async def on_reject(ctx: Context, sender: str, msg: RejectPayment) -> None:
 
 # Delayed-message test (AGENTS.md §7 Fetch): does ASI:One show a message the agent sends
 # on its own, a minute after the last exchange? Status updates for long orders depend on it.
+# ASI:One uses one sender address per user across chats. Chatter from its assistant is never quoted
+# (NotARequest), so scheduling per quote/payment can't loop.
 def schedule_followup(ctx: Context, sender: str) -> None:
-    if ctx.storage.get(f"followed_up:{sender}"):
-        return
     due = ctx.storage.get("followups") or {}
     due[sender] = time.time() + DELAYED_AFTER_S
     ctx.storage.set("followups", due)
@@ -187,7 +188,6 @@ async def send_followups(ctx: Context) -> None:
     for sender in ready:
         await reply(ctx, sender, f"Status check from the Front Desk, sent on my own {DELAYED_AFTER_S}s after your last message.")
         del due[sender]
-        ctx.storage.set(f"followed_up:{sender}", True)
     if ready:
         ctx.storage.set("followups", due)
 
