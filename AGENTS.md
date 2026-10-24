@@ -711,7 +711,7 @@ Never cut: the admission gate, `forge-extract` with the quote anchor, a real exi
 |---|---|---|
 | Organizers | Is a solo founder eligible? Student eligibility? | Solo is allowed. Student eligibility not yet confirmed. |
 | CREAO | Can one project enter both AI-First Disruptor and One-Person Company? | No. Only one CREAO track per project. Founder still picks which. |
-| Fetch | Is data delivered in chat with a dataset link fine? Do delayed messages show in ASI:One? Which payment method renders? | |
+| Fetch | Is data delivered in chat with a dataset link fine? Do delayed messages show in ASI:One? Which payment method renders? | Tested Sat Oct 24: Stripe test mode renders in ASI:One and a 4242 payment completed end to end (CommitPayment → `Session.retrieve` paid → CompletePayment). ASI:One needs `@agent1…` on every message, and its own assistant replies to agent messages, so the Front Desk strips mentions and ignores chatter. Delayed messages: delivered agent-to-agent; ASI:One display pending. Dataset-link delivery: not yet asked. |
 | SpacetimeDB | Are procedures and HTTP routes stable on Maincloud this weekend? | |
 | Apify | Does an LLM-based generic extractor (with quote verification) qualify for Best Actor? Do Droid-compiled Actors and later edits affect eligibility? Are Tasks a good fit for "an API per request"? | |
 | Bright Data | Do the promo credits cover the Browser API? Is a gate that rejects login/paywall/personal-data requests the right reading of your rules? Can our account get KYC for Greenhouse HTML boards? | Greenhouse HTML boards are blocked by Bright Data compliance without KYC (measured Oct 24); the JSON API works. |
