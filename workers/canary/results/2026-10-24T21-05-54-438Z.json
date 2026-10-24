@@ -1,0 +1,319 @@
+{
+  "mode": "TEST MODE",
+  "recordedAt": "2026-10-24T21:07:21.587Z",
+  "database": "https://maincloud.spacetimedb.com / forge",
+  "criterion": "order reaches auditing, every source page loads, verified rate >= 0.8 over all value rows",
+  "results": [
+    {
+      "api": "yc-directory",
+      "pass": true,
+      "reasons": [],
+      "orderId": 31,
+      "ref": "canary-yc-directory-2026-10-24T21-05-54-438Z",
+      "finalStatus": "auditing",
+      "decisionReason": "Canary: scripted order on the seeded API yc-directory.",
+      "elapsedMs": 26080,
+      "transitions": [
+        {
+          "status": "accepted",
+          "atMs": 913
+        },
+        {
+          "status": "running",
+          "atMs": 4058
+        },
+        {
+          "status": "verifying",
+          "atMs": 22933
+        },
+        {
+          "status": "auditing",
+          "atMs": 26080
+        }
+      ],
+      "values": 5,
+      "rows": 1,
+      "valuesByStatus": {
+        "verified": 5
+      },
+      "verifiedRate": 1,
+      "failedPages": 0,
+      "apify": {
+        "runId": "JiCeNLodq6a9KbWEK",
+        "status": "SUCCEEDED",
+        "runCostCents": 0,
+        "usageTotalUsd": 0.0008201461657087008,
+        "runTimeSecs": 10.596,
+        "datasetUrl": "https://api.apify.com/v2/datasets/3eAzijhFuB7tnym15/items?clean=1&format=json",
+        "consoleUrl": "https://console.apify.com/view/runs/JiCeNLodq6a9KbWEK",
+        "pages": [
+          {
+            "url": "https://www.ycombinator.com/companies/airbnb",
+            "status": "ok",
+            "method": "unlocker",
+            "country": "us",
+            "truncated": false,
+            "error": null,
+            "ladderAttempts": 1
+          }
+        ],
+        "llmUsage": {
+          "inputTokens": 2887,
+          "outputTokens": 238,
+          "pages": 1
+        },
+        "webhookNudges": 0
+      },
+      "brightDataEvidenceRows": 1,
+      "evidence": [
+        {
+          "url": "https://www.ycombinator.com/companies/airbnb",
+          "method": "unlocker",
+          "country": "us",
+          "httpStatus": 200,
+          "attempt": 1,
+          "ms": 3553,
+          "reason": ""
+        }
+      ],
+      "auditTask": [
+        {
+          "id": 35,
+          "status": "queued",
+          "attempt": 0
+        }
+      ],
+      "sampleValues": [
+        {
+          "row": 0,
+          "metric": "name",
+          "value": "Airbnb",
+          "status": "verified",
+          "excerpt": "Airbnb\nBook accommodations around the world.\nWinter 2009"
+        },
+        {
+          "row": 0,
+          "metric": "one_liner",
+          "value": "Book accommodations around the world.",
+          "status": "verified",
+          "excerpt": "Airbnb\nBook accommodations around the world.\nWinter 2009"
+        },
+        {
+          "row": 0,
+          "metric": "website",
+          "value": "http://airbnb.com",
+          "status": "verified",
+          "excerpt": "News\nhttp://airbnb.com"
+        }
+      ]
+    },
+    {
+      "api": "open-roles",
+      "pass": true,
+      "reasons": [],
+      "orderId": 32,
+      "ref": "canary-open-roles-2026-10-24T21-05-54-438Z",
+      "finalStatus": "auditing",
+      "decisionReason": "Canary: scripted order on the seeded API open-roles.",
+      "elapsedMs": 51230,
+      "transitions": [
+        {
+          "status": "accepted",
+          "atMs": 900
+        },
+        {
+          "status": "running",
+          "atMs": 4045
+        },
+        {
+          "status": "verifying",
+          "atMs": 48100
+        },
+        {
+          "status": "auditing",
+          "atMs": 51230
+        }
+      ],
+      "values": 138,
+      "rows": 46,
+      "valuesByStatus": {
+        "verified": 138
+      },
+      "verifiedRate": 1,
+      "failedPages": 0,
+      "apify": {
+        "runId": "NVDeAupQh4rpAUFaL",
+        "status": "SUCCEEDED",
+        "runCostCents": 0,
+        "usageTotalUsd": 0.0009866692975378701,
+        "runTimeSecs": 37.113,
+        "datasetUrl": "https://api.apify.com/v2/datasets/u6uvsZYskbGG4lnlW/items?clean=1&format=json",
+        "consoleUrl": "https://console.apify.com/view/runs/NVDeAupQh4rpAUFaL",
+        "pages": [
+          {
+            "url": "https://boards-api.greenhouse.io/v1/boards/discord/departments",
+            "status": "ok",
+            "method": "unlocker",
+            "country": "us",
+            "truncated": false,
+            "error": null,
+            "ladderAttempts": 1
+          }
+        ],
+        "llmUsage": {
+          "inputTokens": 19130,
+          "outputTokens": 10513,
+          "pages": 1
+        },
+        "webhookNudges": 0
+      },
+      "brightDataEvidenceRows": 1,
+      "evidence": [
+        {
+          "url": "https://boards-api.greenhouse.io/v1/boards/discord/departments",
+          "method": "unlocker",
+          "country": "us",
+          "httpStatus": 200,
+          "attempt": 1,
+          "ms": 3185,
+          "reason": ""
+        }
+      ],
+      "auditTask": [
+        {
+          "id": 36,
+          "status": "queued",
+          "attempt": 0
+        }
+      ],
+      "sampleValues": [
+        {
+          "row": 0,
+          "metric": "title",
+          "value": "Senior Stock Administrator",
+          "status": "verified",
+          "excerpt": "Senior Stock Administrator"
+        },
+        {
+          "row": 0,
+          "metric": "team",
+          "value": "Accounting",
+          "status": "verified",
+          "excerpt": "Accounting"
+        },
+        {
+          "row": 0,
+          "metric": "location",
+          "value": "San Francisco Bay Area or Remote (U.S.)",
+          "status": "verified",
+          "excerpt": "San Francisco Bay Area or Remote (U.S.)"
+        }
+      ]
+    },
+    {
+      "api": "gpu-listings",
+      "pass": true,
+      "reasons": [],
+      "orderId": 30,
+      "ref": "canary-gpu-listings-2026-10-24T21-05-54-438Z",
+      "finalStatus": "auditing",
+      "decisionReason": "Canary: scripted order on the seeded API gpu-listings.",
+      "elapsedMs": 85916,
+      "transitions": [
+        {
+          "status": "accepted",
+          "atMs": 1078
+        },
+        {
+          "status": "running",
+          "atMs": 4170
+        },
+        {
+          "status": "verifying",
+          "atMs": 82772
+        },
+        {
+          "status": "auditing",
+          "atMs": 85916
+        }
+      ],
+      "values": 80,
+      "rows": 38,
+      "valuesByStatus": {
+        "unverifiable": 1,
+        "verified": 78,
+        "stale": 1
+      },
+      "verifiedRate": 0.975,
+      "failedPages": 0,
+      "apify": {
+        "runId": "1sTiEHPhtFDJkHDhU",
+        "status": "SUCCEEDED",
+        "runCostCents": 0,
+        "usageTotalUsd": 0.003295362703982327,
+        "runTimeSecs": 69.619,
+        "datasetUrl": "https://api.apify.com/v2/datasets/7yHMicYIPFxamcten/items?clean=1&format=json",
+        "consoleUrl": "https://console.apify.com/view/runs/1sTiEHPhtFDJkHDhU",
+        "pages": [
+          {
+            "url": "https://www.newegg.com/p/pl?d=rtx+5080",
+            "status": "ok",
+            "method": "unlocker",
+            "country": "us",
+            "truncated": false,
+            "error": null,
+            "ladderAttempts": 1
+          }
+        ],
+        "llmUsage": {
+          "inputTokens": 11347,
+          "outputTokens": 14247,
+          "pages": 1
+        },
+        "webhookNudges": 0
+      },
+      "brightDataEvidenceRows": 1,
+      "evidence": [
+        {
+          "url": "https://www.newegg.com/p/pl?d=rtx+5080",
+          "method": "unlocker",
+          "country": "us",
+          "httpStatus": 200,
+          "attempt": 1,
+          "ms": 1979,
+          "reason": ""
+        }
+      ],
+      "auditTask": [
+        {
+          "id": 37,
+          "status": "queued",
+          "attempt": 0
+        }
+      ],
+      "sampleValues": [
+        {
+          "row": 3,
+          "metric": "name",
+          "value": "MSI Suprim GeForce RTX 5080 16GB GDDR7 PCI Express 5.0 Graphics Card RTX 5080 16G SUPRIM LIQUID SOC",
+          "status": "unverifiable",
+          "excerpt": "MSI Suprim GeForce RTX 5080 16GB GDDR7 PCI Express 5.0 Graphics Card RTX 5080 16G SUPRIM LIQUID SOC"
+        },
+        {
+          "row": 0,
+          "metric": "name",
+          "value": "GIGABYTE AORUS GeForce RTX 5080 INFINITY WOOD 16G Graphics Card, 16GB 256-bit GDDR7, PCIe 5.0, WINDFORCE HYPERBURST cooling system, GV-N5080AORUSIF WD-16GD Graphics Card",
+          "status": "verified",
+          "excerpt": "GIGABYTE AORUS GeForce RTX 5080 INFINITY WOOD 16G Graphics Card, 16GB 256-bit GDDR7, PCIe 5.0, WINDFORCE HYPERBURST cool"
+        },
+        {
+          "row": 0,
+          "metric": "price",
+          "value": "$ 3,286 .90",
+          "status": "verified",
+          "excerpt": "$ 3,286 .90"
+        }
+      ]
+    }
+  ]
+}

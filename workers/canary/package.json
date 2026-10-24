@@ -1,0 +1,15 @@
+{
+  "name": "@forge/canary",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "seed": "node --env-file=../../.env src/seed.ts",
+    "canary": "node --env-file=../../.env src/canary.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "~5.9.3"
+  }
+}

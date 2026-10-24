@@ -67,6 +67,15 @@ importers:
         specifier: ^8.3.5
         version: 8.3.5(@types/node@24.19.2)
 
+  workers/canary:
+    devDependencies:
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.19.2
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+
   workers/droid-runner:
     dependencies:
       '@factory/droid-sdk':

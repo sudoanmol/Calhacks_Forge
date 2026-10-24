@@ -1,0 +1,112 @@
+{
+  "mode": "TEST MODE",
+  "recordedAt": "2026-10-24T21:05:38.337Z",
+  "database": "https://maincloud.spacetimedb.com / forge",
+  "criterion": "order reaches auditing, every source page loads, verified rate >= 0.8 over all value rows",
+  "results": [
+    {
+      "api": "gpu-listings",
+      "pass": true,
+      "reasons": [],
+      "orderId": 29,
+      "ref": "canary-gpu-listings-2026-10-24T21-04-36-220Z",
+      "finalStatus": "auditing",
+      "decisionReason": "Canary: scripted order on the seeded API gpu-listings.",
+      "elapsedMs": 60866,
+      "transitions": [
+        {
+          "status": "accepted",
+          "atMs": 1101
+        },
+        {
+          "status": "running",
+          "atMs": 4242
+        },
+        {
+          "status": "verifying",
+          "atMs": 54573
+        },
+        {
+          "status": "auditing",
+          "atMs": 60866
+        }
+      ],
+      "values": 80,
+      "rows": 38,
+      "valuesByStatus": {
+        "unverifiable": 1,
+        "verified": 79
+      },
+      "verifiedRate": 0.9875,
+      "failedPages": 0,
+      "apify": {
+        "runId": "fxObsNkmeUNgHvImH",
+        "status": "SUCCEEDED",
+        "runCostCents": 0,
+        "usageTotalUsd": 0.001260471039397849,
+        "runTimeSecs": 41.398,
+        "datasetUrl": "https://api.apify.com/v2/datasets/67KWjltiLvg51Lhgc/items?clean=1&format=json",
+        "consoleUrl": "https://console.apify.com/view/runs/fxObsNkmeUNgHvImH",
+        "pages": [
+          {
+            "url": "https://www.newegg.com/p/pl?d=rtx+5080",
+            "status": "ok",
+            "method": "unlocker",
+            "country": "us",
+            "truncated": false,
+            "error": null,
+            "ladderAttempts": 1
+          }
+        ],
+        "llmUsage": {
+          "inputTokens": 11283,
+          "outputTokens": 12504,
+          "pages": 1
+        },
+        "webhookNudges": 0
+      },
+      "brightDataEvidenceRows": 1,
+      "evidence": [
+        {
+          "url": "https://www.newegg.com/p/pl?d=rtx+5080",
+          "method": "unlocker",
+          "country": "us",
+          "httpStatus": 200,
+          "attempt": 1,
+          "ms": 5058,
+          "reason": ""
+        }
+      ],
+      "auditTask": [
+        {
+          "id": 31,
+          "status": "queued",
+          "attempt": 0
+        }
+      ],
+      "sampleValues": [
+        {
+          "row": 3,
+          "metric": "name",
+          "value": "MSI Suprim GeForce RTX 5080 16GB GDDR7 PCI Express 5.0 Graphics Card RTX 5080 16G SUPRIM LIQUID SOC Get Free GPU Holder w/ purchase, limited offer",
+          "status": "unverifiable",
+          "excerpt": "MSI Suprim GeForce RTX 5080 16GB GDDR7 PCI Express 5.0 Graphics Card RTX 5080 16G SUPRIM LIQUID SOC Get Free GPU Holder "
+        },
+        {
+          "row": 0,
+          "metric": "name",
+          "value": "GIGABYTE AORUS GeForce RTX 5080 INFINITY WOOD 16G Graphics Card, 16GB 256-bit GDDR7, PCIe 5.0, WINDFORCE HYPERBURST cooling system, GV-N5080AORUSIF WD-16GD Graphics Card",
+          "status": "verified",
+          "excerpt": "GIGABYTE AORUS GeForce RTX 5080 INFINITY WOOD 16G Graphics Card, 16GB 256-bit GDDR7, PCIe 5.0, WINDFORCE HYPERBURST cool"
+        },
+        {
+          "row": 0,
+          "metric": "price",
+          "value": "$ 3,286 .90",
+          "status": "verified",
+          "excerpt": "$ 3,286 .90"
+        }
+      ]
+    }
+  ]
+}
