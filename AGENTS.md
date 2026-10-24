@@ -601,7 +601,7 @@ Playful and game-like, themed on the product's own name: **a forge floor**, draw
 | Apify | The warehouse shelf of APIs (bronze Tier 0, gold Tier 1) |
 | Buyer agent | An outside customer arriving at the counter |
 
-Built with React + SVG + Framer Motion; no game engine. Build the plain version first and add the skin after Gate 3. The skin is cuttable; the dashboard isn't.
+Built with React + SVG + Framer Motion; no game engine. The skin is required: it is how the demo explains the company at a glance.
 
 ### Phone layout (second device)
 
@@ -665,9 +665,10 @@ Close: "One human approved the consequential actions. The company decided what t
 | 2 | Sat 6 PM | New-request flow with the full admission gate and real Research through Bright Data. Challenge flow works. | in progress |
 | 3 | Sat 7 PM | Full ASI:One order with payment. Dashboard live on two devices. All seeded APIs pass the canary. Open to Cal Hacks hackers (daily cap on). | canary passes; rest pending |
 | 4 | Sat 10 PM | Compile path (flow C) on one seeded API, including reject → repair → accept, founder ship approval, measured cost-per-call drop, and a second buyer. Budget-change moment works. | template + droid-runner in progress |
-| 5 | Sun 12 AM | Iteration tickets, Time Machine, cards, forge-floor skin, x402 if eligible. | not started |
-| Cutoff | Sun 12–1 AM | Anything in this file still unfinished is dropped or best-effort only, following the cut order (§12). | |
-| Submit | Sun 1–8 AM | README, videos, rehearsal. Submit by **8:15 AM** (Devpost hard deadline 9:00 AM). | |
+| Skin | Sat 9 PM | Forge-floor skin: per-order factory scene (order picker, stations, pipes, packets driven by events). Required, not cuttable. | in progress |
+| 5 | Sun 2 AM | Iteration tickets, Time Machine, cards, x402 if eligible. | not started |
+| Cutoff | Sun ~4 AM | Anything in this file still unfinished is dropped or best-effort only, following the cut order (§12). | |
+| Submit | Sun 4–8 AM | README, videos, rehearsal (3–4 hours). Submit by **8:15 AM** (Devpost hard deadline 9:00 AM). | |
 
 The goal is everything in this file. If a gate fails, repair that path before adding features.
 
@@ -683,11 +684,10 @@ The goal is everything in this file. If a gate fails, repair that path before ad
 4. `coverage` and `format` ticket labels (keep `challenge`, `enhancement`, `question`, `status`)
 5. Buyer agent (fallback: the second buyer is a second ASI:One user)
 6. The Browser API rung of the ladder (keep Unlocker + country retry; reject JS-only sources at the gate)
-7. The forge-floor skin (keep the plain org chart)
-8. Time Machine scrubbing (keep a plain REPLAY event list)
-9. Stripe payment (use the FET testnet fallback, or record an honest TEST MODE "unpaid" quote)
+7. Time Machine scrubbing (keep a plain REPLAY event list)
+8. Stripe payment (use the FET testnet fallback, or record an honest TEST MODE "unpaid" quote)
 
-Never cut: the admission gate, `forge-extract` with the quote anchor, a real existing-API order in ASI:One, the four CREAO roles, Bright Data verification, the challenge flow, one real Droid compile, two devices in sync.
+Never cut: the admission gate, `forge-extract` with the quote anchor, a real existing-API order in ASI:One, the four CREAO roles, Bright Data verification, the challenge flow, one real Droid compile, two devices in sync, the forge-floor skin.
 
 ---
 
