@@ -11,7 +11,7 @@ const CONFIG_DEFAULTS: Record<string, string> = {
   creao_max_concurrency: '2',
   refund_limit_cents: '500',
   page_cap: '25',
-  blocked_domains: JSON.stringify(['linkedin.com', 'facebook.com', 'instagram.com']),
+  blocked_domains: JSON.stringify(['facebook.com', 'instagram.com']),
   classify_min_confidence: '0.7',
   compile_min_buyers: '2',
   compile_min_verified_rate: '0.8',

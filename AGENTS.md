@@ -80,7 +80,7 @@ volatility (stable | volatile), freshnessWindowMin, pageCap, tier (0 | 1), engin
 
 - **Tier 0 (generic):** an Apify **Task** of the `forge-extract` Actor with the API's saved input. Created in minutes, no engineering. Higher cost per call (LLM tokens per page).
 - **Tier 1 (compiled):** a dedicated Actor that Droid generated from `/actors/template`. Deterministic extraction (selectors or the site's JSON), no LLM, lower cost per call. Same name and output schema as the Tier 0 version it replaces.
-- **Seeded catalog:** 2–3 Tier 0 APIs created and canaried before the demo, e.g. `gpu-listings` (public retailer listing pages, volatile), `yc-directory` (public directory, stable), `open-roles` (public Greenhouse/Lever/Ashby job-board APIs, counts by team and location, stable). Final picks at Gate 1.
+- **Seeded catalog:** 2–3 Tier 0 APIs created and canaried before the demo, e.g. `gpu-listings` (public retailer listing pages, volatile), `yc-directory` (public directory, stable), `open-roles` (public Greenhouse/Lever/Ashby job-board APIs, counts by team and location, stable). **Picked at Gate 1: all three.**
 - **Honest seeding:** the first real compile is whichever seeded API first meets a compile trigger (likely `gpu-listings`). Never stage failures.
 
 ### Admission gate (cheapest checks first)
@@ -479,7 +479,7 @@ agent.include(pay, publish_manifest=True)
 - **`forge-extract` (Tier 0, Best Actor entry):** build it in Apify AI Chat first, then pull it into `/actors/forge-extract`.
   - Input: `sources` (URLs or a search query), `outputSchema` (JSON Schema), `pageCap`, `render` (Unlocker or Browser API).
   - For each page: fetch through Bright Data, save the page text to the key-value store (`snapshotKey`, `snapshotHash`), ask the extraction LLM for `{field, value, excerpt}` per value, run the quote anchor, and push one dataset item per value.
-  - Extraction LLM: ASI-1 or Claude Haiku 5.5, picked at Gate 0 by measured verified rate; one choice, no fallback. Key stored as an Apify secret env var.
+  - Extraction LLM: **Claude Haiku 5.5** (`claude-haiku-5-5`), picked by the founder on the Gate 0 measurement (299/305 verified across all 3 targets; ASI-1 hit its output limit on gpu-listings). One choice, no fallback. Key stored as an Apify secret env var.
   - Pitch it as "verified extraction": every value has a verbatim quote, a saved page and a status. It never invents a value.
 - **Tier 0 APIs** are Apify Tasks of `forge-extract` (Tasks API: `POST /v2/actor-tasks` `{actId, name, input, options}`, `POST /v2/actor-tasks/{id}/runs`, where the body overrides input fields).
 - **Tier 1 APIs** are Actors built from `/actors/template` with versions recorded.

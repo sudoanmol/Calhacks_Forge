@@ -17,6 +17,16 @@ def test_founder_linkedin_rejected():
     assert not personal_data_check(["company", "founder linkedin profile"]).passed
 
 
+def test_linkedin_job_posts_pass():
+    # Founder decision (Gate 1): LinkedIn is not blocked; only person-level data from it is.
+    r = personal_data_check(["title", "team", "location"], "Open roles at Stripe on LinkedIn by team")
+    assert r.passed, r
+
+
+def test_linkedin_urls_of_engineers_rejected():
+    assert not personal_data_check([], "LinkedIn URLs of engineers at Stripe").passed
+
+
 def test_phone_numbers_rejected():
     assert not personal_data_check(["phone number", "store"]).passed
 

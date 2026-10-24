@@ -12,7 +12,7 @@ _PERSONAL_FIELD_PATTERNS = [
     r"phones?( numbers?)?",
     r"mobile( numbers?)?",
     r"(home|mailing|personal) address(es)?",
-    r"linkedin( profiles?| urls?)?",
+    r"linkedin (profiles?|urls?|pages? of (people|employees|engineers|staff|founders))",
     r"(social|twitter|x|instagram|facebook)( media)? (handles?|profiles?|accounts?)",
     r"(full |first |last )?names? of (people|employees|engineers|staff|users|customers|founders|candidates|members)",
     r"(employee|engineer|staff|user|customer|candidate|member|founder|person|people)('?s)? (names?|contacts?|details?)",
