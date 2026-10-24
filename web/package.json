@@ -10,6 +10,7 @@
     "generate": "spacetime generate --lang typescript --out-dir src/module_bindings -p ../module -y"
   },
   "dependencies": {
+    "framer-motion": "^14.6.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "spacetimedb": "2.13.*"

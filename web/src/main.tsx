@@ -18,7 +18,7 @@ const builder = DbConnection.builder()
     conn.subscriptionBuilder().subscribe([
       tables.config, tables.staff, tables.task, tables.event, tables.run, tables.customer, tables.api, tables.apiVersion,
       tables.gateCheck, tables.orders, tables.ticket, tables.valueRecord, tables.evidence, tables.challenge,
-      tables.approval, tables.budget, tables.bonus, tables.books,
+      tables.approval, tables.budget, tables.bonus, tables.books, tables.canaryOrder, tables.runCost, tables.apiCost, tables.apiRetired,
     ]);
   });
 

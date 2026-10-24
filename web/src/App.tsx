@@ -3,11 +3,12 @@ import { useSpacetimeDB, useTable } from 'spacetimedb/react';
 import { tables } from './module_bindings';
 import { usd } from './format';
 import { TERMINAL } from './flow';
-import { OrdersTab } from './Orders';
+import { OfficeTab } from './Office';
+import { microsUsd } from './scene';
 import { ApisTab } from './Apis';
 import { EventsPanel } from './Events';
 
-const TABS = ['Orders', 'APIs'] as const;
+const TABS = ['Office', 'APIs'] as const;
 type Tab = (typeof TABS)[number];
 const CHECKED = new Set(['verified', 'stale', 'mismatch', 'unverifiable', 'corrected']);
 
@@ -17,6 +18,8 @@ function Stats({ db }: { db: string }) {
   const [budget] = useTable(tables.budget);
   const [values] = useTable(tables.valueRecord);
   const [orders] = useTable(tables.orders);
+  const [apiCosts] = useTable(tables.apiCost);
+  const [retired] = useTable(tables.apiRetired);
 
   // Payments debit customer:<orderId>, so the sum of those balances is revenue received.
   const revenue = -books.filter((b) => b.account.startsWith('customer:')).reduce((s, b) => s + b.balanceCents, 0n);
@@ -25,6 +28,10 @@ function Stats({ db }: { db: string }) {
   const checked = values.filter((v) => CHECKED.has(v.status));
   const verified = checked.filter((v) => v.status === 'verified').length;
   const openOrders = orders.filter((o) => !TERMINAL.has(o.status)).length;
+  const gone = new Set(retired.map((r) => r.apiId));
+  const perCall = apiCosts.filter((c) => c.runs > 0 && !gone.has(c.apiId)).map((c) => c.costPerCallMicros);
+  const lo = perCall.reduce<bigint | undefined>((m, x) => (m === undefined || x < m ? x : m), undefined);
+  const hi = perCall.reduce<bigint | undefined>((m, x) => (m === undefined || x > m ? x : m), undefined);
   const connText = conn.isActive ? 'connected' : conn.connectionError ? `error: ${conn.connectionError.message}` : 'connecting…';
 
   return (
@@ -34,6 +41,7 @@ function Stats({ db }: { db: string }) {
       <span className="stat"><small>treasury</small><b>{usd(treasury)}</b></span>
       <span className="stat"><small>eng budget cap / reserved / spent</small><b>{eng ? `${usd(eng.capCents)} / ${usd(eng.reservedCents)} / ${usd(eng.spentCents)}` : '—'}</b></span>
       <span className="stat"><small>verified</small><b>{checked.length ? `${Math.round((verified / checked.length) * 100)}%` : '—'}</b><small>{verified}/{checked.length}</small></span>
+      <span className="stat"><small>cost / call</small><b>{lo === undefined ? '—' : lo === hi ? microsUsd(lo) : `${microsUsd(lo)}–${microsUsd(hi!)}`}</b></span>
       <span className="stat"><small>open orders</small><b data-testid="open-orders">{openOrders}</b></span>
       <span className="right">
         <span className={`conn ${conn.isActive ? 'ok' : 'bad'}`} data-testid="conn">{connText}</span>
@@ -46,7 +54,7 @@ function Stats({ db }: { db: string }) {
 }
 
 export function App({ db }: { db: string }) {
-  const [tab, setTab] = useState<Tab>('Orders');
+  const [tab, setTab] = useState<Tab>('Office');
   return (
     <div className="app">
       <Stats db={db} />
@@ -57,7 +65,7 @@ export function App({ db }: { db: string }) {
               <button key={t} className={t === tab ? 'on' : ''} onClick={() => setTab(t)}>{t}</button>
             ))}
           </nav>
-          {tab === 'Orders' ? <OrdersTab /> : <ApisTab />}
+          {tab === 'Office' ? <OfficeTab /> : <ApisTab />}
         </section>
         <EventsPanel />
       </main>
