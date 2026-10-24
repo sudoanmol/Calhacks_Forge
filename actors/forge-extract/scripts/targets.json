@@ -1,0 +1,20 @@
+[
+  {
+    "name": "open-roles (Greenhouse board)",
+    "url": "https://boards.greenhouse.io/stripe",
+    "instructions": "Each open job posting: its title, team/department and location.",
+    "outputSchema": { "type": "object", "properties": { "title": { "type": "string" }, "team": { "type": "string" }, "location": { "type": "string" } } }
+  },
+  {
+    "name": "yc-directory (YC company page)",
+    "url": "https://www.ycombinator.com/companies/airbnb",
+    "instructions": "The company's name, one-liner, website, batch and status.",
+    "outputSchema": { "type": "object", "properties": { "name": { "type": "string" }, "one_liner": { "type": "string" }, "website": { "type": "string" }, "batch": { "type": "string" }, "status": { "type": "string" } } }
+  },
+  {
+    "name": "gpu-listings (Newegg search)",
+    "url": "https://www.newegg.com/p/pl?d=rtx+5080",
+    "instructions": "Each GPU listing: product name, price and stock status.",
+    "outputSchema": { "type": "object", "properties": { "name": { "type": "string" }, "price": { "type": "string" }, "stock": { "type": "string" } } }
+  }
+]

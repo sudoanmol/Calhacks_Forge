@@ -1,0 +1,45 @@
+{
+  "title": "FORGE Verified Extract input",
+  "type": "object",
+  "schemaVersion": 1,
+  "properties": {
+    "sources": {
+      "title": "Source URLs",
+      "type": "array",
+      "description": "Public page URLs to extract from.",
+      "editor": "stringList"
+    },
+    "outputSchema": {
+      "title": "Output schema",
+      "type": "object",
+      "description": "JSON Schema for one row. Only these fields are extracted.",
+      "editor": "json"
+    },
+    "instructions": {
+      "title": "Request",
+      "type": "string",
+      "description": "Plain-language description of what to extract.",
+      "editor": "textarea"
+    },
+    "pageCap": {
+      "title": "Page cap",
+      "type": "integer",
+      "default": 10,
+      "minimum": 1,
+      "maximum": 50
+    },
+    "render": {
+      "title": "Render mode",
+      "type": "string",
+      "enum": ["unlocker", "browser"],
+      "default": "unlocker"
+    },
+    "markers": {
+      "title": "Expected text markers",
+      "type": "array",
+      "description": "Text that must appear on a fully loaded page; missing markers move the fetch to the Browser API.",
+      "editor": "stringList"
+    }
+  },
+  "required": ["sources", "outputSchema"]
+}
