@@ -1,0 +1,126 @@
+// Live tests against the deployed module. Run from the repo root:
+//   node --env-file=.env --test skills/forge-cli/test/forge.test.mjs
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
+const CLI = fileURLToPath(new URL('../forge.mjs', import.meta.url));
+const { SPACETIME_HOST, SPACETIME_DB } = process.env;
+const DB_URL = `${SPACETIME_HOST}/v1/database/${SPACETIME_DB}`;
+const seat = (role) => {
+  const tok = process.env[`SPACETIME_TOKEN_${role.toUpperCase()}`];
+  assert.ok(tok, `SPACETIME_TOKEN_${role.toUpperCase()} missing from .env`);
+  return tok;
+};
+
+const forge = (token, ...args) => runCli({ FORGE_SEAT_TOKEN: token }, ...args);
+const runCli = (seatEnv, ...args) => new Promise((resolve) => {
+  execFile('node', [CLI, ...args], { env: { ...process.env, FORGE_DB_URL: DB_URL, ...seatEnv } },
+    (err, stdout, stderr) => resolve({
+      code: err ? err.code : 0,
+      out: stdout ? JSON.parse(stdout) : null,
+      err: stderr ? JSON.parse(stderr) : null,
+    }));
+});
+
+const call = async (token, reducer, args) => {
+  const r = await fetch(`${DB_URL}/call/${reducer}`, {
+    method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(args),
+  });
+  assert.equal(r.status, 200, `${reducer}: ${await r.text()}`);
+};
+const sqlRows = async (token, q) => {
+  const r = await fetch(`${DB_URL}/sql`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: q });
+  const body = await r.text();
+  assert.ok(r.ok, body);
+  return JSON.parse(body)[0].rows;
+};
+
+test('catalog lists yc-directory with its fields', async () => {
+  const r = await forge(seat('coo'), 'catalog');
+  assert.equal(r.code, 0, JSON.stringify(r.err));
+  const yc = r.out.find((a) => a.name === 'yc-directory');
+  assert.ok(yc, 'yc-directory in catalog');
+  assert.ok(yc.fields.includes('one_liner'));
+  assert.equal(yc.tier, 0);
+  assert.ok(Array.isArray(yc.sources));
+});
+
+test('order <id> reads a real order with decoded columns', async () => {
+  const rows = await sqlRows(seat('auditor'), "SELECT id FROM orders WHERE status = 'auditing'");
+  assert.ok(rows.length, 'an order in auditing exists');
+  const orderId = Math.max(...rows.map((r) => r[0]));
+  const r = await forge(seat('auditor'), 'order', String(orderId));
+  assert.equal(r.code, 0, JSON.stringify(r.err));
+  assert.equal(r.out.order.id, orderId);
+  assert.equal(r.out.order.status, 'auditing');
+  assert.equal(typeof r.out.order.apiVersionId, 'number');
+  assert.match(r.out.order.createdAt, /^\d{4}-\d\d-\d\dT/);
+  assert.ok(Array.isArray(r.out.values));
+  const total = Object.values(r.out.valueCounts).reduce((s, n) => s + n, 0);
+  assert.equal(total, r.out.values.length);
+});
+
+test('order with a missing id fails cleanly', async () => {
+  const r = await forge(seat('coo'), 'order', '999999999');
+  assert.equal(r.code, 1);
+  assert.match(r.err.error, /no order 999999999/);
+});
+
+test('task prints the next steps for a dispatched task', async () => {
+  const r = await forge(seat('coo'), 'task', JSON.stringify({ kind: 'audit', taskId: '3', orderId: '7', input: { orderId: '7', counts: { verified: 5 } } }));
+  assert.equal(r.code, 0, JSON.stringify(r.err));
+  assert.equal(r.out.role, 'auditor');
+  assert.ok(r.out.next.some((s) => s.includes('forge verdict 7')));
+  const bad = await forge(seat('coo'), 'task', 'not json');
+  assert.equal(bad.code, 1);
+});
+
+test('decide surfaces reducer errors: invalid decision and wrong seat', async () => {
+  const invalid = await forge(seat('coo'), 'decide', '1', 'MAYBE', '-', 'because');
+  assert.equal(invalid.code, 1);
+  assert.match(invalid.err.error, /coo_decide failed \(530\): decision must be one of/);
+  const wrongSeat = await forge(seat('auditor'), 'decide', '1', 'REJECT', '-', 'because');
+  assert.equal(wrongSeat.code, 1);
+  assert.match(wrongSeat.err.error, /role auditor may not do this/);
+});
+
+test('without FORGE_SEAT_TOKEN each write command uses its own seat variable', async () => {
+  // Only the auditor's variable is set, so decide (a COO command) must refuse before calling anything.
+  const noCoo = await runCli({ FORGE_SEAT_TOKEN_AUDITOR: seat('auditor') }, 'decide', '1', 'REJECT', '-', 'because');
+  assert.equal(noCoo.code, 1);
+  assert.match(noCoo.err.error, /FORGE_SEAT_TOKEN_COO is not set/);
+  // With both set, verdict picks the auditor token: the reducer answers about the order, not the role.
+  const both = await runCli({ FORGE_SEAT_TOKEN_COO: seat('coo'), FORGE_SEAT_TOKEN_AUDITOR: seat('auditor') }, 'verdict', '1', 'REJECT', 'test');
+  assert.equal(both.code, 1);
+  assert.match(both.err.error, /order 1 is rejected, not auditing/);
+  const read = await runCli({ FORGE_SEAT_TOKEN_COO: seat('coo') }, 'catalog');
+  assert.equal(read.code, 0, JSON.stringify(read.err));
+});
+
+test('happy path: front desk order, COO rejects through the CLI, verdict error paths', async () => {
+  const ref = `cli-test-${Date.now()}`;
+  const desk = seat('front_desk');
+  await call(desk, 'create_order', [ref, `cli-test-sender-${ref}`, 'Cheapest flights SFO to JFK next Friday', '{"fields":["fare"]}', 100]);
+  await call(desk, 'record_payment', [ref, 'cs_test_cli']);
+  const [[orderId, status]] = await sqlRows(desk, `SELECT id, status FROM orders WHERE ref = '${ref}'`);
+  assert.equal(status, 'paid');
+
+  const reason = 'Fares only exist after a search form and cannot be re-fetched to verify (cli test).';
+  const r = await forge(seat('coo'), 'decide', String(orderId), 'REJECT', '-', reason);
+  assert.equal(r.code, 0, JSON.stringify(r.err));
+  assert.equal(r.out.order.status, 'rejected');
+  assert.equal(r.out.order.decisionReason, reason);
+
+  const again = await forge(seat('coo'), 'decide', String(orderId), 'REJECT', '-', reason);
+  assert.equal(again.code, 1);
+  assert.match(again.err.error, /is rejected; nothing to decide/);
+
+  const notAuditing = await forge(seat('auditor'), 'verdict', String(orderId), 'REJECT', 'test');
+  assert.equal(notAuditing.code, 1);
+  assert.match(notAuditing.err.error, /audit_verdict failed \(530\): order \d+ is rejected, not auditing/);
+  const wrongSeat = await forge(seat('coo'), 'verdict', String(orderId), 'ACCEPT', 'test');
+  assert.equal(wrongSeat.code, 1);
+  assert.match(wrongSeat.err.error, /role coo may not do this/);
+});
