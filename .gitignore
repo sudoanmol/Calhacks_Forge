@@ -1,1 +1,25 @@
 docs/reference
+
+# deps and builds
+node_modules/
+dist/
+.vite/
+
+# secrets
+.env
+.env.*
+!.env.example
+
+# apify local runs
+storage/
+apify_storage/
+
+# python
+.venv/
+__pycache__/
+*.pyc
+
+# droid worktrees
+.worktrees/
+
+.DS_Store

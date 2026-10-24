@@ -1,0 +1,8 @@
+packages:
+  - module
+  - web
+  - workers/*
+  - actors/*
+  - skills/*
+allowBuilds:
+  apify-cli: false

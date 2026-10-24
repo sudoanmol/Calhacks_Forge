@@ -58,6 +58,10 @@ customer: "row 4 is wrong" ─▶ challenge ─▶ recheck vs saved page ─▶ 
 12. New ideas go in `/docs/after-hackathon.md`, not in code.
 13. After Gate 1 the schema is frozen: changes are additive only.
 14. Use pnpm for JS (never npm) and uv for Python.
+15. Commit after each major feature, once its tests pass. Small, focused commits in Conventional Commits style (`feat(module): …`). Never commit a failing build or failing tests.
+16. Every feature ships with tests that verify it:
+    - **Backend** (module reducers/procedures/routes, workers, Actors, CLI, agents): test directly against the real API, e.g. call reducers and run SQL through the SpacetimeDB HTTP API on the deployed database, run the Actor and read its dataset, hit the route with curl. Unit tests cover the pure logic; they don't replace the live API check.
+    - **Frontend** (`/web`): verify in a real browser with the `agent-browser` skill: load the page, interact, check what renders, and take a screenshot. Type checks alone don't count.
 
 **Not building:** anything behind a login or paywall, personal data, data that only appears after a multi-step form (flight or booking searches), crawls past the page cap, the Lights On ProofPage HTML and its `/p` route, Rush Hour, presence cursors, an animated money ticker (the header stats strip replaces it), human-decision counter, pause switch, Slack, Gmail, Moss, fact-checker for hire, Droid trust levels, scheduled monitoring/subscriptions.
 
@@ -634,7 +638,8 @@ Close: "One human approved the consequential actions. The company decided what t
 - **Actors:** quote-anchor unit test (a hallucinated value must fail); for Tier 1: fixtures, contract test, live-page test (all three required for every version).
 - **Routes:** a replayed callback with a used token is rejected; a duplicate run ID is a no-op.
 - **Canary (`/workers/canary`):** a scripted end-to-end order on each seeded API through the real reducers, Actors and Bright Data, run before and after every merge to `main`. A failing canary freezes merges until it is fixed. Record pass/fail, verified rate, timing and cost per call; these are the only numbers the README may quote.
-- JS checks: `pnpm run build`, `pnpm run typecheck`.
+- JS checks: `pnpm run build`, `pnpm run typecheck`, `pnpm test`.
+- Per §2 rules 15–16: backend features are verified with direct API calls against the deployed services, frontend features in a real browser via `agent-browser`, and each verified feature is committed.
 
 ---
 

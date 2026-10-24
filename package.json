@@ -1,0 +1,20 @@
+{
+  "name": "forge",
+  "private": true,
+  "packageManager": "pnpm@11.22.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "pnpm -r --if-present run build",
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "test": "pnpm run lib:check && pnpm -r --if-present run test",
+    "lib:sync": "node scripts/sync-actor-lib.mjs",
+    "lib:check": "node scripts/sync-actor-lib.mjs --check"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "apify-cli": "^1.10.0",
+    "typescript": "~5.9.3"
+  }
+}
