@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useTable } from 'spacetimedb/react';
+import { useTable } from './db';
 import { tables } from './module_bindings';
 import type { Approval, Customer, Event, Orders as Order, Task } from './module_bindings/types';
 import { payloadObj } from './format';

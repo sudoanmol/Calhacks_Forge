@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
-import { useTable } from 'spacetimedb/react';
+import { useTable } from './db';
 import { tables } from './module_bindings';
 import type { Event, Run } from './module_bindings/types';
 import { byIdDesc, clock, micros, payloadObj } from './format';
 import { describe, type ActorKey, type FeedCtx, type FeedLink } from './feedText';
 import { Avatar, ROLE_META } from './Avatar';
 import { SPONSOR_COLOR } from './Floor';
+import { useFeedCtx } from './Feed';
 import { useScopeRules, type Scope } from './scope';
 import type { StationId } from './scene';
 
@@ -404,49 +405,3 @@ function LinkView({ link, onStation }: { link: FeedLink; onStation: (id: Station
   return <span className="muted">{link.none}</span>;
 }
 
-// Same lookups as the feed's context, so a sentence reads identically in the org chart and the feed.
-function useFeedCtx(): FeedCtx {
-  const [orders] = useTable(tables.orders);
-  const [apis] = useTable(tables.api);
-  const [runs] = useTable(tables.run);
-  const [tasks] = useTable(tables.task);
-  return useMemo(() => {
-    const orderById = new Map(orders.map((o) => [o.id, o]));
-    const runById = new Map(runs.map((r) => [r.id, r]));
-    const taskById = new Map(tasks.map((t) => [t.id, t]));
-    const creaoRuns = runs.filter((r) => r.provider === 'creao' && r.taskId !== undefined);
-    return {
-      orderLabel: (id) => {
-        const o = orderById.get(id);
-        if (!o) return `order #${id}`;
-        const api = o.apiId !== undefined ? apis.find((a) => a.id === o.apiId)?.name : undefined;
-        return api ?? (o.requestText.length > 60 ? `${o.requestText.slice(0, 60)}…` : o.requestText || `order #${id}`);
-      },
-      datasetUrl: (id) => orderById.get(id)?.datasetUrl || undefined,
-      isNewApi: (id, name) => {
-        const o = orderById.get(id);
-        const a = apis.find((x) => x.name === name);
-        return o !== undefined && a !== undefined && micros(a.createdAt) >= micros(o.createdAt);
-      },
-      runById: (id) => runById.get(id),
-      roleOfRun: (id) => {
-        const t = runById.get(id)?.taskId;
-        return t !== undefined ? taskById.get(t)?.role : undefined;
-      },
-      runFor: (e, role) => {
-        const p = payloadObj(e.payload);
-        const orderId = e.refType === 'order' ? e.refId : typeof p.orderId === 'string' && /^\d+$/.test(p.orderId) ? BigInt(p.orderId) : undefined;
-        const ticketId = e.refType === 'ticket' ? e.refId : undefined;
-        let best: Run | undefined;
-        for (const r of creaoRuns) {
-          const t = taskById.get(r.taskId!);
-          if (!t || t.role !== role) continue;
-          if (!((orderId !== undefined && t.orderId === orderId) || (ticketId !== undefined && t.ticketId === ticketId))) continue;
-          if (micros(r.startedAt) > micros(e.at)) continue;
-          if (!best || micros(r.startedAt) > micros(best.startedAt)) best = r;
-        }
-        return best;
-      },
-    };
-  }, [orders, apis, runs, tasks]);
-}

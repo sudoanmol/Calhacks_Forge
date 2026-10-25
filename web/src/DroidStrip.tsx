@@ -1,4 +1,4 @@
-import { useTable } from 'spacetimedb/react';
+import { useTable } from './db';
 import { tables } from './module_bindings';
 import { clock } from './format';
 import { Avatar } from './Avatar';

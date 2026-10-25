@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { useReducer, useTable } from 'spacetimedb/react';
+import { useReducer } from 'spacetimedb/react';
+import { useTable } from './db';
 import { reducers, tables } from './module_bindings';
 import type { Config } from './module_bindings/types';
 import { usd } from './format';

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { useReducer, useTable } from 'spacetimedb/react';
+import { useReducer } from 'spacetimedb/react';
+import { useTable } from './db';
 import { reducers, tables } from './module_bindings';
 import type { Approval, Event } from './module_bindings/types';
 import { byIdDesc, clock, micros, payloadObj, usd } from './format';

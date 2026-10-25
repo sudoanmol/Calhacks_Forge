@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { useTable } from 'spacetimedb/react';
+import { useTable } from './db';
 import { tables } from './module_bindings';
 import type { Event, Orders as Order, Run } from './module_bindings/types';
 import { byIdAsc, byIdDesc, clock, micros, payloadObj } from './format';
@@ -14,7 +14,7 @@ const GROUPED = new Set(['research_fetched', 'droid_droid_message']);
 
 type Item = { key: string; events: Event[]; line: FeedLine };
 
-function useFeedCtx(): FeedCtx {
+export function useFeedCtx(): FeedCtx {
   const [orders] = useTable(tables.orders);
   const [apis] = useTable(tables.api);
   const [runs] = useTable(tables.run);
@@ -79,7 +79,7 @@ function toItems(events: readonly Event[], ctx: FeedCtx, group: boolean): Item[]
 const shown = (it: Item) => it.line.cls === 'story' || it.line.cls === 'failure';
 
 export function Feed({ order, scope, onOpen }: { order?: Order; scope: Scope; onOpen: (id: StationId) => void }) {
-  const [events] = useTable(tables.event);
+  const [events, eventsReady] = useTable(tables.event);
   const [tasks] = useTable(tables.task);
   const [runs] = useTable(tables.run);
   const [apis] = useTable(tables.api);
@@ -156,7 +156,7 @@ export function Feed({ order, scope, onOpen }: { order?: Order; scope: Scope; on
         {items.map((it, i) => (
           <Row key={it.key} item={it} newest={mode === 'order' ? i === items.length - 1 : i === 0} live={live && i === items.length - 1} onOpen={onOpen} />
         ))}
-        {!items.length && <li className="muted feed-empty">No events yet.</li>}
+        {!items.length && <li className="muted feed-empty">{eventsReady ? 'No events yet.' : 'Loading events…'}</li>}
         {mode === 'order' && hidden > 0 && (
           <li className="feed-more">
             <button className="linkish" onClick={() => setPlumbing(!plumbing)} aria-expanded={plumbing} data-testid="feed-plumbing">

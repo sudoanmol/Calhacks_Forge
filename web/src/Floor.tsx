@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useTable } from 'spacetimedb/react';
+import { useTable } from './db';
 import { tables } from './module_bindings';
 import { droidStationView, shipPipeLit, FLOW, STATION_META, type FlowId, type SState, type Scene, type SceneData, type StationId, type StationView } from './scene';
 
@@ -240,7 +240,7 @@ function Station({ id, view, selected, onOpen, side, icon }: { id: StationId; vi
 }
 
 
-// Dashed pipe from the Droid anvil to the Warehouse shelf. It runs above the Treasurer's icon and climbs through the
+// Dashed pipe from the Droid engineer to the Warehouse shelf. It runs above the Treasurer's icon and climbs through the
 // gap between the Research and Warehouse captions so it never crosses a station's text.
 const SHIP_PATH = 'M760 452 L900 390 L1140 390 L1140 212 L1196 194';
 

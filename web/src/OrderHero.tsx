@@ -1,5 +1,5 @@
 import { Timestamp } from 'spacetimedb';
-import { useTable } from 'spacetimedb/react';
+import { useTable } from './db';
 import { tables } from './module_bindings';
 import type { Orders as Order } from './module_bindings/types';
 import { byIdAsc, parseJson, usd } from './format';

@@ -1,4 +1,5 @@
-import { useSpacetimeDB, useTable } from 'spacetimedb/react';
+import { useSpacetimeDB } from 'spacetimedb/react';
+import { useTable } from './db';
 import { tables } from './module_bindings';
 import { usd } from './format';
 import { microsUsd } from './scene';
@@ -10,7 +11,7 @@ const CHECKED = new Set(['verified', 'stale', 'mismatch', 'unverifiable', 'corre
 export function Header({ scope, founder, onControls }: { scope: Scope; founder: boolean; onControls: () => void }) {
   const conn = useSpacetimeDB();
   const [books] = useTable(tables.books);
-  const [values] = useTable(tables.valueRecord);
+  const [values, heavyReady] = useTable(tables.valueRecord);
   const [orders] = useTable(tables.orders);
   const [apis] = useTable(tables.api);
   const [apiCosts] = useTable(tables.apiCost);
@@ -44,12 +45,12 @@ export function Header({ scope, founder, onControls }: { scope: Scope; founder: 
       {simulated && <span className="badge test">SIMULATED PAYMENTS</span>}
       <span className="stat-row" title={`Scope: ${scope.label}`}>
         <span className="stat"><small>revenue · TEST MODE</small><b data-testid="stat-revenue">{usd(revenue)}</b></span>
-        <span className="stat"><small>verified</small><b>{checked.length ? `${Math.round((verified / checked.length) * 100)}%` : '—'} <em>{verified}/{checked.length}</em></b></span>
+        <span className="stat"><small>verified</small><b>{!heavyReady ? '…' : checked.length ? `${Math.round((verified / checked.length) * 100)}%` : '—'} {heavyReady && <em>{verified}/{checked.length}</em>}</b></span>
         <span className="stat"><small>cost / call · TEST MODE</small><b>{lo === undefined ? '—' : lo === hi ? microsUsd(lo) : `${microsUsd(lo)}–${microsUsd(hi!)}`}</b></span>
         <span className="stat"><small>APIs for sale</small><b data-testid="stat-apis">{forSale}</b></span>
         <span className="stat stat-pair" title={pairTitle} data-testid="stat-pair">
           <small>one-person company</small>
-          <span>Agent decisions <b data-testid="stat-decisions">{pair.decisions}</b> · Founder approvals <b data-testid="stat-approvals">{pair.approvals}</b></span>
+          <span>Agent decisions <b data-testid="stat-decisions">{heavyReady ? pair.decisions : '…'}</b> · Founder approvals <b data-testid="stat-approvals">{heavyReady ? pair.approvals : '…'}</b></span>
         </span>
       </span>
       <span className="right">

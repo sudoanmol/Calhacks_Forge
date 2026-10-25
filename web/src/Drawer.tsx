@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
-import { useTable } from 'spacetimedb/react';
+import { useTable } from './db';
 import { tables } from './module_bindings';
 import type { Event, Run, Task } from './module_bindings/types';
 import { STATION_META, durationText, verifyEvidence, microsUsd, DESK_CHECKS, type Scene, type SceneData, type StationId, type StationView } from './scene';

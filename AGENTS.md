@@ -612,7 +612,7 @@ Playful and game-like, themed on the product's own name: **a forge floor**, draw
 | Research | A scout who leaves through the Bright Data portal to the web |
 | CFO | A vault with a budget gauge that visibly drains |
 | Auditor | An inspection gate that stamps ACCEPT / REJECT |
-| Droid | The anvil: a compile is forging a tool (sparks, then a new item on the shelf) |
+| Droid | The engineer's bench: a compile is forging a tool (sparks, then a new item on the shelf) |
 | Apify | The warehouse shelf of APIs (bronze Tier 0, gold Tier 1) |
 | Buyer agent | An outside customer arriving at the counter |
 

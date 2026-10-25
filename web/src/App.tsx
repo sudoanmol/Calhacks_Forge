@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useSpacetimeDB, useTable } from 'spacetimedb/react';
+import { useSpacetimeDB } from 'spacetimedb/react';
+import { useTable } from './db';
 import { tables } from './module_bindings';
 import { OfficeTab, useMedia, useOrderSelection } from './Office';
 import { ApisTab } from './Apis';

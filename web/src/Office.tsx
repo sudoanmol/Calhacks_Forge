@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useTable } from 'spacetimedb/react';
+import { useTable } from './db';
 import { tables } from './module_bindings';
 import type { Event, Orders as Order } from './module_bindings/types';
 import { byIdAsc, byIdDesc, micros } from './format';

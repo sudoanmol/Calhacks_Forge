@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useTable } from 'spacetimedb/react';
+import { useTable } from './db';
 import { tables } from './module_bindings';
 import type { Api, ApiRetired } from './module_bindings/types';
 import { byIdDesc, clock, list, usd } from './format';
