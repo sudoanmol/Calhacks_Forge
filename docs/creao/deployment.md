@@ -5,7 +5,7 @@ Verified October 24, 2026 through Brave and the Maincloud HTTP API. All money be
 | Seat | Agent ID | Version |
 |---|---|---|
 | [COO](https://agent.creao.ai/apps/81c6c2cc-98d6-4ea5-8fcf-942f8772bf20) | `81c6c2cc-98d6-4ea5-8fcf-942f8772bf20` | 1.1.0 |
-| [Research](https://agent.creao.ai/apps/bad9531d-a359-4af3-9913-fc9310fe4218) | `bad9531d-a359-4af3-9913-fc9310fe4218` | 1.0.0 |
+| [Research](https://agent.creao.ai/apps/bad9531d-a359-4af3-9913-fc9310fe4218) | `bad9531d-a359-4af3-9913-fc9310fe4218` | 1.1.0 |
 | [CFO](https://agent.creao.ai/apps/63d131de-1b0c-4801-a58f-1698c894a672) | `63d131de-1b0c-4801-a58f-1698c894a672` | 1.0.0 |
 | [Auditor](https://agent.creao.ai/apps/6865c094-e20c-48c7-a969-d5e75c67dd06) | `6865c094-e20c-48c7-a969-d5e75c67dd06` | 1.1.0 |
 
@@ -25,10 +25,11 @@ The Research and CFO seat tokens are stored in CREAO's account-wide secret manag
 
 The CFO memo compares costs against two leftover `cmp-test` catalog fixtures. Those are simulated compile-test outputs, not deployed production Actors. Their costs do not demonstrate Tier 1 savings for `open-roles`.
 
-## Remaining validation
+## Follow-up validation
 
-- Research has passed its setup checks but has not completed a real dispatched `research_gate` run.
-- The approved follow-up that runs mechanical admission checks before starting Research is not implemented in this deployment.
-- The real Droid compile, compile audit, founder ship approval, and deployed Tier 1 cost measurement remain pending.
-- The stuck YC compile ticket and two `cmp-test` catalog fixtures remain to be cleaned up.
-- Agentverse listing text and the ASI:One purchase, challenge, and two-device checks remain pending.
+- The real `open-roles` compile shipped after an Auditor rejection, a corrected live-test comparison, same-session rework, acceptance and founder dashboard approval. [Compile proof](../compile-proof.md).
+- The two simulated `cmp-test` APIs are retired and the stale YC compile is closed. Historical orders, versions, evidence and accounting remain intact.
+- The founder budget and approval controls were exercised in Brave. A physical phone loaded through Tailscale and the user confirmed a budget update appeared without refreshing.
+- Research v1.1.0 reuses the module's mechanical checks for explicit URLs. Order 199 completed a real dispatched Research run, report and COO decision after two source fetches 122 seconds apart. The COO created Task `8Bo2SrE6aUQv1xbTs`; the real Auditor rejected the result for omitting `year_opened`. The incomplete API was retired. [Full record](../proof/research-live-199.json).
+- A real dispatch failed before contacting CREAO because of a duplicate callback token. Callback creation is now atomic with the run and includes the run id. The orphan recovered without another payment, and live plumbing tests passed.
+- The ASI:One existing-API delivery and customer challenge remain in the active batch. [Progress](../progress.md).

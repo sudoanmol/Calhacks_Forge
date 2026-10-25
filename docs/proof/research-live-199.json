@@ -1,0 +1,470 @@
+{
+  "mode": "TEST MODE",
+  "recordedAt": "2026-10-25T01:10:46.627Z",
+  "order": {
+    "id": 199,
+    "ref": "0ee7966a-8a0e-4e9e-bf92-bab10f90bcb7",
+    "customer_id": 105,
+    "api_id": [
+      0,
+      18
+    ],
+    "request_text": "I would like a public API from https://en.wikipedia.org/wiki/Palace_of_Fine_Arts with the building's year opened and location. One page, no personal data.",
+    "intent": "{\"summary\": \"Palace of Fine Arts opening year and location from its Wikipedia page\", \"sources\": [\"https://en.wikipedia.org/wiki/Palace_of_Fine_Arts\"], \"fields\": [\"year opened\", \"location\"], \"estimated_pages\": 1, \"pages\": 1}",
+    "params": "{}",
+    "price_cents": 100,
+    "status": "audit_rejected",
+    "api_version_id": [
+      0,
+      21
+    ],
+    "apify_run_id": "2CaKbaq3G7tkd7c2Q",
+    "dataset_url": "https://api.apify.com/v2/datasets/LfNs1qv1bYQruOBhO/items?clean=1&format=json",
+    "stripe_session_id": "cs_test_a17y6poiUxmJMS2bZ7YRS4l3odPuLNgxJHAjXZm6oDBbPw5B1zA7deJIBV",
+    "decision_reason": "REJECT: 1 value extracted and verified (N=1, V=1, M=0, U=0, S=0, no _page rows), but the request asked for two fields, the building's year opened and its location, and only one is delivered. The single value row is metric 'location' = '3301 Lyon St., San Francisco , California', whose excerpt 'Location\\n3301 Lyon St., San Francisco , California' is verbatim on https://en.wikipedia.org/wiki/Palace_of_Fine_Arts; the requested 'year_opened' field declared in apiFields has no value row at all, so the deliverable does not answer the request. The page was read (4 successful fetches, HTTP 200), so year_opened must be extracted from the infobox 'Built'/'Opened' row.",
+    "created_at": [
+      1792889742794246
+    ],
+    "updated_at": [
+      1792890499501755
+    ]
+  },
+  "admission": {
+    "order_id": 199,
+    "sources": "[\"https://en.wikipedia.org/wiki/Palace_of_Fine_Arts\"]",
+    "status": "passed",
+    "volatility": "stable",
+    "next_fetch_at": [
+      1792890497585870
+    ],
+    "reason": "",
+    "updated_at": [
+      1792890376585870
+    ]
+  },
+  "checks": [
+    {
+      "id": 244,
+      "order_id": [
+        0,
+        199
+      ],
+      "ticket_id": [
+        1,
+        []
+      ],
+      "check": "layer2",
+      "result": "pass",
+      "citation_url": "",
+      "citation_text": "",
+      "at": [
+        1792889742794246
+      ]
+    },
+    {
+      "id": 254,
+      "order_id": [
+        0,
+        199
+      ],
+      "ticket_id": [
+        1,
+        []
+      ],
+      "check": "robots",
+      "result": "pass",
+      "citation_url": "https://en.wikipedia.org/robots.txt",
+      "citation_text": "User-agent: MJ12bot",
+      "at": [
+        1792890226803730
+      ]
+    },
+    {
+      "id": 255,
+      "order_id": [
+        0,
+        199
+      ],
+      "ticket_id": [
+        1,
+        []
+      ],
+      "check": "reachability",
+      "result": "pass",
+      "citation_url": "https://en.wikipedia.org/wiki/Palace_of_Fine_Arts",
+      "citation_text": "Palace of Fine Arts - Wikipedia\nJump to content\nMain menu\nMain menu\nmove to sidebar\nhide\nNavigation\nMain page\nContents\nCurrent events\nRandom article\nAbout Wikipedia\nContact us\nContribute\nHelp\nLearn to edit\nCommunity portal\nRecent changes\nUpload file\nSpecial pages\nSearch\nSearch\nAppearance\nDonate\nCrea",
+      "at": [
+        1792890254194648
+      ]
+    },
+    {
+      "id": 256,
+      "order_id": [
+        0,
+        199
+      ],
+      "ticket_id": [
+        1,
+        []
+      ],
+      "check": "volatility",
+      "result": "pass",
+      "citation_url": "https://en.wikipedia.org/wiki/Palace_of_Fine_Arts",
+      "citation_text": "Fetched 122 s apart: 0 changed lines, 0 changed numbers; stable",
+      "at": [
+        1792890376585106
+      ]
+    },
+    {
+      "id": 257,
+      "order_id": [
+        0,
+        199
+      ],
+      "ticket_id": [
+        1,
+        []
+      ],
+      "check": "terms",
+      "result": "pass",
+      "citation_url": "https://foundation.wikimedia.org/wiki/Policy:Terms_of_Use",
+      "citation_text": "Engaging in automated uses of the Project Websites that are abusive or disruptive of the services, violate acceptable usage policies where available, or have not been approved by the Wikimedia community",
+      "at": [
+        1792890414586222
+      ]
+    }
+  ],
+  "report": {
+    "id": 13,
+    "order_id": 199,
+    "task_id": [
+      0,
+      4207
+    ],
+    "summary": "The source is the English Wikipedia article on the Palace of Fine Arts, a public page whose infobox and lead carry the building date and location. Robots.txt allows the article, Wikimedia Terms of Use only restrict abusive or disruptive automated use, the page returns HTTP 200 with the requested values visible and no personal data, and two fetches 122 s apart showed no changed lines or numbers.",
+    "sources": "[\"https://en.wikipedia.org/wiki/Palace_of_Fine_Arts\"]",
+    "fields": "[\"year_opened\",\"location\"]",
+    "volatility": "stable",
+    "freshness_window_min": 0,
+    "confidence_bp": 9000,
+    "checks": "{\"robots\":{\"result\":\"pass\",\"citationUrl\":\"https://en.wikipedia.org/robots.txt\",\"gateCheckId\":\"254\"},\"terms\":{\"result\":\"pass\",\"citationUrl\":\"https://foundation.wikimedia.org/wiki/Policy:Terms_of_Use\",\"gateCheckId\":\"257\"},\"reachability\":{\"result\":\"pass\",\"citationUrl\":\"https://en.wikipedia.org/wiki/Palace_of_Fine_Arts\",\"gateCheckId\":\"255\"},\"volatility\":{\"result\":\"pass\",\"citationUrl\":\"https://en.wikipedia.org/wiki/Palace_of_Fine_Arts\",\"gateCheckId\":\"256\"}}",
+    "created_at": [
+      1792890439514792
+    ]
+  },
+  "tasks": [
+    {
+      "id": 4204,
+      "kind": "coo_triage",
+      "role": "coo",
+      "status": "done",
+      "order_id": [
+        0,
+        199
+      ],
+      "ticket_id": [
+        1,
+        []
+      ],
+      "lease_owner": [
+        1,
+        []
+      ],
+      "lease_until": [
+        1,
+        []
+      ],
+      "attempt": 2,
+      "input": "{\"orderId\":\"199\"}",
+      "output": "{\"decision\":\"REQUEST_RESEARCH\",\"apiName\":\"\",\"reason\":\"No catalog API covers Wikipedia article fields. New source: https://en.wikipedia.org/wiki/Palace_of_Fine_Arts; new fields: year opened (opened date from the infobox) and location (city/address from the infobox). One page, no personal data. Research must check robots.txt, Wikimedia terms of use, reachability and volatility.\"}",
+      "created_at": [
+        1792889974772258
+      ],
+      "updated_at": [
+        1792890209428903
+      ]
+    },
+    {
+      "id": 4207,
+      "kind": "research_gate",
+      "role": "research",
+      "status": "done",
+      "order_id": [
+        0,
+        199
+      ],
+      "ticket_id": [
+        1,
+        []
+      ],
+      "lease_owner": [
+        1,
+        []
+      ],
+      "lease_until": [
+        1,
+        []
+      ],
+      "attempt": 1,
+      "input": "{\"orderId\":\"199\",\"prechecked\":true,\"sources\":[\"https://en.wikipedia.org/wiki/Palace_of_Fine_Arts\"],\"volatility\":\"stable\",\"next\":\"Review the requested fields and quoted terms; reuse the mechanical gate checks for these exact sources.\"}",
+      "output": "{\"researchReportId\":\"13\"}",
+      "created_at": [
+        1792890376585870
+      ],
+      "updated_at": [
+        1792890439514792
+      ]
+    },
+    {
+      "id": 4208,
+      "kind": "coo_triage",
+      "role": "coo",
+      "status": "done",
+      "order_id": [
+        0,
+        199
+      ],
+      "ticket_id": [
+        1,
+        []
+      ],
+      "lease_owner": [
+        1,
+        []
+      ],
+      "lease_until": [
+        1,
+        []
+      ],
+      "attempt": 1,
+      "input": "{\"orderId\":\"199\",\"researchReportId\":\"13\",\"checks\":{\"robots\":\"pass\",\"terms\":\"pass\",\"reachability\":\"pass\",\"volatility\":\"pass\"}}",
+      "output": "{\"decision\":\"ACCEPT\",\"apiName\":\"wikipedia-palace-fine-arts\",\"reason\":\"Research report 13 passes all gate checks: robots.txt allows the article (https://en.wikipedia.org/robots.txt), Wikimedia Terms of Use only bar abusive/disruptive automated use (https://foundation.wikimedia.org/wiki/Policy:Terms_of_Use), the page returns HTTP 200 with both values visible (https://en.wikipedia.org/wiki/Palace_of_Fine_Arts), and two fetches 122s apart showed 0 changed lines, so volatility is stable with a 0-min freshness window. All 4 checks pass and the API covers both requested fields.\"}",
+      "created_at": [
+        1792890439514792
+      ],
+      "updated_at": [
+        1792890465009887
+      ]
+    },
+    {
+      "id": 4209,
+      "kind": "audit",
+      "role": "auditor",
+      "status": "done",
+      "order_id": [
+        0,
+        199
+      ],
+      "ticket_id": [
+        1,
+        []
+      ],
+      "lease_owner": [
+        1,
+        []
+      ],
+      "lease_until": [
+        1,
+        []
+      ],
+      "attempt": 1,
+      "input": "{\"orderId\":\"199\",\"counts\":{\"verified\":1}}",
+      "output": "{\"verdict\":\"REJECT\",\"reason\":\"REJECT: 1 value extracted and verified (N=1, V=1, M=0, U=0, S=0, no _page rows), but the request asked for two fields, the building's year opened and its location, and only one is delivered. The single value row is metric 'location' = '3301 Lyon St., San Francisco , California', whose excerpt 'Location\\\\n3301 Lyon St., San Francisco , California' is verbatim on https://en.wikipedia.org/wiki/Palace_of_Fine_Arts; the requested 'year_opened' field declared in apiFields has no value row at all, so the deliverable does not answer the request. The page was read (4 successful fetches, HTTP 200), so year_opened must be extracted from the infobox 'Built'/'Opened' row.\"}",
+      "created_at": [
+        1792890483483584
+      ],
+      "updated_at": [
+        1792890499501755
+      ]
+    }
+  ],
+  "runs": [
+    {
+      "id": 72,
+      "provider": "creao",
+      "external_id": "",
+      "app_id": "81c6c2cc-98d6-4ea5-8fcf-942f8772bf20",
+      "task_id": [
+        0,
+        4204
+      ],
+      "thread_id": "",
+      "status": "start_failed",
+      "result_text": "Dispatch stopped before callback token creation; no external call was made.",
+      "share_url": "",
+      "cost_cents": 0,
+      "started_at": [
+        1792889976427316
+      ],
+      "ended_at": [
+        0,
+        [
+          1792890189135872
+        ]
+      ]
+    },
+    {
+      "id": 73,
+      "provider": "creao",
+      "external_id": "4a07d9e1-69e8-433f-a23d-1342ae94e2ca",
+      "app_id": "81c6c2cc-98d6-4ea5-8fcf-942f8772bf20",
+      "task_id": [
+        0,
+        4204
+      ],
+      "thread_id": "ee0063cb-7ff9-4e34-b656-7a7068dbe364",
+      "status": "completed",
+      "result_text": "{\"task\":\"coo_triage\",\"orderId\":199,\"orderStatus\":\"researching\",\"decision\":\"REQUEST_RESEARCH\",\"apiName\":\"-\"}",
+      "share_url": "",
+      "cost_cents": 0,
+      "started_at": [
+        1792890189135872
+      ],
+      "ended_at": [
+        0,
+        [
+          1792890217385536
+        ]
+      ]
+    },
+    {
+      "id": 77,
+      "provider": "creao",
+      "external_id": "3c53bb8a-ca6a-4858-a208-a729f940d8ad",
+      "app_id": "bad9531d-a359-4af3-9913-fc9310fe4218",
+      "task_id": [
+        0,
+        4207
+      ],
+      "thread_id": "f1d6be97-6305-4c70-8781-1b691fdebfdc",
+      "status": "completed",
+      "result_text": "{\"task\":\"{\\\"kind\\\":\\\"research_gate\\\",\\\"taskId\\\":\\\"4207\\\",\\\"orderId\\\":\\\"199\\\"}\",\"orderId\":199,\"volatility\":\"stable\",\"confidence\":0.9,\"verdict\":\"pass\",\"verifiedCount\":4,\"mismatchCount\":0,\"valueCount\":2}",
+      "share_url": "",
+      "cost_cents": 0,
+      "started_at": [
+        1792890379076187
+      ],
+      "ended_at": [
+        0,
+        [
+          1792890453972955
+        ]
+      ]
+    },
+    {
+      "id": 78,
+      "provider": "creao",
+      "external_id": "88e3561d-b521-4aad-86db-035c099c1c24",
+      "app_id": "81c6c2cc-98d6-4ea5-8fcf-942f8772bf20",
+      "task_id": [
+        0,
+        4208
+      ],
+      "thread_id": "0f83969b-542d-4147-bd53-a93a27f99cf4",
+      "status": "completed",
+      "result_text": "{\"task\":\"{\\\"kind\\\":\\\"coo_triage\\\",\\\"taskId\\\":\\\"4208\\\",\\\"orderId\\\":\\\"199\\\",\\\"input\\\":{\\\"orderId\\\":\\\"199\\\",\\\"researchReportId\\\":\\\"13\\\",\\\"checks\\\":{\\\"robots\\\":\\\"pass\\\",\\\"terms\\\":\\\"pass\\\",\\\"reachability\\\":\\\"pass\\\",\\\"volatility\\\":\\\"pass\\\"}}}\",\"orderId\":199,\"orderStatus\":\"accepted\",\"decision\":\"ACCEPT\",\"apiName\":\"wikipedia-palace-fine-arts\",\"answer\":\"ACCEPT wikipedia-palace-fine-arts — all four gate checks (robots, terms, reachability, volatility) pass on research report 13; new API created over the Wikipedia article with fields year_opened and location.\",\"verifiedCount\":4}",
+      "share_url": "",
+      "cost_cents": 0,
+      "started_at": [
+        1792890444075380
+      ],
+      "ended_at": [
+        0,
+        [
+          1792890472139789
+        ]
+      ]
+    },
+    {
+      "id": 79,
+      "provider": "apify",
+      "external_id": "2CaKbaq3G7tkd7c2Q",
+      "app_id": "8Bo2SrE6aUQv1xbTs",
+      "task_id": [
+        1,
+        []
+      ],
+      "thread_id": "199",
+      "status": "SUCCEEDED",
+      "result_text": "",
+      "share_url": "https://console.apify.com/view/runs/2CaKbaq3G7tkd7c2Q",
+      "cost_cents": 0,
+      "started_at": [
+        1792890465014059
+      ],
+      "ended_at": [
+        0,
+        [
+          1792890481783955
+        ]
+      ]
+    },
+    {
+      "id": 80,
+      "provider": "creao",
+      "external_id": "d1a138fb-f4c1-42c2-bd89-bba9c3698135",
+      "app_id": "6865c094-e20c-48c7-a969-d5e75c67dd06",
+      "task_id": [
+        0,
+        4209
+      ],
+      "thread_id": "0cc9b8c7-cf60-4677-a017-d58c411457c4",
+      "status": "completed",
+      "result_text": "{\"task\":\"audit order 199 (taskId 4209)\",\"orderId\":199,\"verdict\":\"REJECT\",\"valueCount\":1,\"verifiedCount\":1,\"mismatchCount\":0,\"confidence\":0.9}",
+      "share_url": "",
+      "cost_cents": 0,
+      "started_at": [
+        1792890484078249
+      ],
+      "ended_at": [
+        0,
+        [
+          1792890508417280
+        ]
+      ]
+    }
+  ],
+  "values": [
+    {
+      "id": 4981,
+      "order_id": 199,
+      "api_id": 18,
+      "row": 0,
+      "entity": "Palace of Fine Arts",
+      "metric": "location",
+      "value": "3301 Lyon St., San Francisco , California",
+      "source_url": "https://en.wikipedia.org/wiki/Palace_of_Fine_Arts",
+      "excerpt": "Location\n3301 Lyon St., San Francisco , California",
+      "snapshot_key": "page-c38d8c2dba837da34e9b7e0358a53d23",
+      "snapshot_hash": "c38d8c2dba837da34e9b7e0358a53d230c4de0c0fc19845c6487ea3b4258955b",
+      "observed_at": [
+        1792890466416000
+      ],
+      "verified_at": [
+        0,
+        [
+          1792890483483584
+        ]
+      ],
+      "api_version_id": 21,
+      "tier": 0,
+      "method": "unlocker",
+      "status": "verified",
+      "fresh_value": "",
+      "supersedes_id": [
+        1,
+        []
+      ]
+    }
+  ],
+  "retired": [
+    {
+      "api_id": 18,
+      "name": "wikipedia-palace-fine-arts",
+      "reason": "First real delivery omitted requested year_opened; Auditor rejected order 199. Preserve evidence and prevent further sales until repaired.",
+      "retired_at": [
+        1792890556116690
+      ]
+    }
+  ]
+}

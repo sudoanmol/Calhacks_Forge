@@ -49,6 +49,7 @@ test('Research queues only after robots, reachability and a measured 120-second 
     assert.equal(JSON.parse(tasks[0].input).prechecked, true);
     const checks = (await sql(founder, 'SELECT * FROM gate_check')).filter((c) => opt(c.order_id) === order.id);
     assert.deepEqual(Object.fromEntries(checks.filter((c) => c.check !== 'layer2').map((c) => [c.check, c.result])), { robots: 'pass', reachability: 'pass', volatility: 'pass' });
+    assert.match(checks.find((c) => c.check === 'robots').citation_text, /^User-agent:\s*\*\s*$/i);
     const pages = await sql(founder, `SELECT * FROM research_page WHERE order_id = ${order.id}`);
     const comparison = pages.filter((p) => p.kind === 'page').map((p) => JSON.parse(p.summary).compare).find(Boolean);
     assert.ok(comparison.enoughGap && comparison.secondsApart >= 120);

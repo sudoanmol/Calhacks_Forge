@@ -2060,7 +2060,7 @@ export const admission_precheck = spacetimedb.procedure(
           check = 'robots';
           const robots: AdmissionFetch = JSON.parse(fetchResearchPage(ctx, arg.orderId, 'robots', source));
           if (!robots.ok || !robots.allowed) throw new Error(robots.rule ?? robots.reason ?? 'robots.txt could not be checked');
-          ctx.withTx((tx) => admissionFinding(tx, arg.orderId, 'robots', 'pass', robots.url, robots.rule ?? robots.note ?? robots.text.split('\n').find((line) => /user-agent/i.test(line)) ?? 'No matching disallow rule.'));
+          ctx.withTx((tx) => admissionFinding(tx, arg.orderId, 'robots', 'pass', robots.url, robots.rule ?? robots.note ?? robots.text.split('\n').find((line) => /^\s*user-agent\s*:\s*\*\s*$/i.test(line)) ?? 'No matching disallow rule for user-agent *.'));
         }
         check = 'reachability';
         const page: AdmissionFetch = JSON.parse(fetchResearchPage(ctx, arg.orderId, 'page', source));

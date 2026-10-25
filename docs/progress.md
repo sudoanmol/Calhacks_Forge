@@ -9,9 +9,9 @@ This log tracks the work authorized after the CREAO setup. All money and payment
 | Founder controls and approvals | Done | Budget changes enforced live; real ship approval #10 approved through the dashboard; other identities read-only |
 | Engineering view | Done | Real failed attempt, Auditor rejection, resumed session, accepted tests, approval and shipped state rendered in Brave |
 | Automated Tier 1 compile | Done | Ticket 6 shipped through real Droid, Auditor and dashboard approval; two canaries passed; independent buyer order 196 paid and received version 20 |
-| Research admission gate | In progress | Mechanical checks precede Research; a real dispatched Research run returns a cited report and COO decision |
+| Research admission gate | Done | Order 199: automatic checks, 122-second comparison, real Research report and COO-created Apify Task; Auditor honestly rejected a missing field and API was retired |
 | Customer challenge | In progress | A customer request reaches recheck and the real Auditor; saved and fresh evidence appear in chat and dashboard |
-| ASI:One and two-device validation | In progress | Phone live updates confirmed through Tailscale; ASI:One order 199 paid via Stripe test checkout, awaiting Research and delivery |
+| ASI:One and two-device validation | In progress | Phone live updates confirmed through Tailscale; ASI:One order 199 paid and completed admission but failed QA; existing-API order 202 is being checked for delivery and challenge |
 
 ## Current evidence
 
