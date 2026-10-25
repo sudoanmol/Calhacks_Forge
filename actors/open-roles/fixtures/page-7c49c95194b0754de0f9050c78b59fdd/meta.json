@@ -1,0 +1,9 @@
+{
+  "url": "https://boards-api.greenhouse.io/v1/boards/lattice/departments",
+  "snapshotKey": "page-7c49c95194b0754de0f9050c78b59fdd",
+  "snapshotHash": "7c49c95194b0754de0f9050c78b59fdd685e8722739165b6feb5df3ae6cdacf6",
+  "orderId": 174,
+  "apifyRunId": "GJRnw01O5nmIUhqG1",
+  "observedAt": "2026-10-24T22:46:12.895Z",
+  "note": "Saved Tier 0 page; expected.json holds the values verified on an independent Bright Data re-fetch."
+}

@@ -1,0 +1,196 @@
+{
+  "mode": "TEST MODE",
+  "recordedAt": "2026-10-25T00:51:24.390Z",
+  "database": "https://maincloud.spacetimedb.com / forge",
+  "criterion": "order reaches auditing, every source page loads, verified rate >= 0.8 over all value rows",
+  "results": [
+    {
+      "api": "open-roles",
+      "params": {
+        "board": "lattice"
+      },
+      "pass": true,
+      "reasons": [],
+      "orderId": 193,
+      "ref": "canary-open-roles-lattice-2026-10-25T00-51-06-238Z",
+      "finalStatus": "auditing",
+      "decisionReason": "Canary: scripted order on the seeded API open-roles.",
+      "elapsedMs": 17075,
+      "transitions": [
+        {
+          "status": "accepted",
+          "atMs": 1364
+        },
+        {
+          "status": "running",
+          "atMs": 4469
+        },
+        {
+          "status": "auditing",
+          "atMs": 17075
+        }
+      ],
+      "values": 21,
+      "rows": 7,
+      "valuesByStatus": {
+        "verified": 21
+      },
+      "verifiedRate": 1,
+      "failedPages": 0,
+      "apify": {
+        "runId": "837Yd0bn2qV9j5oav",
+        "status": "SUCCEEDED",
+        "runCostCents": 0,
+        "usageTotalUsd": 0.0012363510533885825,
+        "runTimeSecs": 4.166,
+        "datasetUrl": "https://api.apify.com/v2/datasets/Omgdb1KHEE11b7Xxg/items?clean=1&format=json",
+        "consoleUrl": "https://console.apify.com/view/runs/837Yd0bn2qV9j5oav",
+        "pages": [
+          {
+            "url": "https://boards-api.greenhouse.io/v1/boards/lattice/departments",
+            "status": "ok",
+            "method": "unlocker",
+            "country": "us",
+            "error": null,
+            "ladderAttempts": 1
+          }
+        ],
+        "llmUsage": {
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "pages": 1
+        },
+        "webhookNudges": 0
+      },
+      "brightDataEvidenceRows": 1,
+      "evidence": [
+        {
+          "url": "https://boards-api.greenhouse.io/v1/boards/lattice/departments",
+          "method": "unlocker",
+          "country": "us",
+          "httpStatus": 200,
+          "attempt": 1,
+          "ms": 780,
+          "reason": ""
+        }
+      ],
+      "auditTask": [],
+      "sampleValues": [
+        {
+          "row": 0,
+          "metric": "title",
+          "value": "Account Executive",
+          "status": "verified",
+          "excerpt": "\"title\":\"Account Executive\""
+        },
+        {
+          "row": 0,
+          "metric": "team",
+          "value": "Account Executive",
+          "status": "verified",
+          "excerpt": "\"name\":\"Account Executive\""
+        },
+        {
+          "row": 0,
+          "metric": "location",
+          "value": "London, UK",
+          "status": "verified",
+          "excerpt": "\"location\":{\"name\":\"London, UK\""
+        }
+      ]
+    },
+    {
+      "api": "open-roles",
+      "params": {},
+      "pass": true,
+      "reasons": [],
+      "orderId": 192,
+      "ref": "canary-open-roles-default-2026-10-25T00-51-06-238Z",
+      "finalStatus": "auditing",
+      "decisionReason": "Canary: scripted order on the seeded API open-roles.",
+      "elapsedMs": 16526,
+      "transitions": [
+        {
+          "status": "accepted",
+          "atMs": 937
+        },
+        {
+          "status": "running",
+          "atMs": 4030
+        },
+        {
+          "status": "auditing",
+          "atMs": 16526
+        }
+      ],
+      "values": 138,
+      "rows": 46,
+      "valuesByStatus": {
+        "verified": 138
+      },
+      "verifiedRate": 1,
+      "failedPages": 0,
+      "apify": {
+        "runId": "xLnzcJiHaUoMqHpMK",
+        "status": "SUCCEEDED",
+        "runCostCents": 0,
+        "usageTotalUsd": 0.0018603961716393632,
+        "runTimeSecs": 4.341,
+        "datasetUrl": "https://api.apify.com/v2/datasets/a8Pdp463Oph2PUqtF/items?clean=1&format=json",
+        "consoleUrl": "https://console.apify.com/view/runs/xLnzcJiHaUoMqHpMK",
+        "pages": [
+          {
+            "url": "https://boards-api.greenhouse.io/v1/boards/discord/departments",
+            "status": "ok",
+            "method": "unlocker",
+            "country": "us",
+            "error": null,
+            "ladderAttempts": 1
+          }
+        ],
+        "llmUsage": {
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "pages": 1
+        },
+        "webhookNudges": 0
+      },
+      "brightDataEvidenceRows": 1,
+      "evidence": [
+        {
+          "url": "https://boards-api.greenhouse.io/v1/boards/discord/departments",
+          "method": "unlocker",
+          "country": "us",
+          "httpStatus": 200,
+          "attempt": 1,
+          "ms": 1040,
+          "reason": ""
+        }
+      ],
+      "auditTask": [],
+      "sampleValues": [
+        {
+          "row": 0,
+          "metric": "title",
+          "value": "Senior Stock Administrator",
+          "status": "verified",
+          "excerpt": "\"title\":\"Senior Stock Administrator\""
+        },
+        {
+          "row": 0,
+          "metric": "team",
+          "value": "Accounting",
+          "status": "verified",
+          "excerpt": "\"name\":\"Accounting\""
+        },
+        {
+          "row": 0,
+          "metric": "location",
+          "value": "San Francisco Bay Area or Remote (U.S.)",
+          "status": "verified",
+          "excerpt": "\"location\":{\"name\":\"San Francisco Bay Area or Remote (U.S.)\""
+        }
+      ]
+    }
+  ]
+}

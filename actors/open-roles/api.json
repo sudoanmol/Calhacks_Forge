@@ -1,0 +1,30 @@
+{
+  "name": "open-roles",
+  "description": "Open roles at any company with a public Greenhouse job board (boards-api.greenhouse.io): each posting's title, team (the department it is listed under) and location. Param board = the company's Greenhouse board token (default discord). Aggregate counts by team and location are derived from these rows. Job postings only, no personal data. Boards over about 60K characters of text are truncated by the extractor.",
+  "sources": [
+    "https://boards-api.greenhouse.io/v1/boards/discord/departments"
+  ],
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string",
+        "description": "Job title"
+      },
+      "team": {
+        "type": "string",
+        "description": "Department the job is listed under"
+      },
+      "location": {
+        "type": "string",
+        "description": "Job location name"
+      }
+    }
+  },
+  "markers": [
+    "departments"
+  ],
+  "render": "unlocker",
+  "pageCap": 1,
+  "volatility": "stable"
+}

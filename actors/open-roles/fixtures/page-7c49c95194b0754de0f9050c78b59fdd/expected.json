@@ -1,0 +1,128 @@
+[
+  {
+    "row": 0,
+    "entity": "Account Executive (job 8576037002)",
+    "metric": "location",
+    "value": "London, UK"
+  },
+  {
+    "row": 0,
+    "entity": "Account Executive (job 8576037002)",
+    "metric": "team",
+    "value": "Account Executive"
+  },
+  {
+    "row": 0,
+    "entity": "Account Executive (job 8576037002)",
+    "metric": "title",
+    "value": "Account Executive"
+  },
+  {
+    "row": 1,
+    "entity": "Senior Software Engineer, Infrastructure Platform (job 8487540002)",
+    "metric": "location",
+    "value": "Remote - Canada"
+  },
+  {
+    "row": 1,
+    "entity": "Senior Software Engineer, Infrastructure Platform (job 8487540002)",
+    "metric": "team",
+    "value": "Engineering"
+  },
+  {
+    "row": 1,
+    "entity": "Senior Software Engineer, Infrastructure Platform (job 8487540002)",
+    "metric": "title",
+    "value": "Senior Software Engineer, Infrastructure Platform"
+  },
+  {
+    "row": 2,
+    "entity": "Engineering Manager, AI (job 8614333002)",
+    "metric": "location",
+    "value": "Remote - US"
+  },
+  {
+    "row": 2,
+    "entity": "Engineering Manager, AI (job 8614333002)",
+    "metric": "team",
+    "value": "Engineering"
+  },
+  {
+    "row": 2,
+    "entity": "Engineering Manager, AI (job 8614333002)",
+    "metric": "title",
+    "value": "Engineering Manager, AI"
+  },
+  {
+    "row": 3,
+    "entity": "Engineering Manager, AI (job 8623297002)",
+    "metric": "location",
+    "value": "Remote - Canada"
+  },
+  {
+    "row": 3,
+    "entity": "Engineering Manager, AI (job 8623297002)",
+    "metric": "team",
+    "value": "Engineering"
+  },
+  {
+    "row": 3,
+    "entity": "Engineering Manager, AI (job 8623297002)",
+    "metric": "title",
+    "value": "Engineering Manager, AI"
+  },
+  {
+    "row": 4,
+    "entity": "Senior Contracts Manager (job 8823719002)",
+    "metric": "location",
+    "value": "Remote - US"
+  },
+  {
+    "row": 4,
+    "entity": "Senior Contracts Manager (job 8823719002)",
+    "metric": "team",
+    "value": "Legal"
+  },
+  {
+    "row": 4,
+    "entity": "Senior Contracts Manager (job 8823719002)",
+    "metric": "title",
+    "value": "Senior Contracts Manager"
+  },
+  {
+    "row": 5,
+    "entity": "Lead Product Manager (job 8570063002)",
+    "metric": "location",
+    "value": "Remote - Canada"
+  },
+  {
+    "row": 5,
+    "entity": "Lead Product Manager (job 8570063002)",
+    "metric": "team",
+    "value": "Product "
+  },
+  {
+    "row": 5,
+    "entity": "Lead Product Manager (job 8570063002)",
+    "metric": "title",
+    "value": "Lead Product Manager"
+  },
+  {
+    "row": 6,
+    "entity": "Lead Product Manager (job 8855945002)",
+    "metric": "location",
+    "value": "Remote - US"
+  },
+  {
+    "row": 6,
+    "entity": "Lead Product Manager (job 8855945002)",
+    "metric": "team",
+    "value": "Product "
+  },
+  {
+    "row": 6,
+    "entity": "Lead Product Manager (job 8855945002)",
+    "metric": "title",
+    "value": "Lead Product Manager"
+  }
+]

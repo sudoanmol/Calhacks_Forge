@@ -1,0 +1,17 @@
+{
+  "name": "@forge/actor-open-roles",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/main.js",
+    "test": "node --test \"test/**/*.test.js\"",
+    "test:fixtures": "node --test test/fixtures.test.js",
+    "test:contract": "node --test test/contract.test.js",
+    "test:live": "node --env-file-if-exists=../../.env --test test/live.test.js",
+    "make-fixtures": "node --env-file-if-exists=../../.env scripts/make-fixtures.mjs"
+  },
+  "dependencies": {
+    "apify": "^3.7.2",
+    "playwright-core": "^1.64.1"
+  }
+}

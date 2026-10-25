@@ -1,0 +1,27 @@
+{
+  "api": "open-roles",
+  "replacesVersion": "0.1",
+  "replacesTier": 0,
+  "fields": [
+    "title",
+    "team",
+    "location"
+  ],
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string",
+        "description": "Job title"
+      },
+      "team": {
+        "type": "string",
+        "description": "Department the job is listed under"
+      },
+      "location": {
+        "type": "string",
+        "description": "Job location name"
+      }
+    }
+  }
+}
