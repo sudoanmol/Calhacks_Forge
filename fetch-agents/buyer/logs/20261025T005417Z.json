@@ -1,0 +1,713 @@
+{
+  "started_at": "2026-10-25T00:54:17.503014+00:00",
+  "mode": "TEST MODE",
+  "buyer": {
+    "agent_address": "agent1q2jj8g77x9dgyp0va9vxtzjeeajth02rv3pqhm9taf3gg6qd7uwcw4h4tr0",
+    "wallet": "fetch1at4kaq6rp0rrkvyff2m44d4xara0dcdpx8vugw"
+  },
+  "request": "I'd like to buy open-roles for the Lattice Greenhouse board: job title, team and location",
+  "discovery": {
+    "queries": [
+      {
+        "query": "public web data API verified",
+        "total": 10000,
+        "search_id": "44a230a5-ed91-4466-8559-b21b595971b5",
+        "returned": 30,
+        "top": [
+          {
+            "address": "agent1qww5qeadtlqpg2nf83vlz6v2upugfttc6ywajswlysv6egxjn4zzq7q3z4d",
+            "name": "News-Verifier",
+            "type": "hosted",
+            "status": "active",
+            "protocols": [
+              "",
+              "",
+              "AgentChatProtocol",
+              "Default"
+            ],
+            "has_readme": true,
+            "total_interactions": 71
+          },
+          {
+            "address": "agent1qf54g3tw9xlrde3lxut79ws6kcm28vd4p4cprh5ffhzmt8ff0yzfv7t9t3u",
+            "name": "verify",
+            "type": "hosted",
+            "status": "inactive",
+            "protocols": [
+              "AgentChatProtocol",
+              "Default"
+            ],
+            "has_readme": true,
+            "total_interactions": 1
+          },
+          {
+            "address": "agent1qvnpu46exfw4jazkhwxdqpq48kcdg0u0ak3mz36yg93ej06xntklsxcwplc",
+            "name": "Google API Geolocation Agent",
+            "type": "hosted",
+            "status": "active",
+            "protocols": [
+              "",
+              "",
+              "",
+              "",
+              "HealthProtocol",
+              "Geolocation-Protocol",
+              "AgentChatProtocol",
+              "Default"
+            ],
+            "has_readme": true,
+            "total_interactions": 93563
+          },
+          {
+            "address": "agent1qfygqzhnev23kcxsas55wqs3mrf5pkxcfcjfyg028h6zwav89lsqxhq565a",
+            "name": "recoverpay-verifier",
+            "type": "uagent",
+            "status": "active",
+            "protocols": [
+              "",
+              "",
+              "AgentChatProtocol"
+            ],
+            "has_readme": true,
+            "total_interactions": 6
+          },
+          {
+            "address": "agent1qvfyh4h63gd77axzrus8jv5gngudkgpu086vmpuvp09udfuzukwax23nq2m",
+            "name": "Offer Verifier",
+            "type": "hosted",
+            "status": "inactive",
+            "protocols": [
+              ""
+            ],
+            "has_readme": false,
+            "total_interactions": 18
+          },
+          {
+            "address": "agent1qt4q27guj6p6da4gacfwpun59agfz85v2nkr758qmdhqqytju88xqh69jmf",
+            "name": "Samy",
+            "type": "hosted",
+            "status": "active",
+            "protocols": [
+              "",
+              "",
+              "AgentChatProtocol",
+              "Default"
+            ],
+            "has_readme": true,
+            "total_interactions": 620
+          },
+          {
+            "address": "agent1q2uk5gjd0q3duleaqqwjer64s57q264y0qhn2pdqmeaxws3ewremsr7p8at",
+            "name": "News API Agent",
+            "type": "hosted",
+            "status": "active",
+            "protocols": [
+              "AgentChatProtocol",
+              "StructuredOutputClientProtocol",
+              "News-Agent-Protocol",
+              "HealthProtocol",
+              "Default"
+            ],
+            "has_readme": true,
+            "total_interactions": 16444
+          },
+          {
+            "address": "agent1qv8dslc5rlqka4gcg9ckc87r0g562ypjuw9hqm8mlnvueucz2vvpw9j755w",
+            "name": "Web dev",
+            "type": "custom",
+            "status": "active",
+            "protocols": [
+              "AgentChatProtocol",
+              "AgentPaymentProtocol"
+            ],
+            "has_readme": true,
+            "total_interactions": 1825
+          },
+          {
+            "address": "agent1q20jn039g90w7lv8rch2uzjwv36tm5kwmsfe5dqc70zht27enqpkcjewdkz",
+            "name": "Github Organisation Agent",
+            "type": "hosted",
+            "status": "active",
+            "protocols": [
+              "",
+              "",
+              "",
+              "",
+              "HealthProtocol",
+              "Github Organisation",
+              "AgentChatProtocol",
+              "Default"
+            ],
+            "has_readme": true,
+            "total_interactions": 93696
+          },
+          {
+            "address": "agent1qw5m4pswtznq6f3th6g5quuw26360lsj6mcer8x8suy6mlzxm4xqksu8khg",
+            "name": "Stripe Payment Verifier",
+            "type": "mailbox",
+            "status": "active",
+            "protocols": [
+              "HomePaymentVerify",
+              "Default"
+            ],
+            "has_readme": true,
+            "total_interactions": 46
+          }
+        ],
+        "eligible": [
+          {
+            "address": "agent1q0qru4xrkjvh5j99c36slf5f73nugj2v5uj30jadcsvhm3dl0t7nzf0knem",
+            "name": "test-anime-agent-for-api",
+            "type": "hosted",
+            "status": "active",
+            "protocols": [
+              "AgentChatProtocol",
+              "AgentPaymentProtocol",
+              "Default"
+            ],
+            "has_readme": false,
+            "total_interactions": 230,
+            "rank": 17,
+            "score": 1
+          },
+          {
+            "address": "agent1qgl2uddpgr6aj6nayack05q4h2ng5q42c95ywmnf2e06auepr6uyud6ypz0",
+            "name": "HUNTER WORKER",
+            "type": "hosted",
+            "status": "active",
+            "protocols": [
+              "",
+              "",
+              "",
+              "",
+              "AgentChatProtocol",
+              "AgentPaymentProtocol",
+              "Default",
+              "HunterFetchTransactionVerification"
+            ],
+            "has_readme": true,
+            "total_interactions": 60,
+            "rank": 23,
+            "score": 1
+          }
+        ]
+      },
+      {
+        "query": "FORGE public data APIs",
+        "total": 10000,
+        "search_id": "be6eda25-b254-4ac5-9cab-efd8fbc68e0e",
+        "returned": 30,
+        "top": [
+          {
+            "address": "agent1q24rwrqx4ku2pgkl5c0k5wjlq0ukhp65uytvv27tnfmlsc9pnu0vzk4h5dm",
+            "name": "File Forge",
+            "type": "hosted",
+            "status": "active",
+            "protocols": [
+              "",
+              "",
+              "AgentChatProtocol",
+              "Default"
+            ],
+            "has_readme": true,
+            "total_interactions": 15
+          },
+          {
+            "address": "agent1q255rqw6shtmnwytv4jr2jlcak54s9f25059fpj9st3y4z9ltmywvvvqwgv",
+            "name": "Forge",
+            "type": "mailbox",
+            "status": "inactive",
+            "protocols": [
+              ""
+            ],
+            "has_readme": true,
+            "total_interactions": 12
+          },
+          {
+            "address": "agent1qtzk5rv23l6nfnwm0zyh0uyjgr9t5g90kw95f4d95e6duyts2fuf6rs5gpq",
+            "name": "Aster Forge",
+            "type": "hosted",
+            "status": "inactive",
+            "protocols": [
+              "",
+              "",
+              "AgentChatProtocol",
+              "Default"
+            ],
+            "has_readme": true,
+            "total_interactions": 135
+          },
+          {
+            "address": "agent1qvnpu46exfw4jazkhwxdqpq48kcdg0u0ak3mz36yg93ej06xntklsxcwplc",
+            "name": "Google API Geolocation Agent",
+            "type": "hosted",
+            "status": "active",
+            "protocols": [
+              "",
+              "",
+              "",
+              "",
+              "HealthProtocol",
+              "Geolocation-Protocol",
+              "AgentChatProtocol",
+              "Default"
+            ],
+            "has_readme": true,
+            "total_interactions": 93563
+          },
+          {
+            "address": "agent1qff49pfwt4d480grfvgeqwd4qfcqh4e979x3gjzlqjke2fcrerv3yutu2tz",
+            "name": "vison-forge-agent",
+            "type": "mailbox",
+            "status": "active",
+            "protocols": [
+              "AgentChatProtocol",
+              "Default"
+            ],
+            "has_readme": true,
+            "total_interactions": 252
+          },
+          {
+            "address": "agent1q2uk5gjd0q3duleaqqwjer64s57q264y0qhn2pdqmeaxws3ewremsr7p8at",
+            "name": "News API Agent",
+            "type": "hosted",
+            "status": "active",
+            "protocols": [
+              "AgentChatProtocol",
+              "StructuredOutputClientProtocol",
+              "News-Agent-Protocol",
+              "HealthProtocol",
+              "Default"
+            ],
+            "has_readme": true,
+            "total_interactions": 16444
+          },
+          {
+            "address": "agent1qwxszhvaegkq6lsu8n0aks5sqz0l4h63janfx0xgrgcnvxgkl6n6uafetjq",
+            "name": "forge-front-desk",
+            "type": "mailbox",
+            "status": "active",
+            "protocols": [
+              "AgentChatProtocol",
+              "AgentPaymentProtocol",
+              "Default"
+            ],
+            "has_readme": false,
+            "total_interactions": 112
+          },
+          {
+            "address": "agent1qwnchvs8hxxtevdj76m95449f49ep2ecd43kqjaum0r5hcxmv4afch9evn9",
+            "name": "legal-cn-api",
+            "type": "proxy",
+            "status": "inactive",
+            "protocols": [
+              "AgentChatProtocol"
+            ],
+            "has_readme": false,
+            "total_interactions": 13
+          },
+          {
+            "address": "agent1q0qru4xrkjvh5j99c36slf5f73nugj2v5uj30jadcsvhm3dl0t7nzf0knem",
+            "name": "test-anime-agent-for-api",
+            "type": "hosted",
+            "status": "active",
+            "protocols": [
+              "AgentChatProtocol",
+              "AgentPaymentProtocol",
+              "Default"
+            ],
+            "has_readme": false,
+            "total_interactions": 230
+          },
+          {
+            "address": "agent1qfssgqus2xs4u32hn55yxyr4y80eyxuv858drtqyfqrw8vcjm6k7270cfxz",
+            "name": "Google API Geolocation Agent",
+            "type": "hosted",
+            "status": "active",
+            "protocols": [
+              "",
+              "",
+              "",
+              "",
+              "HealthProtocol",
+              "Geolocation-Protocol",
+              "AgentChatProtocol",
+              "Default"
+            ],
+            "has_readme": true,
+            "total_interactions": 13
+          }
+        ],
+        "eligible": [
+          {
+            "address": "agent1qwxszhvaegkq6lsu8n0aks5sqz0l4h63janfx0xgrgcnvxgkl6n6uafetjq",
+            "name": "forge-front-desk",
+            "type": "mailbox",
+            "status": "active",
+            "protocols": [
+              "AgentChatProtocol",
+              "AgentPaymentProtocol",
+              "Default"
+            ],
+            "has_readme": false,
+            "total_interactions": 112,
+            "rank": 6,
+            "score": 7
+          },
+          {
+            "address": "agent1q0qru4xrkjvh5j99c36slf5f73nugj2v5uj30jadcsvhm3dl0t7nzf0knem",
+            "name": "test-anime-agent-for-api",
+            "type": "hosted",
+            "status": "active",
+            "protocols": [
+              "AgentChatProtocol",
+              "AgentPaymentProtocol",
+              "Default"
+            ],
+            "has_readme": false,
+            "total_interactions": 230,
+            "rank": 8,
+            "score": 1
+          }
+        ]
+      }
+    ],
+    "picked": {
+      "address": "agent1qwxszhvaegkq6lsu8n0aks5sqz0l4h63janfx0xgrgcnvxgkl6n6uafetjq",
+      "name": "forge-front-desk",
+      "fallback": false,
+      "score": 7,
+      "query": "FORGE public data APIs",
+      "rank": 6,
+      "why": "active, speaks AgentChatProtocol, sells via AgentPaymentProtocol, mentions 'forge'"
+    }
+  },
+  "messages": [
+    {
+      "at": "2026-10-25T00:54:26.047264+00:00",
+      "s": 8.5,
+      "dir": "info",
+      "type": "discovery",
+      "picked": {
+        "address": "agent1qwxszhvaegkq6lsu8n0aks5sqz0l4h63janfx0xgrgcnvxgkl6n6uafetjq",
+        "name": "forge-front-desk",
+        "fallback": false,
+        "score": 7,
+        "query": "FORGE public data APIs",
+        "rank": 6,
+        "why": "active, speaks AgentChatProtocol, sells via AgentPaymentProtocol, mentions 'forge'"
+      }
+    },
+    {
+      "at": "2026-10-25T00:54:26.050595+00:00",
+      "s": 8.5,
+      "dir": "out",
+      "type": "ChatMessage",
+      "text": "I'd like to buy open-roles for the Lattice Greenhouse board: job title, team and location"
+    },
+    {
+      "at": "2026-10-25T00:54:34.616698+00:00",
+      "s": 17.1,
+      "dir": "in",
+      "type": "ChatMessage",
+      "text": "**Order #196: Open roles at Lattice from its Greenhouse job board**\n\nSources: boards.greenhouse.io/lattice \u00b7 Fields: job title, team, location\n\nSource: Greenhouse board `lattice` (8,261 characters, fits one call).\n\nScope: 1 page(s).\n\nEvery value will come with a verbatim quote from the source page.\n\nQuote: $1.00 (TEST MODE). Reply **pay** to accept."
+    },
+    {
+      "at": "2026-10-25T00:54:34.620140+00:00",
+      "s": 17.1,
+      "dir": "out",
+      "type": "ChatMessage",
+      "text": "pay"
+    },
+    {
+      "at": "2026-10-25T00:54:38.524846+00:00",
+      "s": 21.0,
+      "dir": "in",
+      "type": "RequestPayment",
+      "options": [
+        {
+          "amount": "1.00",
+          "currency": "USD",
+          "payment_method": "stripe"
+        },
+        {
+          "amount": "1.0",
+          "currency": "FET",
+          "payment_method": "fet_direct"
+        }
+      ],
+      "recipient": "fetch1ykd2jf7xn7cfel24w4tavfrpu4w697fwm6nkqh",
+      "reference": "2fbba7dd-a5b2-4340-adcd-f3bb62e1d518",
+      "metadata_keys": [
+        "fet_network",
+        "mainnet",
+        "provider_agent_wallet",
+        "service",
+        "stripe"
+      ]
+    },
+    {
+      "at": "2026-10-25T00:54:38.971113+00:00",
+      "s": 21.5,
+      "dir": "info",
+      "type": "wallet",
+      "before": 8988915485000000000,
+      "faucet": false,
+      "after": 8988915485000000000
+    },
+    {
+      "at": "2026-10-25T00:54:46.554232+00:00",
+      "s": 29.1,
+      "dir": "info",
+      "type": "fet_transfer",
+      "tx_hash": "BE762C0EA997E60AA814515211E959A6057B266D9864C6C174E84745A5FBB9C7",
+      "chain_id": "dorado-1",
+      "denom": "atestfet",
+      "amount": 1000000000000000000,
+      "from": "fetch1at4kaq6rp0rrkvyff2m44d4xara0dcdpx8vugw",
+      "to": "fetch1ykd2jf7xn7cfel24w4tavfrpu4w697fwm6nkqh",
+      "memo": "2fbba7dd-a5b2-4340-adcd-f3bb62e1d518"
+    },
+    {
+      "at": "2026-10-25T00:54:46.556161+00:00",
+      "s": 29.1,
+      "dir": "out",
+      "type": "CommitPayment",
+      "transaction_id": "BE762C0EA997E60AA814515211E959A6057B266D9864C6C174E84745A5FBB9C7",
+      "funds": {
+        "amount": "1.0",
+        "currency": "FET",
+        "payment_method": "fet_direct"
+      },
+      "recipient": "fetch1ykd2jf7xn7cfel24w4tavfrpu4w697fwm6nkqh"
+    },
+    {
+      "at": "2026-10-25T00:54:47.883318+00:00",
+      "s": 30.4,
+      "dir": "in",
+      "type": "ChatMessage",
+      "text": "TEST MODE payment card above. Use card 4242 4242 4242 4242, any future date, any CVC. Agents can pay 1.0 testnet FET (stable-testnet) to fetch1ykd2jf7xn7cfel24w4tavfrpu4w697fwm6nkqh instead."
+    },
+    {
+      "at": "2026-10-25T00:54:50.021899+00:00",
+      "s": 32.5,
+      "dir": "in",
+      "type": "CompletePayment",
+      "transaction_id": "BE762C0EA997E60AA814515211E959A6057B266D9864C6C174E84745A5FBB9C7"
+    },
+    {
+      "at": "2026-10-25T00:54:50.855530+00:00",
+      "s": 33.4,
+      "dir": "in",
+      "type": "ChatMessage",
+      "text": "Payment confirmed (TEST MODE, 1.0 testnet FET, tx BE762C0EA997E60AA814515211E959A6057B266D9864C6C174E84745A5FBB9C7). **Order #196** (Open roles at Lattice from its Greenhouse job board) is queued for the COO. Reply **status** any time to see where it is."
+    },
+    {
+      "at": "2026-10-25T00:54:51.742272+00:00",
+      "s": 34.2,
+      "dir": "out",
+      "type": "ChatMessage",
+      "text": "status"
+    },
+    {
+      "at": "2026-10-25T00:54:55.226995+00:00",
+      "s": 37.7,
+      "dir": "in",
+      "type": "ChatMessage",
+      "text": "**Order #196**: Open roles at Lattice from its Greenhouse job board\n\nStatus: paid, waiting for the COO to review it. Price $1.00 (TEST MODE).\n\nEarlier: #131 delivered \u00b7 #123 quoted \u00b7 #104 quoted"
+    },
+    {
+      "at": "2026-10-25T00:55:22.424764+00:00",
+      "s": 64.9,
+      "dir": "out",
+      "type": "ChatMessage",
+      "text": "status"
+    },
+    {
+      "at": "2026-10-25T00:55:27.023126+00:00",
+      "s": 69.5,
+      "dir": "in",
+      "type": "ChatMessage",
+      "text": "**Order #196**: Open roles at Lattice from its Greenhouse job board \u00b7 API `open-roles`\n\nStatus: collecting data from the source pages. Price $1.00 (TEST MODE).\n\nEarlier: #131 delivered \u00b7 #123 quoted \u00b7 #104 quoted"
+    },
+    {
+      "at": "2026-10-25T00:55:53.084685+00:00",
+      "s": 95.6,
+      "dir": "out",
+      "type": "ChatMessage",
+      "text": "status"
+    },
+    {
+      "at": "2026-10-25T00:56:01.436966+00:00",
+      "s": 103.9,
+      "dir": "in",
+      "type": "ChatMessage",
+      "text": "**Order #196**: Open roles at Lattice from its Greenhouse job board \u00b7 API `open-roles`\n\nStatus: delivered. Price $1.00 (TEST MODE).\n\nValues: 21 (21 verified).\n\n| # | entity | metric | value | status |\n|---|---|---|---|---|\n| 0 | Account Executive (job 8576037002) | title | Account Executive | verified |\n| 0 | Account Executive (job 8576037002) | team | Account Executive | verified |\n| 0 | Account Executive (job 8576037002) | location | London, UK | verified |\n| 1 | Senior Software Engineer, Infrastructur\u2026 | title | Senior Software Engineer, Infrastructur\u2026 | verified |\n| 1 | Senior Software Engineer, Infrastructur\u2026 | team | Engineering | verified |\n| 1 | Senior Software Engineer, Infrastructur\u2026 | location | Remote - Canada | verified |\n| 2 | Engineering Manager, AI (job 8614333002) | title | Engineering Manager, AI | verified |\n| 2 | Engineering Manager, AI (job 8614333002) | team | Engineering | verified |\n| 2 | Engineering Manager, AI (job 8614333002) | location | Remote - US | verified |\n| 3 | Engineering Manager, AI (job 8623297002) | title | Engineering Manager, AI | verified |\n\n\u2026and 11 more rows in the dataset.\n\nDataset: https://api.apify.com/v2/datasets/kIhLnbttElxcgGYOy/items?clean=1&format=json\n\nEarlier: #131 delivered \u00b7 #123 quoted \u00b7 #104 quoted"
+    }
+  ],
+  "quote": {
+    "order_id": 196,
+    "price_usd": "1.00",
+    "text": "**Order #196: Open roles at Lattice from its Greenhouse job board**\n\nSources: boards.greenhouse.io/lattice \u00b7 Fields: job title, team, location\n\nSource: Greenhouse board `lattice` (8,261 characters, fits one call).\n\nScope: 1 page(s).\n\nEvery value will come with a verbatim quote from the source page.\n\nQuote: $1.00 (TEST MODE). Reply **pay** to accept."
+  },
+  "payment_offer": {
+    "options": [
+      {
+        "amount": "1.00",
+        "currency": "USD",
+        "payment_method": "stripe"
+      },
+      {
+        "amount": "1.0",
+        "currency": "FET",
+        "payment_method": "fet_direct"
+      }
+    ],
+    "recipient": "fetch1ykd2jf7xn7cfel24w4tavfrpu4w697fwm6nkqh",
+    "reference": "2fbba7dd-a5b2-4340-adcd-f3bb62e1d518",
+    "deadline_seconds": 300,
+    "description": "FORGE (TEST MODE): order #196 Open roles at Lattice from its Greenhouse job board",
+    "metadata_keys": [
+      "fet_network",
+      "mainnet",
+      "provider_agent_wallet",
+      "service",
+      "stripe"
+    ],
+    "plan": {
+      "funds": {
+        "amount": "1.0",
+        "currency": "FET",
+        "payment_method": "fet_direct"
+      },
+      "recipient": "fetch1ykd2jf7xn7cfel24w4tavfrpu4w697fwm6nkqh",
+      "network": "stable-testnet",
+      "atestfet": 1000000000000000000
+    },
+    "reject": null
+  },
+  "payment": {
+    "rejected": false,
+    "network": "stable-testnet",
+    "tx_hash": "BE762C0EA997E60AA814515211E959A6057B266D9864C6C174E84745A5FBB9C7",
+    "chain_id": "dorado-1",
+    "denom": "atestfet",
+    "amount": 1000000000000000000,
+    "from": "fetch1at4kaq6rp0rrkvyff2m44d4xara0dcdpx8vugw",
+    "to": "fetch1ykd2jf7xn7cfel24w4tavfrpu4w697fwm6nkqh",
+    "memo": "2fbba7dd-a5b2-4340-adcd-f3bb62e1d518",
+    "completed": true
+  },
+  "status_replies": [
+    {
+      "at": "2026-10-25T00:54:50.859534+00:00",
+      "state": "",
+      "value_count": null
+    },
+    {
+      "at": "2026-10-25T00:54:55.229386+00:00",
+      "state": "paid, waiting for the COO to review it",
+      "value_count": null
+    },
+    {
+      "at": "2026-10-25T00:55:27.027502+00:00",
+      "state": "collecting data from the source pages",
+      "value_count": null
+    },
+    {
+      "at": "2026-10-25T00:56:01.440244+00:00",
+      "state": "delivered",
+      "value_count": 21
+    }
+  ],
+  "delivered": {
+    "order_id": 196,
+    "state": "delivered",
+    "api": "open-roles",
+    "terminal": true,
+    "delivered": true,
+    "value_count": 21,
+    "value_statuses": "21 verified",
+    "rows": [
+      {
+        "#": "0",
+        "entity": "Account Executive (job 8576037002)",
+        "metric": "title",
+        "value": "Account Executive",
+        "status": "verified"
+      },
+      {
+        "#": "0",
+        "entity": "Account Executive (job 8576037002)",
+        "metric": "team",
+        "value": "Account Executive",
+        "status": "verified"
+      },
+      {
+        "#": "0",
+        "entity": "Account Executive (job 8576037002)",
+        "metric": "location",
+        "value": "London, UK",
+        "status": "verified"
+      },
+      {
+        "#": "1",
+        "entity": "Senior Software Engineer, Infrastructur\u2026",
+        "metric": "title",
+        "value": "Senior Software Engineer, Infrastructur\u2026",
+        "status": "verified"
+      },
+      {
+        "#": "1",
+        "entity": "Senior Software Engineer, Infrastructur\u2026",
+        "metric": "team",
+        "value": "Engineering",
+        "status": "verified"
+      },
+      {
+        "#": "1",
+        "entity": "Senior Software Engineer, Infrastructur\u2026",
+        "metric": "location",
+        "value": "Remote - Canada",
+        "status": "verified"
+      },
+      {
+        "#": "2",
+        "entity": "Engineering Manager, AI (job 8614333002)",
+        "metric": "title",
+        "value": "Engineering Manager, AI",
+        "status": "verified"
+      },
+      {
+        "#": "2",
+        "entity": "Engineering Manager, AI (job 8614333002)",
+        "metric": "team",
+        "value": "Engineering",
+        "status": "verified"
+      },
+      {
+        "#": "2",
+        "entity": "Engineering Manager, AI (job 8614333002)",
+        "metric": "location",
+        "value": "Remote - US",
+        "status": "verified"
+      },
+      {
+        "#": "3",
+        "entity": "Engineering Manager, AI (job 8623297002)",
+        "metric": "title",
+        "value": "Engineering Manager, AI",
+        "status": "verified"
+      }
+    ],
+    "more_rows": 11,
+    "dataset_url": "https://api.apify.com/v2/datasets/kIhLnbttElxcgGYOy/items?clean=1&format=json",
+    "text": "**Order #196**: Open roles at Lattice from its Greenhouse job board \u00b7 API `open-roles`\n\nStatus: delivered. Price $1.00 (TEST MODE).\n\nValues: 21 (21 verified).\n\n| # | entity | metric | value | status |\n|---|---|---|---|---|\n| 0 | Account Executive (job 8576037002) | title | Account Executive | verified |\n| 0 | Account Executive (job 8576037002) | team | Account Executive | verified |\n| 0 | Account Executive (job 8576037002) | location | London, UK | verified |\n| 1 | Senior Software Engineer, Infrastructur\u2026 | title | Senior Software Engineer, Infrastructur\u2026 | verified |\n| 1 | Senior Software Engineer, Infrastructur\u2026 | team | Engineering | verified |\n| 1 | Senior Software Engineer, Infrastructur\u2026 | location | Remote - Canada | verified |\n| 2 | Engineering Manager, AI (job 8614333002) | title | Engineering Manager, AI | verified |\n| 2 | Engineering Manager, AI (job 8614333002) | team | Engineering | verified |\n| 2 | Engineering Manager, AI (job 8614333002) | location | Remote - US | verified |\n| 3 | Engineering Manager, AI (job 8623297002) | title | Engineering Manager, AI | verified |\n\n\u2026and 11 more rows in the dataset.\n\nDataset: https://api.apify.com/v2/datasets/kIhLnbttElxcgGYOy/items?clean=1&format=json\n\nEarlier: #131 delivered \u00b7 #123 quoted \u00b7 #104 quoted"
+  },
+  "outcome": {
+    "result": "delivered",
+    "why": "order #196 delivered: 21 values, 10 rows shown, dataset https://api.apify.com/v2/datasets/kIhLnbttElxcgGYOy/items?clean=1&format=json",
+    "elapsed_s": 103.9
+  },
+  "finished_at": "2026-10-25T00:56:01.440327+00:00"
+}

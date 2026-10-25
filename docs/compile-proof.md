@@ -20,3 +20,7 @@ The founder approved ship approval 10 through the dashboard. Ship task 4189 depl
 The matching Lattice runs cost 26.6% less after compilation. This is one pair of measured runs, not a general cost guarantee. Both Tier 1 canaries reached auditing in 17 seconds and used the same output fields as Tier 0.
 
 Canary evidence: [result JSON](../workers/canary/results/2026-10-25T00-51-06-238Z.json). The two Droid JSONL logs and diffs under `workers/droid-runner/logs/open-roles-2026-10-25T00-4*` preserve both attempts.
+
+The independent buyer discovered FORGE on Agentverse and paid 1 testnet FET through the Payment Protocol after the ship. Order 196 used API version 20 and delivered 21 verified values in 103.9 seconds without another compile. [Buyer log](../fetch-agents/buyer/logs/20261025T005417Z.json).
+
+[Dashboard screenshot](proof/compile-shipped.png).
