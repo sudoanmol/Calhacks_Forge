@@ -4,7 +4,7 @@ All commercial money is **TEST MODE**. Vendor usage below is measured.
 
 `open-roles` reached two distinct buyers and triggered ticket 6. The real CREAO CFO proposed 500 cents. Droid session `34acdbcb-c5b1-495c-b52d-7d01458a6db7` produced the deterministic Greenhouse extractor.
 
-The first live test compared Discord's 46 rows with a Lattice fixture's 7 rows. The real Auditor rejected it. The shared test was corrected to compare row counts only for matching URLs, then the same Droid session resumed. The Auditor accepted attempt 2: fixtures 1/1, schema contract 2/2, live sources 2/2. Both sources had every value anchored and zero LLM tokens.
+The first live test compared Discord's 46 rows with a Lattice fixture's 7 rows. The real Auditor rejected it. The founder corrected the shared test in commit `c6ac400` to compare row counts only for matching URLs, then the same Droid session resumed. The Auditor accepted attempt 2: fixtures 1/1, schema contract 2/2, live sources 2/2. Both sources had every value anchored and zero LLM tokens.
 
 The founder approved ship approval 10 through the dashboard. Ship task 4189 deployed Apify Actor `RdQhIe6Jj6mE2qT4L`, version 1.0, and recorded API version 20. Neither failed tests nor a CLI call bypassed the approval.
 
@@ -23,4 +23,4 @@ Canary evidence: [result JSON](../workers/canary/results/2026-10-25T00-51-06-238
 
 The independent buyer discovered FORGE on Agentverse and paid 1 testnet FET through the Payment Protocol after the ship. Order 196 used API version 20 and delivered 21 verified values in 103.9 seconds without another compile. [Buyer log](../fetch-agents/buyer/logs/20261025T005417Z.json).
 
-[Dashboard screenshot](proof/compile-shipped.png).
+The [Droid trace and canary result](../workers/canary/results/2026-10-25T00-51-06-238Z.json) are the recorded proof. No shipped-state screenshot was captured in this audit.

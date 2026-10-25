@@ -190,4 +190,7 @@ Also run the whole module suite (`pnpm -C module run test:api`) and `pnpm -C mod
 
 ## 9. Out of scope
 
-Accepting a counteroffer in chat (new reducer + Front Desk flow); partial refunds; refunding `delivered` orders outside a challenge; retrying CREAO runs (the lease sweep already requeues them); any change to `refund_limit_cents` semantics.
+Accepting a counteroffer in chat (new reducer + Front Desk flow); partial refunds; refunding `delivered` orders outside a challenge; any change to `refund_limit_cents` semantics.
+
+
+The unified audit follow-up adds CREAO recovery in dispatch: poll lost callbacks after three minutes, retry an undecided task once, fail/refund eligible dead orders, expire runs after 15 minutes, and stop start failures after five minutes. Lease sweep only handles claimed worker leases.

@@ -23,14 +23,29 @@ uv run --env-file ../.env python -m front_desk.agent
 
 The committed `.env.example` defaults to `false`. With the flag unset or false, the original Stripe test checkout and testnet FET Payment Protocol run as before. The demo shortcut does not send a Stripe RequestPayment card or a CompletePayment message for a transaction that never happened. Disable it when demonstrating the independent buyer's real Payment Protocol purchase.
 
-The laptop dashboard is `http://localhost:5180`. A second device on the tailnet can use `http://100.70.205.123:5180`. The user confirmed a live budget update on a physical phone without refreshing.
+A public dashboard URL is not recorded yet; publish `web/dist` as a read-only static site and add the URL here before judging. The laptop dashboard is `http://localhost:5173`. A second device on the tailnet can use `http://100.70.205.123:5173`. The user confirmed a live budget update on a physical phone without refreshing.
 
 ## Recorded evidence
 
 - [Compiled API and measured savings](compile-proof.md).
-- [Real ASI:One delivery](proof/asi-delivered-202.png).
-- [Simulated-payment order 205 with real verified delivery](proof/demo-payment-205.json), [dashboard screenshot](proof/demo-payment-dashboard.png).
+- [Real ASI:One delivery and challenge](proof/asi-challenge-202.json).
+- [Simulated-payment order 205 with real verified delivery](proof/demo-payment-205.json).
 - [Real customer payment, delivery and challenge record](proof/asi-challenge-202.json).
 - [Real Research, Task creation and honest QA rejection](proof/research-live-199.json).
 
 The first researched Wikipedia API omitted an opening-year field. The real Auditor rejected it and it was retired. Its history remains intact; do not present it as a successful delivery.
+
+
+## Recover a stalled order
+
+All refunds below are TEST MODE ledger credits. They do not reverse a Stripe test payment or testnet FET transfer.
+
+1. Find the run: `spacetime sql -s maincloud forge "SELECT id, task_id, status, started_at FROM run WHERE provider = 'creao'"`.
+2. Re-fetch its trusted status: `spacetime call -s maincloud forge creao_poll <runId>`.
+3. The dispatcher retries an undecided run once, then fails the eligible paid order and books its refund. Lost callbacks are checked by the dispatcher; runs expire after 15 minutes. A start failure stops retrying after five minutes.
+4. For a stopped order with no queued/claimed task or active admission check, use **Stop and refund** on the founder dashboard. The reducer refuses a CREAO run younger than 15 minutes. Cancel queued work deliberately before requesting rescue. Never cancel an active run merely to demonstrate failure.
+5. For a rejected or failed order, use **Refund**. Above the configured limit, approve the new refund card in **Needs you**. A decline stays visible in the order feed. A declined challenge refund can be requested again without changing the challenge ruling.
+
+## Release checks
+
+Use [unified-final-audit-tasks.md](unified-final-audit-tasks.md) for the code checklist and founder handoff. Before publishing: confirm no runs or claimed/dispatched tasks are in flight, build and test, publish without `--delete-data`, verify unchanged order/refund counts and balanced books, then restart Front Desk and reload dashboards. Run one real ASI:One order and challenge on both devices. Do not claim a historical audit snapshot is current production evidence.

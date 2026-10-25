@@ -35,7 +35,7 @@ The founder watches all of it on a live dashboard on a laptop and a phone: a for
 - **Factory Droid SDK** drives compiles from `workers/droid-runner`. The session keeps only file tools plus our own `run_command` tool, which applies an allow/deny policy. Droid can edit only the extractor files of the Actor it is compiling and run its tests. Anything else is denied or becomes a founder approval card.
 - **Fetch.ai uAgents** run the Front Desk (Chat Protocol and Payment Protocol as seller) and an independent buyer agent that discovers FORGE on Agentverse and pays with testnet FET.
 - **Apify** hosts `forge-extract` (Tier 0), one Task per Tier 0 API, and compiled Tier 1 Actors with versions.
-- **Bright Data** Web Unlocker and SERP API fetch and verify every page through a fallback ladder: Unlocker, then the Browser API for JavaScript shells, then one retry from another country, then `unverifiable`.
+- **Bright Data** Web Unlocker and SERP API fetch and verify every page through a fallback ladder: Unlocker, then the Browser API for JavaScript shells, then one retry from another country, then `unverifiable`. The Browser API rung is coded; no live fetch has used it yet.
 - **Claude Haiku** (`claude-haiku-5-5`) is the Tier 0 extraction model. It verified 296 of 302 values (98.0%) across the three seed sites on an independent re-fetch (`docs/proof/gate0-extract-2026-10-24T16-44-36-467Z.json`).
 - **Dashboard:** Vite, React, SVG and Framer Motion, rendered only from SpacetimeDB subscriptions.
 
@@ -44,7 +44,7 @@ The founder watches all of it on a live dashboard on a laptop and a phone: a for
 - **Bright Data compliance blocks.** Greenhouse HTML job boards are blocked without KYC. Bright Data reports this as HTTP 200 with an empty body and the reason in a header. We made the ladder stop on a compliance block and moved `open-roles` to Greenhouse's public JSON API.
 - **Locking down Droid.** Sessions inherit the host's tools, and at Low autonomy the CLI auto-runs shell commands it rates low-risk. We disabled every tool except file tools, routed shell commands through our own policy-checked tool, and forced direct tool execution, which SDK 0.10 does not forward on its own.
 - **ASI:One does not show later agent messages.** A follow-up sent 69 seconds after a quote was delivered to Agentverse but never appeared in chat. Customers send `status` instead.
-- **A real failed compile.** The first Droid attempt failed its live test because the test compared Discord's 46 rows with a Lattice fixture's 7. The Auditor rejected it, we fixed the shared test to compare matching URLs only, and the same Droid session passed on attempt 2.
+- **A real failed compile.** The first Droid attempt failed its live test because the test compared Discord's 46 rows with a Lattice fixture's 7. The Auditor rejected it, the founder fixed the shared test in `c6ac400` to compare matching URLs only, and the same Droid session passed on attempt 2.
 - **An honest rejection.** A researched Wikipedia API delivered one of the two requested fields. The Auditor rejected it and the API was retired. We kept the record instead of hiding it.
 
 ## Accomplishments that we're proud of
@@ -64,7 +64,7 @@ The founder watches all of it on a live dashboard on a laptop and a phone: a for
 
 ## What's next
 
-`docs/after-hackathon.md` has no entries yet. TODO(founder): add the post-hackathon ideas there, then summarize them here.
+Next: verify Browser API retrieval live, retain CREAO threads across rework, support enhancement and warranty tickets, measure pricing from unit costs, and run the full CREAO canary in CI. See [after-hackathon.md](after-hackathon.md).
 
 ## Built with
 
@@ -74,12 +74,11 @@ TypeScript, Node.js, Python, pnpm, uv, SpacetimeDB (Maincloud), CREAO, Factory D
 
 | Track | Fit |
 |---|---|
-| Factory Droid SDK | Droid does real work in the running product: it compiled the shipped `open-roles` Tier 1 Actor in a locked session, failed once, and was repaired in the same session |
+| Factory Droid SDK | Droid does real work in the running product: it compiled the shipped `open-roles` Tier 1 Actor in a locked session, was rejected for a shared test defect, then resumed after the founder fixed the test |
 | Fetch.ai | The whole customer journey runs in ASI:One through the Front Desk uAgent, and a separate buyer uAgent discovers FORGE on Agentverse and pays through the Payment Protocol |
 | CREAO: Best One-Person Company | Four CREAO agents (COO, Research, CFO, Auditor) run the company's admission, investment and QA decisions; the founder only approves. One CREAO track only, per the organizers |
 | SpacetimeDB | The only database: rules in reducers, outbound calls in procedures, callbacks in HTTP routes, and a live dashboard on two devices |
 | Apify | `forge-extract` is the Tier 0 engine, each API is a Task, and compiled APIs are versioned Actors reused by later buyers |
-| Apify Best Actor | `forge-extract`: verified extraction where every value carries a verbatim quote, a saved page and a status |
 | Bright Data | Web Unlocker and SERP API fetch and independently verify every value through a logged fallback ladder, with honest `unverifiable` results |
 | Microsoft Built for the Real World | Public-data APIs with an admission gate, per-value proof and a challenge path that a customer can check |
 | Best Solo Hack | Built by one founder with AI agents as staff |
@@ -91,10 +90,11 @@ TypeScript, Node.js, Python, pnpm, uv, SpacetimeDB (Maincloud), CREAO, Factory D
 - [ ] Separate 3 to 5 minute Fetch.ai video link.
 - [ ] Redesign steps 3 to 6 (`docs/dashboard-redesign-spec.md` §11) are built and match the README's "How to see it" section: Org chart tab, Needs-you approval cards in the right rail, Droid strip, Engineering tab layout, phone layout. Remove or reword any part that did not ship.
 - [ ] CREAO share links for a COO, a Research and an Auditor run (no `run` row has a share URL yet). The CFO share link expires November 23, 2026.
-- [ ] Agentverse listing URL and badges for the Front Desk, and the ASI:One submission agent.
-- [ ] `forge-extract` Actor link and Apify Store listing; confirm it began in Apify AI Chat for the Best Actor entry.
+- [ ] Verify the committed Front Desk README/badges render on Agentverse; complete ASI:One submission registration.
+- [ ] `forge-extract` Actor link and Apify Store listing; verify the Best Use entry.
 - [ ] Student eligibility (AGENTS.md §14 says it is not confirmed).
-- [ ] Screenshots referenced in the docs live only on the founder's machine (`docs/proof/**/*.png` is ignored). Upload the ones you want to Devpost.
-- [ ] `docs/after-hackathon.md` entries for "What's next".
+- [x] Curated local QA screenshots are committed and linked from the unified audit task.
+- [ ] Capture and upload real ASI:One customer journey screenshots for the Devpost gallery. Local QA screenshots are labeled as such.
+- [x] `docs/after-hackathon.md` entries for "What's next".
 - [ ] The public GitHub repository is pushed and public.
 - [ ] Any number added after this draft has a source file.

@@ -1,0 +1,11 @@
+# Gitleaks false positives reviewed during unified final audit.
+06ee248bf0d2ea59ebb6d9029d0d00eba91a348c:docs/proof/demo-payment-205.json:generic-api-key:23
+985a9b18dbd177379e62baa29e45efda51c532c7:docs/proof/asi-challenge-202.json:generic-api-key:22
+fd92028d19a51bd22e1c0612eb2de7b71df2fe72:docs/proof/research-live-199.json:generic-api-key:21
+5d0ff4428641271ebd677e23526a5deb257b387b:actors/open-roles/fixtures/page-7c49c95194b0754de0f9050c78b59fdd/meta.json:generic-api-key:6
+5d0ff4428641271ebd677e23526a5deb257b387b:workers/droid-runner/logs/open-roles-2026-10-25T00-41-33-360Z.jsonl:generic-api-key:2
+9c0cd48bebf762a8674e0f884ae904db4b10b58a:actors/gpu-listings/fixtures/page-6eecce9b25dc2461e42e278acd4048cf/meta.json:generic-api-key:6
+743a38199d1af2f8c25f55b5dc49be99b817a25f:actors/forge-extract/scripts/measure.js:generic-api-key:21
+9c0cd48bebf762a8674e0f884ae904db4b10b58a:workers/droid-runner/logs/gpu-listings-2026-10-24T21-55-22-624Z.jsonl:generic-api-key:2
+9c0cd48bebf762a8674e0f884ae904db4b10b58a:workers/droid-runner/logs/gpu-listings-2026-10-24T21-58-36-071Z.jsonl:generic-api-key:2
+9c0cd48bebf762a8674e0f884ae904db4b10b58a:actors/gpu-listings/fixtures/page-6eecce9b25dc2461e42e278acd4048cf/page.html:generic-api-key:1202

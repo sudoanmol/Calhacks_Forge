@@ -335,7 +335,7 @@ Classes: **story** rows show by default; **plumbing** rows fold; **system** rows
 | `api_retired` / `api_updated` | story | Retired {name}: {reason} / Updated {name} | |
 | `droid_*` | plumbing in the company feed (grouped as "Droid · N messages"); rendered individually only in the Engineering timeline | | |
 | `task_queued`, `task_dispatched`, `task_claimed`, `task_done`, `task_cancelled`, `orphan_dispatch_recovered` | plumbing | Task #{refId} {queued for role / dispatched to run #{runRef} / claimed (attempt {attempt}) / done / cancelled: {reason}} | |
-| `task_lease_expired`, `task_ended_without_decision` | failure | A CREAO run ended without a decision; task #{refId} requeued | |
+| `task_lease_expired`, `task_ended_without_decision` | failure | A task lease expired and was requeued, or a CREAO run ended without a decision and task #{refId} failed; `task_requeued` records the single retry | |
 | `creao_run_started` / `creao_run_completed` | plumbing | CREAO run {externalId short} started for {role} / completed ({resultChars} chars) | run |
 | `creao_run_start_failed`, `creao_callback_rejected`, `creao_refresh_failed`, `apify_callback_rejected`, `apify_refresh_failed` | failure | {kind humanized}: {reason or httpStatus} | |
 | `customer_registered`, `staff_set`, `module_init`, `defaults_ensured`, `canary_orders_backfilled`, `http_smoke`, `route_ping`, `verify_probe` | system | {kind humanized} | |

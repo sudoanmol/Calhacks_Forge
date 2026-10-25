@@ -6,6 +6,16 @@ Ask FORGE for any public-data API in ASI:One. It decides whether the request is 
 
 All money in this project is **TEST MODE**. No real money moves. Payments are Stripe test checkout or testnet FET. One demo switch records a payment as **SIMULATED PAYMENT** instead, and it is labeled that way in chat, on the dashboard and in the ledger.
 
+## Judge tour (60 seconds)
+
+1. [Find the Front Desk on Agentverse](https://agentverse.ai/agents/details/agent1qwxszhvaegkq6lsu8n0aks5sqz0l4h63janfx0xgrgcnvxgkl6n6uafetjq/profile) and ask for open roles in ASI:One.
+2. Inspect the [four CREAO seats and public CFO decision](docs/creao/deployment.md), then the [real customer delivery and challenge](docs/proof/asi-challenge-202.json).
+3. Read the [compile trace, founder approval and measured savings](docs/compile-proof.md). The founder fixed the shared test; Droid resumed with the same extractor.
+4. Open the [recorded buyer purchase](fetch-agents/buyer/logs/20261025T005417Z.json) and [Apify Actor](https://console.apify.com/actors/RdQhIe6Jj6mE2qT4L).
+5. Follow the [demo and recovery runbook](docs/demo.md). Public dashboard hosting, share links for the other CREAO seats, shared ASI:One chat and videos remain in the [release handoff](docs/unified-final-audit-tasks.md).
+
+Refunds credit FORGE's TEST MODE ledger. Stripe test payments and testnet FET transfers are not reversed. Header revenue includes in-flight payments minus ledger refunds; any simulated share is explicitly labeled.
+
 ## What FORGE sells
 
 FORGE sells **APIs**: named, re-runnable endpoints such as `open-roles`, `yc-directory` and `gpu-listings`. Each API has a description, input parameters, sources, an output JSON Schema, a volatility (`stable` or `volatile`), a freshness window and a page cap.
@@ -26,6 +36,8 @@ Every request passes the **admission gate** before any money is spent:
 
 There are two surfaces.
 
+Review, status, catalog carousel and challenge form cards are implemented and tested through the protocol models. Phone rendering remains a founder release check.
+
 1. **ASI:One chat.** This is the whole customer journey: request, gate decision, quote, payment, `status`, delivery and challenge. The customer talks to the Front Desk agent (`forge-front-desk`). There is no customer website. ASI:One does not show messages an agent sends later on its own (tested October 24, see AGENTS.md §14), so the customer sends `status` to read progress and the delivered table.
 2. **Founder dashboard (`/web`).** It renders only from SpacetimeDB subscriptions and runs on a laptop and a phone at once.
    - **Header:** revenue, verified %, cost per call, APIs for sale, and `agent decisions N : founder approvals M`, all counted from stored rows. Money is labeled TEST MODE.
@@ -41,7 +53,7 @@ The dashboard is a forge floor drawn in React, SVG and Framer Motion. The design
 
 ## Proof
 
-Each row is a real run. Screenshots under `docs/proof/` stay on the founder's machine (`.gitignore`); the JSON records are committed.
+Each row below is a recorded real run. Curated `audit-*.png` screenshots show local SIMULATED QA; other screenshots stay on the founder's machine (`.gitignore`); the JSON records are committed.
 
 | What | Record | What it shows |
 |---|---|---|
@@ -62,7 +74,7 @@ Each row is a real run. Screenshots under `docs/proof/` stay on the founder's ma
 
 ### CREAO
 
-**What it does here.** Four saved CREAO agents are the company's judgment: the COO (accept, counteroffer, request research, reject), Research (the layer-3 admission gate with citations), the CFO (compile, defer or reprice on unit economics) and the Auditor (accepts or rejects each deliverable, challenge and compile). They act only through `skills/forge-cli`, a zero-dependency CLI whose commands map to the reducers for each seat. Agents never start other agents; only the `dispatch` procedure starts runs, and rework continues the same thread.
+**What it does here.** Four saved CREAO agents are the company's judgment: the COO (accept, counteroffer, request research, reject), Research (the layer-3 admission gate with citations), the CFO (compile, defer or reprice on unit economics) and the Auditor (accepts or rejects each deliverable, challenge and compile). They act only through `skills/forge-cli`, a zero-dependency CLI whose commands map to the reducers for each seat. Agents never start other agents; only the `dispatch` procedure starts runs. Each CREAO dispatch starts a new thread; Droid resumes its own engineering session.
 
 **What breaks without it.** Nobody admits, prices, invests or audits. Orders stop at `paid`.
 
@@ -81,6 +93,15 @@ Source: [docs/creao/deployment.md](docs/creao/deployment.md). Prompts: [docs/cre
 - **Research and a reject:** order #199. Research cited `https://en.wikipedia.org/robots.txt` and the Wikimedia Terms of Use; the Auditor rejected the result for a missing field ([record](docs/proof/research-live-199.json)).
 - **Auditor reject, then accept:** ticket #6, attempt 1 rejected, attempt 2 accepted ([docs/compile-proof.md](docs/compile-proof.md)).
 - **Challenge ruling:** challenge #14, rejected by the Auditor with a reason ([record](docs/proof/asi-challenge-202.json)).
+Historical decisions to link, matched by the two source audits. Re-check run → task → order before making a share public.
+
+| Seat | Decision | Order/ticket | Run | Public proof |
+|---|---|---|---|---|
+| COO | ACCEPT | order #202 | #81 | Founder share pending; [order record](docs/proof/asi-challenge-202.json) |
+| Research | Cited gate report | order #199 | #77 | Founder share pending; [research record](docs/proof/research-live-199.json) |
+| CFO | COMPILE, 500 cents TEST MODE | ticket #6 | Recorded in deployment notes | [Public CFO run](https://agent.creao.ai/share/2361cbf6417714be089c498e9e96c580) |
+| Auditor | REJECT, missing field | order #199 | #80 | Founder share pending; [rejection record](docs/proof/research-live-199.json) |
+
 - TODO(founder): share links for a COO run, a Research run and an Auditor run. The `run` table holds 39 CREAO runs and none has a share URL yet (read-only SQL on `forge`, October 25).
 - TODO(founder): a share link for a cited REJECT on a request that fails the terms check, if one exists.
 
@@ -92,7 +113,7 @@ Source: [docs/creao/deployment.md](docs/creao/deployment.md). Prompts: [docs/cre
 
 **Where to see it.** The Engineering tab (RECORDED timeline of ticket #6), [docs/compile-proof.md](docs/compile-proof.md), the Droid logs and diffs in `workers/droid-runner/logs/open-roles-2026-10-25T00-4*`, and the controls in [workers/droid-runner/src/lockdown.ts](workers/droid-runner/src/lockdown.ts) and [workers/droid-runner/src/policy.ts](workers/droid-runner/src/policy.ts).
 
-The ticket #6 trace: open-roles reached 2 distinct buyers (`compile_min_buyers` 2) → CFO proposed 500 cents TEST MODE → budget reserved → Droid session `34acdbcb-c5b1-495c-b52d-7d01458a6db7` → attempt 1 failed the live test (Discord's 46 rows compared with a Lattice fixture's 7 rows) → Auditor rejected → the shared test was corrected to compare row counts only for matching URLs → same session resumed → attempt 2 passed fixtures 1/1, contract 2/2, live 2/2 → Auditor accepted → founder approved ship approval #10 → ship task 4189 deployed Actor `RdQhIe6Jj6mE2qT4L` v1.0 → API version 20. Droid changed only `src/extract.js` and `src/jsonspan.js` (approval #10 detail).
+The ticket #6 trace: open-roles reached 2 distinct buyers (`compile_min_buyers` 2) → CFO proposed 500 cents TEST MODE → budget reserved → Droid session `34acdbcb-c5b1-495c-b52d-7d01458a6db7` → attempt 1 failed the live test (Discord's 46 rows compared with a Lattice fixture's 7 rows) → Auditor rejected → the founder corrected the shared test in commit `c6ac400` to compare row counts only for matching URLs → same session resumed → attempt 2 passed fixtures 1/1, contract 2/2, live 2/2 → Auditor accepted → founder approved ship approval #10 → ship task 4189 deployed Actor `RdQhIe6Jj6mE2qT4L` v1.0 → API version 20. Droid changed only `src/extract.js` and `src/jsonspan.js` (approval #10 detail).
 
 **Control table** (compile sessions, `decideCompile` in `policy.ts`):
 
@@ -114,12 +135,15 @@ Denied actions on record: approvals #4 and #8 are `droid_action` requests for `l
 
 Exported from [module/src/index.ts](module/src/index.ts):
 
-- **Reducers:** `audit_verdict`, `backfill_canary_orders`, `cancel_task`, `cfo_propose`, `challenge_verdict`, `claim_task`, `close_compile`, `compile_failed`, `compile_verdict`, `complete_task`, `coo_decide`, `create_api`, `create_order`, `decide_approval`, `enqueue_task`, `ensure_defaults`, `lease_sweep` (scheduled), `log_droid_event`, `open_challenge`, `record_api_version`, `record_gate_check`, `record_payment`, `reject_at_desk`, `renew_lease`, `request_droid_action`, `research_report`, `retire_api`, `set_budget_cap`, `set_config`, `set_order_params`, `set_staff`, `submit_compile`, `update_api`.
+- **Reducers:** `audit_verdict`, `backfill_canary_orders`, `cancel_task`, `cfo_propose`, `challenge_verdict`, `claim_task`, `close_compile`, `compile_failed`, `compile_verdict`, `complete_task`, `coo_decide`, `create_api`, `create_order`, `decide_approval`, `enqueue_task`, `ensure_defaults`, `lease_sweep` (scheduled), `log_droid_event`, `open_challenge`, `record_api_version`, `record_gate_check`, `record_payment`, `refund_order`, `set_run_share_url`, `reject_at_desk`, `renew_lease`, `request_droid_action`, `research_report`, `retire_api`, `set_budget_cap`, `set_config`, `set_order_params`, `set_staff`, `submit_compile`, `update_api`.
 - **Procedures:** `admission_precheck` (scheduled), `apify_poll`, `create_apify_task` (scheduled), `creao_poll`, `creao_start`, `dispatch` (scheduled), `http_smoke`, `recheck` (scheduled), `research_fetch`, `settle_run_cost` (scheduled), `start_api_run` (scheduled), `verify_probe`, `verify_values` (scheduled).
 - **HTTP routes:** `POST /ping`, `POST /creao-callback`, `POST /apify-callback`. Callbacks need a one-time token, never trust the body, and re-fetch the run with FORGE's key.
 - **Lifecycle:** `init`.
 
 ### Fetch.ai
+
+![tag:innovationlab](https://img.shields.io/badge/innovationlab-3D8BD3)
+![tag:hackathon](https://img.shields.io/badge/hackathon-5F43F1)
 
 **What it does here.** The Front Desk is a uAgent with the Chat Protocol and the Payment Protocol (seller). It parses intent with ASI-1, runs the layer-2 gate checks, quotes, takes payment (Stripe test checkout or testnet FET), answers `status` and opens challenges. The buyer agent is a separate uAgent with its own seed and testnet wallet. It searches Agentverse, finds the Front Desk, asks for a named API, pays through the Payment Protocol as the buyer and reads the delivered dataset. It holds no FORGE keys and gets no shortcuts.
 
@@ -142,7 +166,7 @@ Buyer purchase log:
 | `20261024T222758Z.json` | #131 `open-roles` (Tier 0) | 1 testnet FET, `stable-testnet` (chain `dorado-1`), tx `92CB62A56D1BC9B23CC87DAEED20C69D9FC3677AE4B825A540455405CABF2E10` | 21 values, 21 verified, 100.4 s |
 | `20261025T005417Z.json` | #196 `open-roles` (Tier 1 v1.0) | 1 testnet FET, tx `BE762C0EA997E60AA814515211E959A6057B266D9864C6C174E84745A5FBB9C7` | 21 values, 21 verified, 103.9 s |
 
-- TODO(founder): the Agentverse listing URL and badges for the Front Desk, and the ASI:One submission agent.
+- [Front Desk profile](https://agentverse.ai/agents/details/agent1qwxszhvaegkq6lsu8n0aks5sqz0l4h63janfx0xgrgcnvxgkl6n6uafetjq/profile). Badges and agent README are committed. Founder verification of its rendered profile and ASI:One submission registration remains open.
 - TODO(founder): the separate 3 to 5 minute Fetch video link.
 
 ### Apify
@@ -163,7 +187,7 @@ Buyer purchase log:
 Source: read-only SQL on `api_version`, October 25. A second buyer reused `open-roles` with no new build (order #196). Order #199 shows the COO creating a new Task (`8Bo2SrE6aUQv1xbTs`) for a researched request.
 
 - TODO(founder): the `forge-extract` Actor link and Store listing (pay-per-event pricing is a founder task, AGENTS.md §7).
-- TODO(founder): confirm the Best Actor entry and that `forge-extract` started in Apify AI Chat. The repo does not record this.
+- Target track: Apify Best Use.
 
 ### Bright Data
 
@@ -202,7 +226,7 @@ Every number here has a source. Money is TEST MODE.
 | Order #199 volatility check: two fetches 122 s apart | [docs/progress.md](docs/progress.md) |
 | Buyer agent deliveries: 21/21 verified in 100.4 s (Tier 0) and 103.9 s (Tier 1) | buyer logs above |
 | Database: 18 APIs created, 3 for sale; 205 orders, 9 from real ASI:One users or the buyer agent | read-only SQL on `forge`; real-order filter in [docs/progress.md](docs/progress.md) |
-| Dashboard header in the real-order scope: revenue $5.00 TEST MODE, verified 100% (85/85) | [docs/progress.md](docs/progress.md), step 1 |
+| Recorded dashboard header before the refund follow-up, real-order scope: revenue $5.00 TEST MODE, verified 100% (85/85) | [docs/progress.md](docs/progress.md), step 1 |
 
 ## Run it
 
@@ -240,16 +264,21 @@ uv run --env-file ../.env python -m buyer.agent "I'd like to buy open-roles for 
 
 Module env values are declared in the schema and supplied at publish time (`KEY=… spacetime publish`). A reset with `--delete-data=always` wipes them. `FORGE_DEMO_PAY=true` turns on the labeled SIMULATED PAYMENT shortcut; `.env.example` leaves it off ([docs/demo.md](docs/demo.md)).
 
+## Failure recovery
+
+The dispatch schedule checks old CREAO runs for missed webhooks. An undecided task gets one additional run; a second undecided run fails it and refunds eligible paid orders. Runs time out after 15 minutes. Start failures retry at least 30 seconds apart and stop after five minutes. Customer-order tasks take priority over compile reviews. Founder rescue refuses work still in flight. A delivered order needs a rejected challenge refund before a refund can be requested again.
+
+These changes are branch code verified locally. Maincloud publishing and a complete ASI:One smoke test remain founder release steps.
+
 ## Not built
 
 These were cut (AGENTS.md §12) or are not finished:
 
 - Coinbase x402 pay-per-call.
-- Interactive chat cards.
 - The CFO's scheduled daily report.
 - The `coverage`, `format` and `enhancement` ticket labels.
 - Browser API runs. The rung is in the ladder code, but no live fetch has used it (0 Browser API rows in `evidence`).
-- Time Machine scrubbing and the replay bar. The Engineering tab shows the real ticket #6 compile with its RECORDED timestamps instead.
+- Company-wide Time Machine. The per-order replay bar is built and labeled REPLAY; Engineering shows ticket #6 with RECORDED timestamps.
 - A Books tab. Revenue and cost per call are in the header and the catalog.
 - A dataset QR code.
 - Proactive status messages in ASI:One. ASI:One did not display a follow-up the agent sent 69 s after the quote (AGENTS.md §14), so customers send `status`.
