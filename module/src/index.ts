@@ -1267,21 +1267,26 @@ function creaoKey(env: IoCtx['env']): string {
   return key;
 }
 
+function addCallbackToken(ctx: Ctx, provider: string, runRef: bigint): string {
+  // The run id keeps tokens unique even if a scheduled procedure repeats its RNG seed.
+  const token = `${ctx.newUuidV4()}-${runRef}`;
+  ctx.db.callbackToken.insert({ token, provider, runRef, usedAt: undefined });
+  return token;
+}
+
 // Starts a CREAO run with a one-time webhook token. Gate 0 entry point; the dispatch schedule
 // replaces direct calls once orders exist.
 export const creao_start = spacetimedb.procedure(
   { appId: t.string(), inputs: t.string(), idempotencyKey: t.string(), threadId: t.string() },
   t.unit(),
   (ctx, { appId, inputs, idempotencyKey, threadId }) => {
-    const token = ctx.newUuidV4().toString();
-    const runId = ctx.withTx((tx) => {
+    const { runId, token } = ctx.withTx((tx) => {
       requireRole(tx, 'founder', 'canary');
       const row = tx.db.run.insert({
         id: 0n, provider: 'creao', externalId: '', appId, taskId: undefined, threadId, status: 'starting',
         resultText: '', shareUrl: '', costCents: 0, startedAt: tx.timestamp, endedAt: undefined,
       });
-      tx.db.callbackToken.insert({ token, provider: 'creao', runRef: row.id, usedAt: undefined });
-      return row.id;
+      return { runId: row.id, token: addCallbackToken(tx, 'creao', row.id) };
     });
     const base = ctx.env.get('PUBLIC_ROUTE_BASE');
     const body: Record<string, unknown> = { appId, inputs: JSON.parse(inputs), idempotencyKey };
@@ -1419,7 +1424,6 @@ export const start_api_run = spacetimedb.procedure(
   { arg: apiRunSchedule.rowType },
   t.unit(),
   (ctx, { arg }) => {
-    const token = ctx.newUuidV4().toString();
     const job = ctx.withTx((tx) => {
       const o = tx.db.orders.id.find(arg.orderId);
       if (!o || o.status !== 'accepted') return null;
@@ -1443,12 +1447,11 @@ export const start_api_run = spacetimedb.procedure(
         id: 0n, provider: 'apify', externalId: '', appId: v.apifyId, taskId: undefined, threadId: o.id.toString(), status: 'starting',
         resultText: '', shareUrl: '', costCents: 0, startedAt: tx.timestamp, endedAt: undefined,
       });
-      tx.db.callbackToken.insert({ token, provider: 'apify', runRef: run.id, usedAt: undefined });
-      return { orderId: o.id, apifyId: v.apifyId, engine: v.engine, runRef: run.id, input, params: resolved.params };
+      return { orderId: o.id, apifyId: v.apifyId, engine: v.engine, runRef: run.id, input, params: resolved.params, token: addCallbackToken(tx, 'apify', run.id) };
     });
     if (!job) return {};
     const base = ctx.env.get('PUBLIC_ROUTE_BASE');
-    const hooks = base ? [{ eventTypes: ['ACTOR.RUN.SUCCEEDED', 'ACTOR.RUN.FAILED', 'ACTOR.RUN.ABORTED', 'ACTOR.RUN.TIMED_OUT'], requestUrl: `${base}/apify-callback?token=${token}` }] : [];
+    const hooks = base ? [{ eventTypes: ['ACTOR.RUN.SUCCEEDED', 'ACTOR.RUN.FAILED', 'ACTOR.RUN.ABORTED', 'ACTOR.RUN.TIMED_OUT'], requestUrl: `${base}/apify-callback?token=${job.token}` }] : [];
     const path = job.engine === 'task' ? `actor-tasks/${job.apifyId}` : `acts/${job.apifyId}`;
     let status = 0;
     let text = '';
@@ -2298,6 +2301,15 @@ export const dispatch = spacetimedb.procedure(
     for (const [role, name] of Object.entries(ROLE_APP_ENV)) { const v = ctx.env.get(name); if (v) apps[role] = v; }
     if (!Object.keys(apps).length) return {};
     const picks = ctx.withTx((tx) => {
+      const callbackRuns = new Set([...tx.db.callbackToken.iter()].map((c) => c.runRef));
+      for (const r of tx.db.run.iter()) {
+        if (r.provider !== 'creao' || r.status !== 'starting' || r.externalId || callbackRuns.has(r.id)
+          || tx.timestamp.microsSinceUnixEpoch - r.startedAt.microsSinceUnixEpoch < 60_000_000n) continue;
+        const task = r.taskId === undefined ? undefined : tx.db.task.id.find(r.taskId);
+        tx.db.run.id.update({ ...r, status: 'start_failed', resultText: 'Dispatch stopped before callback token creation; no external call was made.', endedAt: tx.timestamp });
+        if (task?.status === 'dispatched') tx.db.task.id.update({ ...task, status: 'queued', updatedAt: tx.timestamp });
+        logEvent(tx, 'dispatch', 'orphan_dispatch_recovered', 'run', r.id, { taskId: r.taskId?.toString() });
+      }
       const inFlight = [...tx.db.run.iter()].filter((r) => r.provider === 'creao' && ['starting', 'pending', 'running', 'queued'].includes(r.status)).length;
       const free = cfgInt(tx, 'creao_max_concurrency') - inFlight;
       if (free <= 0) return [];
@@ -2313,13 +2325,11 @@ export const dispatch = spacetimedb.procedure(
           resultText: '', shareUrl: '', costCents: 0, startedAt: tx.timestamp, endedAt: undefined,
         });
         logEvent(tx, 'dispatch', 'task_dispatched', 'task', task.id, { role: task.role, kind: task.kind, runRef: run.id.toString() });
-        return { task, runRef: run.id };
+        return { task, runRef: run.id, token: addCallbackToken(tx, 'creao', run.id) };
       });
     });
     const base = ctx.env.get('PUBLIC_ROUTE_BASE');
-    for (const { task, runRef } of picks) {
-      const token = ctx.newUuidV4().toString();
-      ctx.withTx((tx) => tx.db.callbackToken.insert({ token, provider: 'creao', runRef, usedAt: undefined }));
+    for (const { task, runRef, token } of picks) {
       const body: Record<string, unknown> = {
         appId: apps[task.role],
         inputs: { task: JSON.stringify({ kind: task.kind, taskId: task.id.toString(), orderId: task.orderId?.toString() ?? '', input: JSON.parse(task.input) }) },

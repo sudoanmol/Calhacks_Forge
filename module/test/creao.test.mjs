@@ -30,6 +30,19 @@ test('a run CREAO refuses is recorded as start_failed with its HTTP status', asy
   assert.equal(mine.webhook, true);
 });
 
+test('separate starts create a callback token scoped to each run', async () => {
+  for (const suffix of ['first', 'second']) {
+    const app = `${marker}-${suffix}`;
+    const r = await call(founder, 'creao_start', [app, '{}', app, '']);
+    assert.equal(r.status, 200, r.body);
+    const [run] = await sql(founder, `SELECT * FROM run WHERE app_id = '${app}'`);
+    const [token] = await sql(founder, `SELECT * FROM callback_token WHERE run_ref = ${run.id}`);
+    assert.equal(token.provider, 'creao');
+    assert.ok(token.token.endsWith(`-${run.id}`));
+    assert.equal(run.status, 'start_failed', 'invalid test apps do not start a paid run');
+  }
+});
+
 test('callback with an unknown token is rejected and logged', async () => {
   const r = await route(`/creao-callback?token=nope-${Date.now()}`, {
     method: 'POST', headers: { 'content-type': 'application/json' },
