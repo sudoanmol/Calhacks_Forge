@@ -19,12 +19,12 @@ export function orderTimeline(order: Orders, events: readonly Event[], tasks: re
   const taskIds = new Set(tasks.filter((t) => t.orderId === id).map((t) => t.id));
   const runIds = new Set(runs.filter((r) => (r.taskId !== undefined && taskIds.has(r.taskId)) || (r.provider === 'apify' && r.threadId === String(id))).map((r) => r.id));
   const newApi = order.apiId !== undefined ? apis.find((a) => a.id === order.apiId && micros(a.createdAt) >= micros(order.createdAt)) : undefined;
-  return events.filter((e) =>
+  return events.filter((e) => e.kind !== 'dataset_link_refreshed' && (
     (e.refType === 'order' && e.refId === id)
     || (newApi !== undefined && e.refType === 'api' && e.refId === newApi.id && micros(e.at) >= micros(order.createdAt))
     || (e.refType === 'challenge' && payloadObj(e.payload).orderId === String(id))
     || (e.refType === 'task' && taskIds.has(e.refId))
-    || (e.refType === 'run' && runIds.has(e.refId)),
+    || (e.refType === 'run' && runIds.has(e.refId))),
   ).sort(byIdAsc);
 }
 

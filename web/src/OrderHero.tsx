@@ -4,7 +4,7 @@ import { Timestamp } from 'spacetimedb';
 import { useTable } from './db';
 import { reducers, tables } from './module_bindings';
 import type { Orders as Order } from './module_bindings/types';
-import { byIdAsc, micros, parseJson, usd } from './format';
+import { byIdAsc, micros, parseJson, payloadObj, usd } from './format';
 import { TERMINAL } from './flow';
 import { durationText } from './scene';
 import { useNow } from './Office';
@@ -56,9 +56,9 @@ export function OrderHero({ order: liveOrder, scope, founder, cursor = null }: {
   const simulated = order.stripeSessionId.startsWith('demo-simulated:');
   const customer = customers.find((c) => c.id === order.customerId);
   const terminal = TERMINAL.has(order.status);
-  const last = terminal ? [...events].sort(byIdAsc).at(-1) : undefined;
+  const completed = terminal ? [...events].sort(byIdAsc).find((e) => payloadObj(e.payload).status === order.status) : undefined;
   const elapsed = terminal
-    ? durationText(order.createdAt, last?.at ?? order.updatedAt)
+    ? durationText(order.createdAt, completed?.at ?? order.updatedAt)
     : durationText(order.createdAt, new Timestamp(BigInt(now) * 1000n));
   const elapsedText = terminal ? elapsed : order.status === 'quoted' ? `quoted ${elapsed} ago` : `running for ${elapsed}`;
   // Hide refund rows in replay: their current status does not preserve the past approval state.

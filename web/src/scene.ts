@@ -83,8 +83,8 @@ export function durationText(a?: Timestamp, b?: Timestamp): string {
   if (s < 0.1) return '<0.1 s';
   if (s < 10) return `${s.toFixed(1)} s`;
   if (s < 90) return `${Math.round(s)} s`;
-  const m = Math.floor(s / 60);
-  if (m < 90) return `${m}m ${Math.round(s - m * 60)}s`;
+  const m = Math.floor(Math.round(s) / 60);
+  if (m < 90) return `${m}m ${Math.round(s) % 60}s`;
   return `${Math.floor(m / 60)}h ${m % 60}m`;
 }
 
