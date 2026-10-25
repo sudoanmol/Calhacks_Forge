@@ -9,6 +9,7 @@ import { buildScene, type Scene, type SceneData, type StationId } from './scene'
 import { FloorScene } from './Floor';
 import { Pipeline } from './Pipeline';
 import { StationDrawer } from './Drawer';
+import { replaySlice } from './replay';
 
 const PICKER_SHOWN = 8;
 
@@ -85,7 +86,7 @@ export function useOrderSelection(scope: Scope): Selection {
   };
 }
 
-export function OfficeTab({ scope, setShowTest, sel }: { scope: Scope; setShowTest: (v: boolean) => void; sel: Selection }) {
+export function OfficeTab({ scope, setShowTest, sel, cursor }: { scope: Scope; setShowTest: (v: boolean) => void; sel: Selection; cursor: bigint | null }) {
   const [, ready] = useTable(tables.orders);
   // The floor is built from events, values and runs; until that snapshot lands a delivered order would
   // render as an unpaid quote, so wait rather than show a wrong state.
@@ -147,8 +148,11 @@ export function OfficeTab({ scope, setShowTest, sel }: { scope: Scope; setShowTe
       compileJobs,
       retiredApiIds,
     };
-    return { data, scene: buildScene(data) };
-  }, [selected, tasks, events, apis, customers, versions, gates, values, evidence, runs, challenges, runCosts, bonuses, books, canaryIds, budgets, approvals, tickets, compileJobs, retiredApiIds]);
+    if (cursor === null) return { data, scene: buildScene(data) };
+    const related = events.filter((e) => (e.refType === 'task' && taskIds.has(e.refId)) || e.refType === 'challenge');
+    const past = replaySlice(data, cursor, related);
+    return { data: past, scene: buildScene(past) };
+  }, [cursor, selected, tasks, events, apis, customers, versions, gates, values, evidence, runs, challenges, runCosts, bonuses, books, canaryIds, budgets, approvals, tickets, compileJobs, retiredApiIds]);
 
   if (!ready) return <p className="muted">Loading orders…</p>;
 

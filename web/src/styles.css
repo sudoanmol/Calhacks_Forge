@@ -376,3 +376,24 @@ button:disabled, input:disabled { opacity: .5; cursor: default; }
 .org-events { flex: none; overflow: visible; }
 .org-events .feed-row { animation: none; }
 .org-go { margin-top: 12px; background: var(--panel2); color: var(--ink); border: 1px solid var(--ember); border-radius: 6px; padding: 7px 12px; font: inherit; cursor: pointer; }
+
+/* Replay bar */
+.replay-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 6px 18px 0; padding: 6px 12px; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; font-size: 13.5px; }
+.replay-bar.on { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
+.replay-label { font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-size: 12px; }
+.badge.replay { background: var(--gold); color: #1a1408; font-size: 13px; letter-spacing: 0.08em; padding: 2px 9px; margin: 0; }
+.replay-bar .badge.replay { font-size: 15px; }
+.replay-range { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.replay-bar button { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; font: inherit; cursor: pointer; }
+.replay-bar button:hover, .replay-bar button:focus-visible { border-color: var(--ember); }
+.replay-bar .replay-speeds button.on { border-color: var(--ember); color: var(--ember); font-weight: 700; }
+.replay-play { min-width: 40px; }
+.replay-scrub { flex: 1 1 200px; min-width: 140px; accent-color: var(--ember); }
+.replay-clock { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 64px; }
+.replay-bar .replay-live { border-color: var(--gold); color: var(--gold); font-weight: 700; }
+.feed-head .badge.replay { font-size: 12px; }
+@media (max-width: 800px) {
+  .replay-bar { margin: 6px 8px 0; gap: 8px; }
+  .replay-range { white-space: normal; flex: 1 1 100%; order: 9; font-size: 12px; }
+  .replay-scrub { flex-basis: 100%; order: 10; }
+}
