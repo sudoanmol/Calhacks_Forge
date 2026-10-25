@@ -1702,11 +1702,24 @@ export const settle_run_cost = spacetimedb.procedure(
   },
 );
 
+function datasetPublicUrl(ctx: IoCtx, datasetId: string, key: string): string {
+  const base = `${APIFY_BASE}/datasets/${encodeURIComponent(datasetId)}/items`;
+  const res = ctx.http.fetch(`${APIFY_BASE}/datasets/${encodeURIComponent(datasetId)}`, { headers: { Authorization: `Bearer ${key}` } });
+  if (res.status !== 200) throw new Error(`Dataset sharing metadata unavailable: ${res.status}`);
+  const metadata: unknown = JSON.parse(res.text());
+  const data = metadata && typeof metadata === 'object' && 'data' in metadata ? metadata.data : undefined;
+  const url = data && typeof data === 'object' && 'itemsPublicUrl' in data ? data.itemsPublicUrl : undefined;
+  const signature = typeof url === 'string' && url.startsWith(`${base}?`) ? /[?&]signature=([^&#]+)/.exec(url)?.[1] : undefined;
+  if (!signature) throw new Error('Dataset has no signed public export URL');
+  return `${base}?signature=${encodeURIComponent(decodeURIComponent(signature))}&clean=1&format=json`;
+}
+
 // Re-fetches an Apify run with our key and ingests its dataset once. Webhook bodies are never trusted.
 function refreshApifyRun(ctx: IoCtx, runRef: bigint, actor: string): string {
   const row = ctx.withTx((tx) => tx.db.run.id.find(runRef));
   if (!row || !row.externalId) return row?.status ?? 'missing';
-  if (APIFY_TERMINAL.includes(row.status)) return row.status;
+  const alreadyIngested = APIFY_TERMINAL.includes(row.status);
+  if (alreadyIngested && (row.status !== 'SUCCEEDED' || actor !== 'procedure')) return row.status;
   const key = envOrThrow(ctx.env, 'APIFY_TOKEN');
   const res = ctx.http.fetch(`${APIFY_BASE}/actor-runs/${row.externalId}`, { headers: { Authorization: `Bearer ${key}` } });
   if (res.status !== 200) {
@@ -1718,6 +1731,17 @@ function refreshApifyRun(ctx: IoCtx, runRef: bigint, actor: string): string {
     ctx.withTx((tx) => { const cur = tx.db.run.id.find(runRef)!; if (cur.status !== run.status) tx.db.run.id.update({ ...cur, status: run.status }); });
     return run.status;
   }
+  const datasetUrl = run.status === 'SUCCEEDED' ? datasetPublicUrl(ctx, run.defaultDatasetId, key) : '';
+  if (alreadyIngested) {
+    ctx.withTx((tx) => {
+      const o = tx.db.orders.id.find(BigInt(row.threadId));
+      // An old run must never replace a newer run's dataset.
+      if (!o || o.apifyRunId !== row.externalId) return;
+      tx.db.orders.id.update({ ...o, datasetUrl });
+      logEvent(tx, actor, 'dataset_link_refreshed', 'order', o.id, { runRef: runRef.toString() });
+    });
+    return row.status;
+  }
   let items: ApifyItem[] = [];
   if (run.status === 'SUCCEEDED') {
     const r = ctx.http.fetch(`${APIFY_BASE}/datasets/${run.defaultDatasetId}/items?clean=1&format=json`, { headers: { Authorization: `Bearer ${key}` } });
@@ -1728,7 +1752,6 @@ function refreshApifyRun(ctx: IoCtx, runRef: bigint, actor: string): string {
     const r = ctx.http.fetch(`${APIFY_BASE}/key-value-stores/${run.defaultKeyValueStoreId}/records/RUN_SUMMARY`, { headers: { Authorization: `Bearer ${key}` } });
     if (r.status === 200) { try { summary = JSON.parse(r.text()) as RunSummary; } catch { /* no summary */ } }
   }
-  const datasetUrl = `${APIFY_BASE}/datasets/${run.defaultDatasetId}/items?clean=1&format=json`;
   ctx.withTx((tx) => {
     const cur = tx.db.run.id.find(runRef)!;
     if (APIFY_TERMINAL.includes(cur.status)) return; // a retry already ingested this run

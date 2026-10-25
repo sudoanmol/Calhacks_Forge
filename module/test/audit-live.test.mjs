@@ -57,6 +57,21 @@ test('real verified delivery refuses arbitrary refunds; declined challenge refun
   const v = values.find((v) => v.status === 'verified' && v.metric !== '_page');
   assert.ok(v, 'real independent verification produced facts');
   ok(await call(auditor, 'audit_verdict', [o.id, 'ACCEPT', 'SIMULATED QA: independent re-fetch verified values']));
+  const delivered = await one(`SELECT * FROM orders WHERE id = ${o.id}`);
+  const exportUrl = new URL(delivered.dataset_url);
+  assert.equal(exportUrl.origin, 'https://api.apify.com');
+  assert.ok(exportUrl.searchParams.get('signature'));
+  assert.equal(exportUrl.searchParams.get('token'), null);
+  const exported = await fetch(exportUrl); // No Authorization header: the buyer must be able to open it.
+  assert.equal(exported.status, 200);
+  assert.equal((await exported.json()).length, values.length);
+  const run = await one(`SELECT * FROM run WHERE external_id = '${delivered.apify_run_id}'`);
+  const booksBefore = await sql(founder, 'SELECT * FROM books');
+  ok(await call(founder, 'apify_poll', [run.id])); // Refresh sharing without re-ingesting or charging twice.
+  assert.equal((await sql(founder, `SELECT * FROM value_record WHERE order_id = ${o.id}`)).length, values.length);
+  assert.deepEqual(await sql(founder, 'SELECT * FROM books'), booksBefore);
+  const refreshed = await fetch((await one(`SELECT * FROM orders WHERE id = ${o.id}`)).dataset_url);
+  assert.equal(refreshed.status, 200);
   assert.equal((await call(founder, 'refund_order', [o.id, 'arbitrary refund'])).status, 530);
   ok(await call(desk, 'open_challenge', [o.id, 'asi-audit-live-simulated-qa', v.row, v.metric, 'SIMULATED QA challenge for refund approval regression']));
   const ch = await until(async () => (await sql(founder, 'SELECT * FROM challenge')).find((c) => c.order_id === o.id && c.status === 'auditing'));
