@@ -1,6 +1,7 @@
 // Live test: fetch the API's live source through Bright Data (same ladder as production), run
 // extract(), and check that at least 80% of values pass the quote anchor and that the row count
-// is within 50% of the audited fixture. Skipped without Bright Data credentials.
+// is within 50% of an audited fixture for that exact URL. Also checks fixture URLs when
+// order parameters differ from the API defaults. Skipped without Bright Data credentials.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fetchWithLadder } from '../src/lib/index.js';
@@ -13,12 +14,13 @@ const env = process.env;
 const skip = !env.BRIGHTDATA_API_KEY || !env.BRIGHTDATA_UNLOCKER_ZONE ? 'BRIGHTDATA_API_KEY / BRIGHTDATA_UNLOCKER_ZONE not set'
   : !api.sources?.length ? 'api.json has no sources' : false;
 
-test('live source: >= 80% anchored, row count within 50% of the fixture', { skip, timeout: 180_000 }, async (t) => {
+const fixtures = loadFixtures();
+const urls = [...new Set([...(api.sources ?? []), ...fixtures.map((f) => f.meta.url)])];
+for (const url of urls.length ? urls : ['']) test(`live source ${url}: >= 80% anchored, compare rows only with the same URL`, { skip, timeout: 180_000 }, async (t) => {
   const { unlocker, browser } = makeFetchers({
     apiKey: env.BRIGHTDATA_API_KEY, zone: env.BRIGHTDATA_UNLOCKER_ZONE,
     browserWss: api.render === 'browser' || env.BRIGHTDATA_BROWSER_WSS ? env.BRIGHTDATA_BROWSER_WSS : undefined,
   });
-  const url = api.sources[0];
   const t0 = Date.now();
   const page = await fetchWithLadder(url, { unlocker, browser, markers: api.markers ?? [] });
   const fetchMs = Date.now() - t0;
@@ -29,7 +31,7 @@ test('live source: >= 80% anchored, row count within 50% of the fixture', { skip
   const extractMs = Date.now() - t1;
   assert.equal(r.error, null, r.error ?? '');
   const s = summarize(r.items);
-  const fixtureRows = loadFixtures().reduce((n, fx) => n + rowCount(fx.expected), 0);
+  const fixtureRows = fixtures.filter((fx) => fx.meta.url === url).reduce((n, fx) => n + rowCount(fx.expected), 0);
   t.diagnostic(`LIVE ${JSON.stringify({ url, method: page.method, country: page.country, fetchMs, extractMs, ...s, fixtureRows, llmTokens: 0 })}`);
 
   assert.ok(s.total > 0, 'extract produced no values on the live page');

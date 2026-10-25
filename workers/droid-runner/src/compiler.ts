@@ -128,6 +128,11 @@ export async function runCompile(opts: CompileOptions): Promise<CompileSummary> 
     cpSync(actorDir, baselineDir, { recursive: true });
   } else {
     logEvent({ kind: 'rework_started', work: actorDir, logPath, resumedSessionId: sessionRef.id });
+    const liveTest = join(repo, 'actors/template/test/live.test.js');
+    if (readFileSync(liveTest, 'utf8') !== readFileSync(join(baselineDir, 'test/live.test.js'), 'utf8')) {
+      for (const dir of [actorDir, baselineDir]) cpSync(liveTest, join(dir, 'test/live.test.js'));
+      logEvent({ kind: 'harness_updated', files: ['test/live.test.js'], reason: 'Apply the current live-source checks to the resumed session.' });
+    }
   }
 
   // The CLI auto-approves Create/Edit inside the session cwd at Low autonomy without calling the
