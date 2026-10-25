@@ -5,6 +5,7 @@ import { OfficeTab, useMedia, useOrderSelection } from './Office';
 import { ApisTab } from './Apis';
 import { ControlsModal } from './Controls';
 import { EngineeringTab } from './Engineering';
+import { OrgChartTab } from './OrgChart';
 import { Header } from './Header';
 import { OrderHero } from './OrderHero';
 import { Feed } from './Feed';
@@ -13,7 +14,7 @@ import { DroidStrip } from './DroidStrip';
 import { useScope } from './scope';
 import type { StationId } from './scene';
 
-const TABS = ['Office', 'Catalog', 'Engineering'] as const;
+const TABS = ['Office', 'Org chart', 'Catalog', 'Engineering'] as const;
 type Tab = (typeof TABS)[number];
 
 export function App() {
@@ -45,6 +46,7 @@ export function App() {
           </nav>
           {tab === 'Office'
             ? <OfficeTab scope={scope} setShowTest={setShowTest} sel={sel} />
+            : tab === 'Org chart' ? <OrgChartTab scope={scope} setShowTest={setShowTest} onStation={openStation} onEngineering={() => setTab('Engineering')} onControls={() => setControls(true)} />
             : tab === 'Catalog' ? <ApisTab scope={scope} onEngineering={() => setTab('Engineering')} /> : <EngineeringTab founder={founder} jobId={engJob} onJob={setEngJob} />}
         </section>
         <aside className="rail">
