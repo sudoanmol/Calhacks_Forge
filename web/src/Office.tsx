@@ -87,7 +87,9 @@ export function useOrderSelection(scope: Scope): Selection {
 
 export function OfficeTab({ scope, setShowTest, sel }: { scope: Scope; setShowTest: (v: boolean) => void; sel: Selection }) {
   const [, ready] = useTable(tables.orders);
-  const [events] = useTable(tables.event);
+  // The floor is built from events, values and runs; until that snapshot lands a delivered order would
+  // render as an unpaid quote, so wait rather than show a wrong state.
+  const [events, historyReady] = useTable(tables.event);
   const [customers] = useTable(tables.customer);
   const [apis] = useTable(tables.api);
   const [versions] = useTable(tables.apiVersion);
@@ -158,7 +160,7 @@ export function OfficeTab({ scope, setShowTest, sel }: { scope: Scope; setShowTe
         newer={newer} onNewest={() => visible[0] && pick(visible[0].id)}
         apiName={(o) => (o.apiId !== undefined ? apis.find((a) => a.id === o.apiId)?.name : undefined)}
       />
-      {scene ? (
+      {!historyReady ? <p className="muted">Loading order history…</p> : scene ? (
         <>
           {phone
             ? <Pipeline scene={scene.scene} onOpen={setDrawer} />

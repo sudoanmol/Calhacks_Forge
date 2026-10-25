@@ -31,8 +31,8 @@ export const STATION_META: Record<StationId, { name: string; sponsor: string; ro
   verify: { name: 'Verify portal', sponsor: 'Bright Data', role: 'Independent re-fetch of every source and quote check' },
   auditor: { name: 'Auditor', sponsor: 'CREAO', role: 'Inspection gate: stamps ACCEPT or REJECT with a reason' },
   delivered: { name: 'Delivered', sponsor: 'ASI:One', role: 'Data back to the customer in chat; challenges land here' },
-  cfo: { name: 'CFO vault', sponsor: 'CREAO', role: 'Invests in compiles from the engineering budget' },
-  droid: { name: 'Droid engineer', sponsor: 'Factory', role: 'Compiles Tier 1 Actors and fixes extractor errors' },
+  cfo: { name: 'CFO', sponsor: 'CREAO', role: 'Invests in compiles from the engineering budget' },
+  droid: { name: 'Engineer', sponsor: 'Factory', role: 'Compiles Tier 1 Actors and fixes extractor errors' },
   treasurer: { name: 'Treasurer', sponsor: 'SpacetimeDB', role: 'Reducers move money in the double-entry ledger' },
 };
 

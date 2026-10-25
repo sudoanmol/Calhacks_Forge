@@ -31,7 +31,7 @@ type CardText = { title: string; body: string; consequence?: string };
 
 export function NeedsYou({ scope, founder }: { scope: Scope; founder: boolean }) {
   const [approvals] = useTable(tables.approval);
-  const [events] = useTable(tables.event);
+  const [events, eventsReady] = useTable(tables.event);
   const [jobs] = useTable(tables.compileJob);
   const [apis] = useTable(tables.api);
   const [budgets] = useTable(tables.budget);
@@ -116,7 +116,9 @@ export function NeedsYou({ scope, founder }: { scope: Scope; founder: boolean })
       {pending.length === 0 ? (
         <div className="needs-empty" data-testid="needs-empty">
           <p>Nothing is waiting on the founder.</p>
-          <p className="muted"><b className="num">{decisions}</b> agent decision{decisions === 1 ? '' : 's'} so far without you.</p>
+          {eventsReady
+            ? <p className="muted"><b className="num">{decisions}</b> agent decision{decisions === 1 ? '' : 's'} so far without you.</p>
+            : <p className="muted">Counting agent decisions…</p>}
         </div>
       ) : (
         pending.map((a) => {
