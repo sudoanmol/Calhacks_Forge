@@ -243,3 +243,41 @@ button:disabled, input:disabled { opacity: .5; cursor: default; }
   .chip { width: 180px; }
   .drawer { position: fixed; top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 78vh; border-left: none; border-top: 2px solid var(--ember); border-radius: 14px 14px 0 0; }
 }
+
+/* Step 4: needs-you rail and decision cards */
+.needs { flex: none; max-height: 40%; overflow: auto; padding: 10px 12px; }
+.needs h2 { margin: 0 0 6px; }
+.needs-empty p { margin: 2px 0; font-size: 14px; }
+.needs-empty .num, .stat-pair b { font-variant-numeric: tabular-nums; }
+.needs-card { border: 1px solid var(--gold); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; background: var(--panel2); }
+.needs-card header { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.needs-card h3 { margin: 0; font-size: 15px; overflow-wrap: anywhere; }
+.needs-card p { margin: 6px 0 0; font-size: 13.5px; line-height: 1.4; overflow-wrap: anywhere; }
+.needs-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; color: var(--muted); }
+.needs-consequence { color: var(--muted); }
+.needs-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; font-size: 13px; }
+.needs-actions button { background: var(--panel); color: var(--ink); border: 1px solid var(--ember); border-radius: 5px; padding: 6px 14px; font: inherit; cursor: pointer; }
+.stat-pair > span { font-size: 15px; color: var(--muted); white-space: nowrap; }
+.stat-pair b { font-size: 18px; color: #fff4dc; }
+.decision-card { margin-top: 12px; padding: 12px 14px; background: #15130f; border: 1px solid var(--line); border-radius: 8px; }
+.decision-title { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; font-size: 17px; }
+.decision-card .decisions { margin-top: 6px; }
+.verbatim { quotes: '“' '”'; line-height: 1.45; white-space: pre-wrap; }
+.decision-run { margin: 12px 0 0; }
+.run-btn { display: inline-block; border: 1px solid var(--gold); border-radius: 6px; padding: 5px 12px; text-decoration: none; font-weight: 700; font-size: 13.5px; }
+.run-btn:hover, .run-btn:focus-visible { background: #2a2016; }
+.decision-foot { margin: 8px 0 0; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.decision-earlier, .decision-values { margin-top: 8px; }
+.decision-earlier summary, .decision-values summary { cursor: pointer; color: var(--gold); font-size: 13.5px; }
+.decision-prev { padding: 6px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
+.decision-prev p { margin: 4px 0 0; }
+@media (max-width: 1600px) and (min-width: 801px) {
+  .stats { gap: 8px 18px; }
+  .stat-row { gap: 8px 20px; }
+  .stat-pair small { display: none; }
+  .stat-pair > span { font-size: 13.5px; white-space: normal; max-width: 150px; line-height: 1.25; }
+}
+@media (max-width: 800px) {
+  .needs { max-height: none; margin: 8px 8px 0; }
+  .stat-pair > span { white-space: normal; }
+}

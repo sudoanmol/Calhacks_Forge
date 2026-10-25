@@ -3,6 +3,7 @@ import { tables } from './module_bindings';
 import { usd } from './format';
 import { microsUsd } from './scene';
 import type { Scope } from './scope';
+import { useDecisionCounts } from './NeedsYou';
 
 const CHECKED = new Set(['verified', 'stale', 'mismatch', 'unverifiable', 'corrected']);
 
@@ -29,6 +30,8 @@ export function Header({ scope, founder, onControls }: { scope: Scope; founder: 
   const lo = perCall.reduce<bigint | undefined>((m, x) => (m === undefined || x < m ? x : m), undefined);
   const hi = perCall.reduce<bigint | undefined>((m, x) => (m === undefined || x > m ? x : m), undefined);
   const simulated = visible.some((o) => o.stripeSessionId.startsWith('demo-simulated:'));
+  const pair = useDecisionCounts(scope);
+  const pairTitle = `Counted over stored events in scope: ${scope.label}. Counts events, not unique decisions: a rework counts twice (sent back, then accepted).`;
   const connText = conn.isActive ? 'Connected to the live database' : conn.connectionError ? `Connection error: ${conn.connectionError.message}` : 'Connecting…';
 
   return (
@@ -44,6 +47,10 @@ export function Header({ scope, founder, onControls }: { scope: Scope; founder: 
         <span className="stat"><small>verified</small><b>{checked.length ? `${Math.round((verified / checked.length) * 100)}%` : '—'} <em>{verified}/{checked.length}</em></b></span>
         <span className="stat"><small>cost / call · TEST MODE</small><b>{lo === undefined ? '—' : lo === hi ? microsUsd(lo) : `${microsUsd(lo)}–${microsUsd(hi!)}`}</b></span>
         <span className="stat"><small>APIs for sale</small><b data-testid="stat-apis">{forSale}</b></span>
+        <span className="stat stat-pair" title={pairTitle} data-testid="stat-pair">
+          <small>one-person company</small>
+          <span>Agent decisions <b data-testid="stat-decisions">{pair.decisions}</b> · Founder approvals <b data-testid="stat-approvals">{pair.approvals}</b></span>
+        </span>
       </span>
       <span className="right">
         <span className={`conn-dot ${conn.isActive ? 'ok' : 'bad'}`} data-testid="conn" title={connText} aria-label={connText} role="img" />
