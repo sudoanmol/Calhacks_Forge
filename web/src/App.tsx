@@ -1,82 +1,65 @@
 import { useState } from 'react';
-import { useSpacetimeDB, useTable } from 'spacetimedb/react';
+import { useSpacetimeDB } from 'spacetimedb/react';
+import { useTable } from './db';
 import { tables } from './module_bindings';
-import { usd } from './format';
-import { TERMINAL } from './flow';
-import { OfficeTab } from './Office';
-import { microsUsd } from './scene';
+import { OfficeTab, useMedia, useOrderSelection } from './Office';
 import { ApisTab } from './Apis';
-import { EventsPanel } from './Events';
-import { ApprovalCards, ControlsTab } from './Controls';
+import { ControlsModal } from './Controls';
 import { EngineeringTab } from './Engineering';
+import { OrgChartTab } from './OrgChart';
+import { Header } from './Header';
+import { OrderHero } from './OrderHero';
+import { Feed } from './Feed';
+import { NeedsYou } from './NeedsYou';
+import { DroidStrip } from './DroidStrip';
+import { useScope } from './scope';
+import type { StationId } from './scene';
 
-const TABS = ['Office', 'APIs', 'Controls', 'Engineering'] as const;
+const TABS = ['Office', 'Org chart', 'Catalog', 'Engineering'] as const;
 type Tab = (typeof TABS)[number];
-const CHECKED = new Set(['verified', 'stale', 'mismatch', 'unverifiable', 'corrected']);
 
-function Stats({ db }: { db: string }) {
-  const conn = useSpacetimeDB();
-  const [books] = useTable(tables.books);
-  const [budget] = useTable(tables.budget);
-  const [values] = useTable(tables.valueRecord);
-  const [orders] = useTable(tables.orders);
-  const [apiCosts] = useTable(tables.apiCost);
-  const [retired] = useTable(tables.apiRetired);
-
-  // Payments debit customer:<orderId>, so the sum of those balances is revenue received.
-  const revenue = -books.filter((b) => b.account.startsWith('customer:')).reduce((s, b) => s + b.balanceCents, 0n);
-  const treasury = books.find((b) => b.account === 'treasury')?.balanceCents ?? 0n;
-  const eng = budget.find((b) => b.name === 'engineering');
-  const checked = values.filter((v) => CHECKED.has(v.status));
-  const verified = checked.filter((v) => v.status === 'verified').length;
-  const openOrders = orders.filter((o) => !TERMINAL.has(o.status)).length;
-  const gone = new Set(retired.map((r) => r.apiId));
-  const perCall = apiCosts.filter((c) => c.runs > 0 && !gone.has(c.apiId)).map((c) => c.costPerCallMicros);
-  const lo = perCall.reduce<bigint | undefined>((m, x) => (m === undefined || x < m ? x : m), undefined);
-  const hi = perCall.reduce<bigint | undefined>((m, x) => (m === undefined || x > m ? x : m), undefined);
-  const connText = conn.isActive ? 'connected' : conn.connectionError ? `error: ${conn.connectionError.message}` : 'connecting…';
-
-  return (
-    <header className="stats" data-testid="stats">
-      <span className="badge test">TEST MODE</span>
-      {orders.some((o) => o.stripeSessionId.startsWith('demo-simulated:')) && <span className="badge test">Includes SIMULATED PAYMENTS</span>}
-      <span className="stat"><small>revenue</small><b>{usd(revenue)}</b></span>
-      <span className="stat"><small>treasury</small><b>{usd(treasury)}</b></span>
-      <span className="stat"><small>eng budget cap / reserved / spent</small><b>{eng ? `${usd(eng.capCents)} / ${usd(eng.reservedCents)} / ${usd(eng.spentCents)}` : '—'}</b></span>
-      <span className="stat"><small>verified</small><b>{checked.length ? `${Math.round((verified / checked.length) * 100)}%` : '—'}</b><small>{verified}/{checked.length}</small></span>
-      <span className="stat"><small>cost / call</small><b>{lo === undefined ? '—' : lo === hi ? microsUsd(lo) : `${microsUsd(lo)}–${microsUsd(hi!)}`}</b></span>
-      <span className="stat"><small>open orders</small><b data-testid="open-orders">{openOrders}</b></span>
-      <span className="right">
-        <span className={`conn ${conn.isActive ? 'ok' : 'bad'}`} data-testid="conn">{connText}</span>
-        <span className="muted">db {db}</span>
-        <span className="muted" title={conn.identity?.toHexString()}>{conn.identity ? `you ${conn.identity.toHexString().slice(0, 8)}…` : ''}</span>
-        <span className="badge live">LIVE</span>
-      </span>
-    </header>
-  );
-}
-
-export function App({ db }: { db: string }) {
+export function App() {
   const [tab, setTab] = useState<Tab>('Office');
+  const [controls, setControls] = useState(false);
+  const [showTest, setShowTest] = useState(false);
+  const [engJob, setEngJob] = useState<bigint | null>(null);
+  const openEngineering = (ticketId: bigint) => { setEngJob(ticketId); setTab('Engineering'); };
+  const scope = useScope(showTest);
+  const sel = useOrderSelection(scope);
   const connection = useSpacetimeDB();
   const [staff] = useTable(tables.staff);
   const identity = connection.identity;
   const founder = connection.isActive && identity !== undefined && staff.some((s) => s.role === 'founder' && s.identity.isEqual(identity));
+  const openStation = (id: StationId) => { setTab('Office'); sel.setDrawer(id); };
+  // The phone stacks Needs you above the order headline; the desktop keeps it at the top of the rail.
+  const phone = useMedia('(max-width: 800px)');
+  // The phone layout has no org chart (spec §5); a chart left open when the window narrows falls back to Office.
+  const tabs: readonly Tab[] = phone ? TABS.filter((t) => t !== 'Org chart') : TABS;
+  const shown: Tab = tabs.includes(tab) ? tab : 'Office';
   return (
     <div className="app">
-      <Stats db={db} />
+      <Header scope={scope} founder={founder} onControls={() => setControls(true)} />
+      {phone && <NeedsYou scope={scope} founder={founder} />}
+      {shown === 'Office' && sel.selected && <OrderHero order={sel.selected} scope={scope} />}
       <main>
         <section className="panel mainpanel">
-          <ApprovalCards founder={founder} />
-          <nav className="tabs">
-            {TABS.map((t) => (
-              <button key={t} className={t === tab ? 'on' : ''} onClick={() => setTab(t)}>{t}</button>
+          <nav className="tabs" role="tablist">
+            {tabs.map((t) => (
+              <button key={t} role="tab" aria-selected={t === shown} className={t === shown ? 'on' : ''} onClick={() => setTab(t)} data-testid={`tab-${t}`}>{t}</button>
             ))}
           </nav>
-          {tab === 'Office' ? <OfficeTab /> : tab === 'APIs' ? <ApisTab /> : tab === 'Controls' ? <ControlsTab founder={founder} /> : <EngineeringTab founder={founder} />}
+          {shown === 'Office'
+            ? <OfficeTab scope={scope} setShowTest={setShowTest} sel={sel} />
+            : shown === 'Org chart' ? <OrgChartTab scope={scope} setShowTest={setShowTest} onStation={openStation} onEngineering={() => setTab('Engineering')} onControls={() => setControls(true)} />
+            : shown === 'Catalog' ? <ApisTab scope={scope} onEngineering={() => setTab('Engineering')} /> : <EngineeringTab founder={founder} jobId={engJob} onJob={setEngJob} />}
         </section>
-        <EventsPanel />
+        <aside className="rail">
+          {!phone && <NeedsYou scope={scope} founder={founder} />}
+          <Feed order={sel.selected} scope={scope} onOpen={openStation} />
+          <DroidStrip onOpen={openEngineering} />
+        </aside>
       </main>
+      {controls && <ControlsModal founder={founder} onClose={() => setControls(false)} />}
     </div>
   );
 }

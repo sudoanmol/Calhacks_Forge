@@ -1,6 +1,6 @@
 import type { Timestamp } from 'spacetimedb';
 import type {
-  Api, ApiVersion, Approval, Bonus, Books, Budget, Challenge, Customer, Event, Evidence, GateCheck, Orders, Run, RunCost, Task, Ticket, ValueRecord,
+  Api, ApiVersion, Approval, Bonus, Books, Budget, Challenge, CompileJob, Customer, Event, Evidence, GateCheck, Orders, Run, RunCost, Task, Ticket, ValueRecord,
 } from './module_bindings/types';
 import { micros, payloadObj, usd } from './format';
 
@@ -31,8 +31,8 @@ export const STATION_META: Record<StationId, { name: string; sponsor: string; ro
   verify: { name: 'Verify portal', sponsor: 'Bright Data', role: 'Independent re-fetch of every source and quote check' },
   auditor: { name: 'Auditor', sponsor: 'CREAO', role: 'Inspection gate: stamps ACCEPT or REJECT with a reason' },
   delivered: { name: 'Delivered', sponsor: 'ASI:One', role: 'Data back to the customer in chat; challenges land here' },
-  cfo: { name: 'CFO vault', sponsor: 'CREAO', role: 'Invests in compiles from the engineering budget' },
-  droid: { name: 'Droid anvil', sponsor: 'Factory', role: 'Compiles Tier 1 Actors and fixes extractor errors' },
+  cfo: { name: 'CFO', sponsor: 'CREAO', role: 'Invests in compiles from the engineering budget' },
+  droid: { name: 'Engineer', sponsor: 'Factory', role: 'Compiles Tier 1 Actors and fixes extractor errors' },
   treasurer: { name: 'Treasurer', sponsor: 'SpacetimeDB', role: 'Reducers move money in the double-entry ledger' },
 };
 
@@ -56,11 +56,13 @@ export type SceneData = {
   approvals: readonly Approval[];
   tickets: readonly Ticket[];
   allTasks: readonly Task[];
+  allApis: readonly Api[];
+  compileJobs: readonly CompileJob[];
+  retiredApiIds: ReadonlySet<bigint>;
 };
 
 export const DESK_CHECKS = new Set(['layer2', 'personal_data', 'blocked_domain', 'blocked_domains', 'page_cap', 'login_only']);
 const OPEN_TASK = new Set(['queued', 'claimed']);
-const ENGINEERING_KINDS = new Set(['compile', 'enhancement', 'warranty']);
 
 const lastEvent = (evs: Event[], pred: (e: Event) => boolean) => {
   for (let i = evs.length - 1; i >= 0; i--) if (pred(evs[i])) return evs[i];
@@ -250,15 +252,7 @@ export function buildScene(d: SceneData): Scene {
     detail: cfoTasks.length ? 'CFO run reviewing a compile' : overCap ? `${overCap} spend-over-cap approval pending` : undefined,
   };
 
-  const droidTasks = d.allTasks.filter((t) => t.role === 'droid_runner' && ENGINEERING_KINDS.has(t.kind));
-  const awake = droidTasks.find((t) => t.status === 'claimed');
-  const queued = droidTasks.filter((t) => t.status === 'queued');
-  const compileTickets = d.tickets.filter((t) => ['compile', 'warranty'].includes(t.label) && t.status === 'open');
-  st.droid = awake
-    ? { id: 'droid', state: 'working', caption: `Droid is awake: ${awake.kind} #${awake.id}`, start: awake.updatedAt }
-    : queued.length
-      ? { id: 'droid', state: 'waiting', caption: `${queued.length} ${queued[0].kind} task${queued.length === 1 ? '' : 's'} queued` }
-      : { id: 'droid', state: 'idle', caption: 'Droid is sleeping', detail: compileTickets.length ? `${compileTickets.length} compile/warranty ticket${compileTickets.length === 1 ? '' : 's'} open, no engineering task claimed` : undefined };
+  st.droid = droidStationView(d.compileJobs, (id) => d.allApis.find((a) => a.id === id)?.name, d.retiredApiIds);
 
   const cost = d.runCosts.reduce((s, r) => s + r.totalMicros, 0n);
   const bonus = d.bonuses.filter((x) => x.status !== 'clawed_back').reduce((s, x) => s + x.amountCents, 0);
@@ -276,4 +270,34 @@ function lastLit(st: Record<StationId, StationView>): FlowId {
   let last: FlowId = 'customer';
   for (const id of FLOW) if (st[id].state !== 'idle' && st[id].state !== 'skipped') last = id;
   return last;
+}
+
+const BUILDING = new Set(['compiling', 'auditing', 'rework']);
+const WAITING_FOUNDER = new Set(['awaiting_approval', 'ship_pending']);
+const DAY_MICROS = 86_400_000_000n;
+
+// The Droid station reads the compile jobs of live APIs, not task rows: a job's status says whether Droid is building,
+// blocked on the founder or on the cap, or has nothing queued.
+export function droidStationView(jobs: readonly CompileJob[], apiName: (apiId: bigint) => string | undefined, retired: ReadonlySet<bigint>): StationView {
+  const live = jobs.filter((j) => !retired.has(j.apiId)).sort((a, b) => (a.ticketId > b.ticketId ? -1 : 1));
+  const name = (j: CompileJob) => apiName(j.apiId) ?? `API ${j.apiId}`;
+  const building = live.find((j) => BUILDING.has(j.status) || j.status === 'shipping');
+  if (building) {
+    if (building.status === 'shipping') return { id: 'droid', state: 'working', caption: `Publishing ${name(building)}`, detail: `Publishing ${name(building)} to Apify`, start: building.updatedAt };
+    const n = building.status === 'rework' ? building.attempt + 1 : building.attempt;
+    const caption = `Building ${name(building)} · attempt ${n}`;
+    return { id: 'droid', state: 'working', caption, detail: `${caption} (compile ticket #${building.ticketId}, ${building.status.replace(/_/g, ' ')})`, start: building.updatedAt };
+  }
+  const founder = live.find((j) => WAITING_FOUNDER.has(j.status));
+  if (founder) return { id: 'droid', state: 'waiting', caption: 'Waiting for founder approval', detail: `Compile ticket #${founder.ticketId} for ${name(founder)}: ${founder.status === 'ship_pending' ? 'publish' : 'spend over the cap'} approval pending` };
+  const blocked = live.find((j) => j.status === 'ineligible');
+  if (blocked) return { id: 'droid', state: 'waiting', caption: 'Blocked: over the engineering cap', detail: `Compile ticket #${blocked.ticketId} for ${name(blocked)} no longer fits the engineering cap` };
+  const queued = live.filter((j) => j.status === 'queued');
+  if (queued.length) return { id: 'droid', state: 'waiting', caption: `${queued.length} build${queued.length === 1 ? '' : 's'} queued`, detail: queued.map((j) => `#${j.ticketId} ${name(j)}`).join(', ') };
+  return { id: 'droid', state: 'idle', caption: 'No engineering queued' };
+}
+
+// The Droid → Warehouse pipe lights while a compiled version is being published and for a day after it ships.
+export function shipPipeLit(jobs: readonly CompileJob[], retired: ReadonlySet<bigint>, nowMicros: bigint): boolean {
+  return jobs.some((j) => !retired.has(j.apiId) && (j.status === 'shipping' || (j.status === 'shipped' && nowMicros - micros(j.updatedAt) < DAY_MICROS)));
 }

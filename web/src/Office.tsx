@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useTable } from 'spacetimedb/react';
+import { useTable } from './db';
 import { tables } from './module_bindings';
 import type { Event, Orders as Order } from './module_bindings/types';
-import { byIdAsc, byIdDesc, micros, short } from './format';
+import { byIdAsc, byIdDesc, micros } from './format';
+import type { Scope } from './scope';
 import { TERMINAL } from './flow';
 import { buildScene, type Scene, type SceneData, type StationId } from './scene';
 import { FloorScene } from './Floor';
 import { Pipeline } from './Pipeline';
 import { StationDrawer } from './Drawer';
 
-const PICKER_SHOWN = 12;
+const PICKER_SHOWN = 8;
 
 export function useMedia(query: string) {
   const [match, setMatch] = useState(() => window.matchMedia(query).matches);
@@ -23,7 +24,7 @@ export function useMedia(query: string) {
 }
 
 // Re-renders age labels; it never drives scene state or animation.
-function useNow(ms: number) {
+export function useNow(ms: number) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), ms);
@@ -42,10 +43,53 @@ function age(o: Order, now: number) {
 
 const inProgress = (o: Order) => !TERMINAL.has(o.status) && o.status !== 'quoted';
 
-export function OfficeTab() {
-  const [orders, ready] = useTable(tables.orders);
-  const [canary] = useTable(tables.canaryOrder);
-  const [events] = useTable(tables.event);
+export type Selection = {
+  visible: Order[];
+  selectedId?: bigint;
+  selected?: Order;
+  newer: number;
+  pick: (id: bigint) => void;
+  drawer: StationId | null;
+  setDrawer: (id: StationId | null) => void;
+};
+
+// One selected order drives the headline, floor, drawers and feed. A pick that leaves the visible scope
+// (for example a test order after Show test traffic is turned off) falls back to auto-follow.
+export function useOrderSelection(scope: Scope): Selection {
+  const [orders] = useTable(tables.orders);
+  const [picked, setPicked] = useState<bigint | null>(null);
+  const [seenMax, setSeenMax] = useState<bigint>(0n);
+  const [drawer, setDrawer] = useState<StationId | null>(null);
+  const visible = useMemo(() => [...orders].filter(scope.isVisible).sort(byIdDesc), [orders, scope]);
+  const auto = useMemo(() => {
+    const real = [...orders].filter(scope.isReal).sort(byIdDesc);
+    return (real.find(inProgress) ?? real[0] ?? visible[0])?.id;
+  }, [orders, scope, visible]);
+  const pickVisible = picked !== null && visible.some((o) => o.id === picked);
+  useEffect(() => {
+    if (picked !== null && !pickVisible) { setPicked(null); setDrawer(null); }
+  }, [picked, pickVisible]);
+  const selectedId = pickVisible ? picked! : auto;
+  return {
+    visible,
+    selectedId,
+    selected: orders.find((o) => o.id === selectedId),
+    newer: pickVisible ? visible.filter((o) => o.id > seenMax).length : 0,
+    pick: (id) => {
+      setPicked(id);
+      setSeenMax(visible.reduce((m, o) => (o.id > m ? o.id : m), 0n));
+      setDrawer(null);
+    },
+    drawer,
+    setDrawer,
+  };
+}
+
+export function OfficeTab({ scope, setShowTest, sel }: { scope: Scope; setShowTest: (v: boolean) => void; sel: Selection }) {
+  const [, ready] = useTable(tables.orders);
+  // The floor is built from events, values and runs; until that snapshot lands a delivered order would
+  // render as an unpaid quote, so wait rather than show a wrong state.
+  const [events, historyReady] = useTable(tables.event);
   const [customers] = useTable(tables.customer);
   const [apis] = useTable(tables.api);
   const [versions] = useTable(tables.apiVersion);
@@ -61,32 +105,14 @@ export function OfficeTab() {
   const [budgets] = useTable(tables.budget);
   const [approvals] = useTable(tables.approval);
   const [tickets] = useTable(tables.ticket);
+  const [compileJobs] = useTable(tables.compileJob);
+  const [retiredRows] = useTable(tables.apiRetired);
+  const retiredApiIds = useMemo(() => new Set(retiredRows.map((r) => r.apiId)), [retiredRows]);
 
   const phone = useMedia('(max-width: 800px)');
   const now = useNow(15_000);
-  const [showCanary, setShowCanary] = useState(false);
-  const [picked, setPicked] = useState<bigint | null>(null);
-  const [seenMax, setSeenMax] = useState<bigint>(0n);
-  const [drawer, setDrawer] = useState<StationId | null>(null);
-
-  const canaryIds = useMemo(() => new Set(canary.map((c) => c.orderId)), [canary]);
-  const visible = useMemo(
-    () => [...orders].filter((o) => showCanary || !canaryIds.has(o.id)).sort(byIdDesc),
-    [orders, canaryIds, showCanary],
-  );
-  const auto = useMemo(() => {
-    const real = [...orders].filter((o) => !canaryIds.has(o.id)).sort(byIdDesc);
-    return (real.find(inProgress) ?? real[0] ?? visible[0])?.id;
-  }, [orders, canaryIds, visible]);
-  const selectedId = picked ?? auto;
-  const selected = orders.find((o) => o.id === selectedId);
-  const newer = picked !== null ? visible.filter((o) => o.id > seenMax) : [];
-
-  const pick = (id: bigint) => {
-    setPicked(id);
-    setSeenMax(visible.reduce((m, o) => (o.id > m ? o.id : m), 0n));
-    setDrawer(null);
-  };
+  const { canaryIds } = scope;
+  const { visible, selectedId, selected, newer, pick, drawer, setDrawer } = sel;
 
   const scene: { data: SceneData; scene: Scene } | undefined = useMemo(() => {
     if (!selected) return undefined;
@@ -117,23 +143,25 @@ export function OfficeTab() {
       approvals,
       tickets,
       allTasks: tasks,
+      allApis: apis,
+      compileJobs,
+      retiredApiIds,
     };
     return { data, scene: buildScene(data) };
-  }, [selected, tasks, events, apis, customers, versions, gates, values, evidence, runs, challenges, runCosts, bonuses, books, canaryIds, budgets, approvals, tickets]);
+  }, [selected, tasks, events, apis, customers, versions, gates, values, evidence, runs, challenges, runCosts, bonuses, books, canaryIds, budgets, approvals, tickets, compileJobs, retiredApiIds]);
 
   if (!ready) return <p className="muted">Loading orders…</p>;
 
   return (
     <div className="office">
       <Picker
-        orders={visible} selectedId={selectedId} canaryIds={canaryIds} now={now}
-        showCanary={showCanary} setShowCanary={setShowCanary} onPick={pick}
-        newer={newer.length} onNewest={() => visible[0] && pick(visible[0].id)}
+        orders={visible} selectedId={selectedId} scope={scope} now={now}
+        setShowTest={setShowTest} onPick={pick}
+        newer={newer} onNewest={() => visible[0] && pick(visible[0].id)}
         apiName={(o) => (o.apiId !== undefined ? apis.find((a) => a.id === o.apiId)?.name : undefined)}
       />
-      {scene ? (
+      {!historyReady ? <p className="muted">Loading order history…</p> : scene ? (
         <>
-          {selected?.stripeSessionId.startsWith('demo-simulated:') && <p className="badge test">SIMULATED PAYMENT · TEST MODE · real extraction and verification</p>}
           {phone
             ? <Pipeline scene={scene.scene} onOpen={setDrawer} />
             : <FloorScene key={String(scene.data.order.id)} scene={scene.scene} data={scene.data} onOpen={setDrawer} selected={drawer} />}
@@ -145,37 +173,42 @@ export function OfficeTab() {
 }
 
 type PickerProps = {
-  orders: Order[]; selectedId?: bigint; canaryIds: Set<bigint>; now: number;
-  showCanary: boolean; setShowCanary: (v: boolean) => void; onPick: (id: bigint) => void;
+  orders: Order[]; selectedId?: bigint; scope: Scope; now: number;
+  setShowTest: (v: boolean) => void; onPick: (id: bigint) => void;
   newer: number; onNewest: () => void; apiName: (o: Order) => string | undefined;
 };
 
-function Picker({ orders, selectedId, canaryIds, now, showCanary, setShowCanary, onPick, newer, onNewest, apiName }: PickerProps) {
-  const chips = orders.slice(0, PICKER_SHOWN);
-  const rest = orders.slice(PICKER_SHOWN);
+function Picker({ orders, selectedId, scope, now, setShowTest, onPick, newer, onNewest, apiName }: PickerProps) {
+  const [query, setQuery] = useState('');
+  const q = query.trim().toLowerCase();
+  const matches = q
+    ? orders.filter((o) => (q.startsWith('#') ? String(o.id) === q.slice(1) : String(o.id) === q || o.requestText.toLowerCase().includes(q)))
+    : orders;
+  const chips = matches.slice(0, PICKER_SHOWN);
+  const selected = orders.find((o) => o.id === selectedId);
+  if (selected && !chips.includes(selected) && !q) chips.push(selected);
+  const running = orders.filter(inProgress).length;
+  const unpaid = orders.filter((o) => o.status === 'quoted').length;
   const selRef = useRef<HTMLButtonElement>(null);
   useEffect(() => { selRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }, [selectedId]);
   return (
     <div className="picker" data-testid="picker">
       <div className="picker-bar">
         <span className="picker-title">Orders</span>
+        <span className="picker-counts" data-testid="picker-counts"><span className={running ? 'live-dot' : 'idle-dot'}>●</span> {running} running · {unpaid} unpaid quote{unpaid === 1 ? '' : 's'}</span>
         {newer > 0 && (
           <button className="newbadge" onClick={onNewest} data-testid="new-order">● {newer} new order{newer === 1 ? '' : 's'}</button>
         )}
-        <label className="canary-toggle">
-          <input type="checkbox" checked={showCanary} onChange={(e) => setShowCanary(e.target.checked)} /> show canary
+        <input
+          className="order-search" type="search" placeholder="Search #id or request" value={query}
+          onChange={(e) => setQuery(e.target.value)} aria-label="Search orders" data-testid="order-search"
+        />
+        <label className="toggle">
+          <input type="checkbox" checked={scope.showTest} onChange={(e) => setShowTest(e.target.checked)} data-testid="show-test" /> Show test traffic
         </label>
-        {rest.length > 0 && (
-          <select
-            className="older" value={rest.some((o) => o.id === selectedId) ? String(selectedId) : ''}
-            onChange={(e) => e.target.value && onPick(BigInt(e.target.value))}
-          >
-            <option value="">older ({rest.length})…</option>
-            {rest.map((o) => <option key={String(o.id)} value={String(o.id)}>#{String(o.id)} {o.status} · {short(o.requestText, 34, 0)}</option>)}
-          </select>
-        )}
       </div>
       <div className="chips">
+        {!chips.length && <p className="muted">No orders match “{query}”{scope.showTest ? '' : ' in real orders; try Show test traffic'}.</p>}
         {chips.map((o) => (
           <button
             key={String(o.id)} ref={o.id === selectedId ? selRef : undefined}
@@ -186,7 +219,8 @@ function Picker({ orders, selectedId, canaryIds, now, showCanary, setShowCanary,
               <b>#{String(o.id)}</b>
               <span className={`status s-${o.status}`}>{o.status.replace(/_/g, ' ')}</span>
               <span className="muted">{age(o, now)}</span>
-              {canaryIds.has(o.id) && <span className="badge canary">canary</span>}
+              {!scope.isReal(o) && <span className="badge testtraffic">TEST TRAFFIC</span>}
+              {scope.canaryIds.has(o.id) && <span className="badge canary">canary</span>}
             </span>
             <span className="chip-req">{apiName(o) ? <em>{apiName(o)} · </em> : null}{o.requestText || '(no text)'}</span>
           </button>
