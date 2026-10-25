@@ -179,14 +179,14 @@ Also run the whole module suite (`pnpm -C module run test:api`) and `pnpm -C mod
 
 ## 8. Acceptance
 
-- [ ] Every `failOrder`, COO REJECT/COUNTEROFFER, admission rejection and Auditor REJECT on a paid order writes a `refund` row and an `order_refunded` event; the books for that customer account return to 0 (or an approval is pending).
-- [ ] A failed Apify run is retried exactly once; the second failure refunds.
-- [ ] `refund_order` is founder-only and refuses `delivered`, `quoted`, `rejected_at_desk` and already-refunded orders with a clear `SenderError`.
-- [ ] Challenge refunds behave exactly as before (test 145/181 pass).
-- [ ] Front Desk `status` shows the refund line with `TEST MODE`; counteroffers tell the customer what to do next.
-- [ ] Dashboard: badge, feed sentences, founder button, Needs-you card text. No `$` without `TEST MODE` on the same card.
-- [ ] No schema change beyond one new reducer; `spacetime generate` output committed.
-- [ ] Nothing was published, created or refunded on Maincloud by the worker.
+- [x] Every `failOrder`, COO REJECT/COUNTEROFFER, admission rejection and Auditor REJECT on a paid order writes a `refund` row and an `order_refunded` event; the books for that customer account return to 0 (or an approval is pending).
+- [x] A failed Apify run is retried exactly once; the second failure refunds.
+- [ ] `refund_order` is founder-only and refuses `delivered`, `quoted`, `rejected_at_desk` and already-refunded orders with a clear `SenderError`. *(non-founder, `quoted`, `rejected_at_desk`, `never paid`-shape and `nothing left to refund` tested locally; `delivered` is the same `DEAD_PAID` guard but was not exercised — no delivered order can be built on a local database.)*
+- [ ] Challenge refunds behave exactly as before (test 145/181 pass). *(the block is now the shared helper and its inputs/outputs are unchanged; `challenge.test.mjs` needs a delivered order and was not run, per rule 6.)*
+- [x] Front Desk `status` shows the refund line with `TEST MODE`; counteroffers tell the customer what to do next.
+- [x] Dashboard: badge, feed sentences, founder button, Needs-you card text. No `$` without `TEST MODE` on the same card.
+- [x] No schema change beyond one new reducer; `spacetime generate` output committed.
+- [x] Nothing was published, created or refunded on Maincloud by the worker.
 
 ## 9. Out of scope
 
