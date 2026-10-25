@@ -1,0 +1,932 @@
+{
+  "mode": "TEST MODE",
+  "payment": "Real Stripe test checkout, not simulated",
+  "recordedAt": "2026-10-25T01:22:52.244Z",
+  "order": {
+    "id": 202,
+    "ref": "c6b4c1c3-7ad0-402b-8ba2-aca1456ed57f",
+    "customer_id": 105,
+    "api_id": [
+      0,
+      3
+    ],
+    "request_text": "I'd like to buy open-roles for Lattice's Greenhouse board: job title, team and location.",
+    "intent": "{\"summary\": \"Open roles at Lattice from their Greenhouse job board\", \"sources\": [\"boards.greenhouse.io/lattice\"], \"fields\": [\"job title\", \"team\", \"location\"], \"estimated_pages\": 1, \"pages\": 1}",
+    "params": "{\"board\":\"lattice\"}",
+    "price_cents": 100,
+    "status": "delivered",
+    "api_version_id": [
+      0,
+      20
+    ],
+    "apify_run_id": "s6VJHNsB292HEiD3b",
+    "dataset_url": "https://api.apify.com/v2/datasets/EtkRBf79DhJPjjVPh/items?clean=1&format=json",
+    "stripe_session_id": "cs_test_a1CqT8Ti3cJKQ2IRlQWqRNSptWn7cc2SBdrSjGN6EG2YpVVhWkwSNDA8CV",
+    "decision_reason": "ACCEPT: 21/21 values verified (7 roles x title/team/location) on the Bright Data fetch of boards-api.greenhouse.io/v1/boards/lattice/departments (1/1 URL loaded, unlocker HTTP 200), 0 mismatch, 0 unverifiable, 0 stale, no _page rows; every value appears verbatim in its excerpt and the fields title, team, location match the request. No aggregate metric needed: derived from the verified rows, roles per team are Engineering 3, Product 2, Account Executive 1, Legal 1. Minor formatting only: team value 'Product ' carries a trailing space (does not affect the ruling).",
+    "created_at": [
+      1792890579212444
+    ],
+    "updated_at": [
+      1792890870483850
+    ]
+  },
+  "challenge": {
+    "id": 14,
+    "order_id": 202,
+    "value_record_id": 4983,
+    "reason": "Row 0 team on order #202 is wrong because Account Executive may be the role rather than the department. Please recheck the saved department name.",
+    "status": "rejected",
+    "verdict": "REJECTED",
+    "auditor_reason": "REJECTED: the saved page (read 2026-10-25T01:13:55Z) is the Greenhouse departments feed for Lattice, and its context shows the quote \"name\":\"Account Executive\" sits in a department object — {\"departments\":[{\"id\":4069160002,\"name\":\"Account Executive\",\"parent_id\":4042807002,\"child_ids\":[4070255002],\"jobs\":[...]}] — so Account Executive is the department name under which job 8576037002 is listed, exactly the delivered metric (team); the job's own title appears separately as \"title\":\"Account Executive\". The extractor read the department field correctly, not a role. The fresh Bright Data fetch (2026-10-25T01:21:13Z) still returns \"name\":\"Account Executive\" at the same department. The customer's concern that Account Executive may be a role is understandable but the saved page's structure disproves it for this row.",
+    "created_at": [
+      1792891272319928
+    ],
+    "resolved_at": [
+      0,
+      [
+        1792891294767154
+      ]
+    ]
+  },
+  "recheck": {
+    "challenge_id": 14,
+    "order_id": 202,
+    "value_record_id": 4983,
+    "row": 0,
+    "entity": "Account Executive (job 8576037002)",
+    "metric": "team",
+    "value": "Account Executive",
+    "excerpt": "\"name\":\"Account Executive\"",
+    "source_url": "https://boards-api.greenhouse.io/v1/boards/lattice/departments",
+    "observed_at": [
+      1792890835447000
+    ],
+    "saved_result": "match",
+    "saved_reason": "",
+    "saved_value": "Account Executive",
+    "saved_quote": "\"name\":\"Account Executive\"",
+    "saved_context": "{\"departments\":[{\"id\":4069160002,\"name\":\"Account Executive\",\"parent_id\":4042807002,\"child_ids\":[4070255002],\"jobs\":[{\"absolute_url\":\"https://lattice.com/job?gh_jid=8576037002\",\"data_compliance\":[{\"type\":\"gdpr\",\"requires_consent\":true,\"requires_processing_consent\":true,\"requires_retention_consent\":true,\"retention_period\":365,\"demographic_data_consent_applies\":false}],\"internal_job_id\":6425529002,\"location\":{\"name\":\"London, UK\"},\"metadata\":null,\"id\":8576037002,\"updated_at\":\"2026-10-09T11:31:01-04:00\",\"requisition_id\":\"30147\",\"title\":\"Account Executive\",\"company_name\":\"Lattice\",\"first_published\":\"2026-06-11T12:42:45-04:00\",\"language\":\"en\",\"application_de",
+    "saved_ms": 161,
+    "fresh_result": "match",
+    "fresh_reason": "",
+    "fresh_value": "Account Executive",
+    "fresh_quote": "\"name\":\"Account Executive\"",
+    "fresh_context": "{\"departments\":[{\"id\":4069160002,\"name\":\"Account Executive\",\"parent_id\":4042807002,\"child_ids\":[4070255002],\"jobs\":[{\"absolute_url\":\"https://lattice.com/job?gh_jid=8576037002\",\"data_compliance\":[{\"type\":\"gdpr\",\"requires_consent\":true,\"requires_processing_consent\":true,\"requires_retention_consent\":true,\"retention_period\":365,\"demographic_data_consent_applies\":false}],\"internal_job_id\":6425529002,\"location\":{\"name\":\"London, UK\"},\"metadata\":null,\"id\":8576037002,\"updated_at\":\"2026-10-09T11:31:01-04:00\",\"requisition_id\":\"30147\",\"title\":\"Account Executive\",\"company_name\":\"Lattice\",\"first_published\":\"2026-06-11T12:42:45-04:00\",\"language\":\"en\",\"application_de",
+    "fresh_ms": 838,
+    "fresh_fetched_at": [
+      1792891273322601
+    ],
+    "corrected_value": "",
+    "corrected_excerpt": "",
+    "total_ms": 1000,
+    "checked_at": [
+      1792891273322601
+    ]
+  },
+  "tasks": [
+    {
+      "id": 4214,
+      "kind": "coo_triage",
+      "role": "coo",
+      "status": "done",
+      "order_id": [
+        0,
+        202
+      ],
+      "ticket_id": [
+        1,
+        []
+      ],
+      "lease_owner": [
+        1,
+        []
+      ],
+      "lease_until": [
+        1,
+        []
+      ],
+      "attempt": 1,
+      "input": "{\"orderId\":\"202\"}",
+      "output": "{\"decision\":\"ACCEPT\",\"apiName\":\"open-roles\",\"reason\":\"Existing catalog API open-roles covers this exactly: param board=lattice reads the public Greenhouse board at boards-api.greenhouse.io/v1/boards/lattice/departments and returns the requested fields title (job title), team (department) and location; one board page fits the pageCap of 1, and currentVersion 1.0 is runnable.\"}",
+      "created_at": [
+        1792890806943950
+      ],
+      "updated_at": [
+        1792890834225388
+      ]
+    },
+    {
+      "id": 4215,
+      "kind": "audit",
+      "role": "auditor",
+      "status": "done",
+      "order_id": [
+        0,
+        202
+      ],
+      "ticket_id": [
+        1,
+        []
+      ],
+      "lease_owner": [
+        1,
+        []
+      ],
+      "lease_until": [
+        1,
+        []
+      ],
+      "attempt": 1,
+      "input": "{\"orderId\":\"202\",\"counts\":{\"verified\":21}}",
+      "output": "{\"verdict\":\"ACCEPT\",\"reason\":\"ACCEPT: 21/21 values verified (7 roles x title/team/location) on the Bright Data fetch of boards-api.greenhouse.io/v1/boards/lattice/departments (1/1 URL loaded, unlocker HTTP 200), 0 mismatch, 0 unverifiable, 0 stale, no _page rows; every value appears verbatim in its excerpt and the fields title, team, location match the request. No aggregate metric needed: derived from the verified rows, roles per team are Engineering 3, Product 2, Account Executive 1, Legal 1. Minor formatting only: team value 'Product ' carries a trailing space (does not affect the ruling).\"}",
+      "created_at": [
+        1792890847642306
+      ],
+      "updated_at": [
+        1792890870483850
+      ]
+    },
+    {
+      "id": 4216,
+      "kind": "audit_challenge",
+      "role": "auditor",
+      "status": "done",
+      "order_id": [
+        0,
+        202
+      ],
+      "ticket_id": [
+        1,
+        []
+      ],
+      "lease_owner": [
+        1,
+        []
+      ],
+      "lease_until": [
+        1,
+        []
+      ],
+      "attempt": 1,
+      "input": "{\"challengeId\":\"14\",\"orderId\":\"202\",\"row\":0,\"metric\":\"team\",\"savedResult\":\"match\",\"freshResult\":\"match\"}",
+      "output": "{\"verdict\":\"REJECTED\",\"reason\":\"REJECTED: the saved page (read 2026-10-25T01:13:55Z) is the Greenhouse departments feed for Lattice, and its context shows the quote \\\"name\\\":\\\"Account Executive\\\" sits in a department object — {\\\"departments\\\":[{\\\"id\\\":4069160002,\\\"name\\\":\\\"Account Executive\\\",\\\"parent_id\\\":4042807002,\\\"child_ids\\\":[4070255002],\\\"jobs\\\":[...]}] — so Account Executive is the department name under which job 8576037002 is listed, exactly the delivered metric (team); the job's own title appears separately as \\\"title\\\":\\\"Account Executive\\\". The extractor read the department field correctly, not a role. The fresh Bright Data fetch (2026-10-25T01:21:13Z) still returns \\\"name\\\":\\\"Account Executive\\\" at the same department. The customer's concern that Account Executive may be a role is understandable but the saved page's structure disproves it for this row.\"}",
+      "created_at": [
+        1792891273322601
+      ],
+      "updated_at": [
+        1792891294767154
+      ]
+    }
+  ],
+  "runs": [
+    {
+      "id": 81,
+      "provider": "creao",
+      "external_id": "d808efca-0904-4c0c-bf2a-57934c77643b",
+      "app_id": "81c6c2cc-98d6-4ea5-8fcf-942f8772bf20",
+      "task_id": [
+        0,
+        4214
+      ],
+      "thread_id": "2382e737-e89b-4233-88ad-790ed6e72910",
+      "status": "completed",
+      "result_text": "{\"task\":\"{\\\"kind\\\":\\\"coo_triage\\\",\\\"taskId\\\":\\\"4214\\\",\\\"orderId\\\":\\\"202\\\",\\\"input\\\":{\\\"orderId\\\":\\\"202\\\"}}\",\"orderId\":202,\"orderStatus\":\"accepted\",\"decision\":\"ACCEPT\",\"apiName\":\"open-roles\"}",
+      "share_url": "",
+      "cost_cents": 0,
+      "started_at": [
+        1792890811279760
+      ],
+      "ended_at": [
+        0,
+        [
+          1792890841131982
+        ]
+      ]
+    },
+    {
+      "id": 82,
+      "provider": "apify",
+      "external_id": "s6VJHNsB292HEiD3b",
+      "app_id": "RdQhIe6Jj6mE2qT4L",
+      "task_id": [
+        1,
+        []
+      ],
+      "thread_id": "202",
+      "status": "SUCCEEDED",
+      "result_text": "",
+      "share_url": "https://console.apify.com/view/runs/s6VJHNsB292HEiD3b",
+      "cost_cents": 0,
+      "started_at": [
+        1792890834232603
+      ],
+      "ended_at": [
+        0,
+        [
+          1792890844817706
+        ]
+      ]
+    },
+    {
+      "id": 83,
+      "provider": "creao",
+      "external_id": "a10d1414-5b62-494e-bf29-df3e28885c76",
+      "app_id": "6865c094-e20c-48c7-a969-d5e75c67dd06",
+      "task_id": [
+        0,
+        4215
+      ],
+      "thread_id": "468deb40-483d-43c1-9bf7-e08b94f4f60a",
+      "status": "completed",
+      "result_text": "{\"task\":\"{\\\"kind\\\":\\\"audit\\\",\\\"taskId\\\":\\\"4215\\\",\\\"orderId\\\":\\\"202\\\",\\\"input\\\":{\\\"orderId\\\":\\\"202\\\",\\\"counts\\\":{\\\"verified\\\":21}}}\",\"orderId\":202,\"verdict\":\"ACCEPT\",\"valueCount\":21,\"verifiedCount\":21,\"mismatchCount\":0}",
+      "share_url": "",
+      "cost_cents": 0,
+      "started_at": [
+        1792890851280341
+      ],
+      "ended_at": [
+        0,
+        [
+          1792890878065806
+        ]
+      ]
+    },
+    {
+      "id": 84,
+      "provider": "creao",
+      "external_id": "3c503efd-776f-48da-b3e8-fe611bb41b22",
+      "app_id": "6865c094-e20c-48c7-a969-d5e75c67dd06",
+      "task_id": [
+        0,
+        4216
+      ],
+      "thread_id": "fa2679d1-b3bb-4e14-8960-dc237cb13b0c",
+      "status": "completed",
+      "result_text": "{\"task\":\"{\\\"kind\\\":\\\"audit_challenge\\\",\\\"taskId\\\":\\\"4216\\\",\\\"orderId\\\":\\\"202\\\",\\\"input\\\":{\\\"challengeId\\\":\\\"14\\\",\\\"orderId\\\":\\\"202\\\",\\\"row\\\":0,\\\"metric\\\":\\\"team\\\",\\\"savedResult\\\":\\\"match\\\",\\\"freshResult\\\":\\\"match\\\"}}\",\"orderId\":202,\"verdict\":\"REJECTED\",\"valueCount\":1,\"verifiedCount\":1,\"mismatchCount\":0}",
+      "share_url": "",
+      "cost_cents": 0,
+      "started_at": [
+        1792891276278938
+      ],
+      "ended_at": [
+        0,
+        [
+          1792891302571799
+        ]
+      ]
+    }
+  ],
+  "values": [
+    {
+      "id": 4982,
+      "order_id": 202,
+      "api_id": 3,
+      "row": 0,
+      "entity": "Account Executive (job 8576037002)",
+      "metric": "title",
+      "value": "Account Executive",
+      "source_url": "https://boards-api.greenhouse.io/v1/boards/lattice/departments",
+      "excerpt": "\"title\":\"Account Executive\"",
+      "snapshot_key": "page-7c49c95194b0754de0f9050c78b59fdd",
+      "snapshot_hash": "7c49c95194b0754de0f9050c78b59fdd685e8722739165b6feb5df3ae6cdacf6",
+      "observed_at": [
+        1792890835447000
+      ],
+      "verified_at": [
+        0,
+        [
+          1792890847642306
+        ]
+      ],
+      "api_version_id": 20,
+      "tier": 1,
+      "method": "unlocker",
+      "status": "verified",
+      "fresh_value": "",
+      "supersedes_id": [
+        1,
+        []
+      ]
+    },
+    {
+      "id": 4983,
+      "order_id": 202,
+      "api_id": 3,
+      "row": 0,
+      "entity": "Account Executive (job 8576037002)",
+      "metric": "team",
+      "value": "Account Executive",
+      "source_url": "https://boards-api.greenhouse.io/v1/boards/lattice/departments",
+      "excerpt": "\"name\":\"Account Executive\"",
+      "snapshot_key": "page-7c49c95194b0754de0f9050c78b59fdd",
+      "snapshot_hash": "7c49c95194b0754de0f9050c78b59fdd685e8722739165b6feb5df3ae6cdacf6",
+      "observed_at": [
+        1792890835447000
+      ],
+      "verified_at": [
+        0,
+        [
+          1792890847642306
+        ]
+      ],
+      "api_version_id": 20,
+      "tier": 1,
+      "method": "unlocker",
+      "status": "verified",
+      "fresh_value": "",
+      "supersedes_id": [
+        1,
+        []
+      ]
+    },
+    {
+      "id": 4984,
+      "order_id": 202,
+      "api_id": 3,
+      "row": 0,
+      "entity": "Account Executive (job 8576037002)",
+      "metric": "location",
+      "value": "London, UK",
+      "source_url": "https://boards-api.greenhouse.io/v1/boards/lattice/departments",
+      "excerpt": "\"location\":{\"name\":\"London, UK\"",
+      "snapshot_key": "page-7c49c95194b0754de0f9050c78b59fdd",
+      "snapshot_hash": "7c49c95194b0754de0f9050c78b59fdd685e8722739165b6feb5df3ae6cdacf6",
+      "observed_at": [
+        1792890835447000
+      ],
+      "verified_at": [
+        0,
+        [
+          1792890847642306
+        ]
+      ],
+      "api_version_id": 20,
+      "tier": 1,
+      "method": "unlocker",
+      "status": "verified",
+      "fresh_value": "",
+      "supersedes_id": [
+        1,
+        []
+      ]
+    },
+    {
+      "id": 4985,
+      "order_id": 202,
+      "api_id": 3,
+      "row": 1,
+      "entity": "Senior Software Engineer, Infrastructure Platform (job 8487540002)",
+      "metric": "title",
+      "value": "Senior Software Engineer, Infrastructure Platform",
+      "source_url": "https://boards-api.greenhouse.io/v1/boards/lattice/departments",
+      "excerpt": "\"title\":\"Senior Software Engineer, Infrastructure Platform\"",
+      "snapshot_key": "page-7c49c95194b0754de0f9050c78b59fdd",
+      "snapshot_hash": "7c49c95194b0754de0f9050c78b59fdd685e8722739165b6feb5df3ae6cdacf6",
+      "observed_at": [
+        1792890835447000
+      ],
+      "verified_at": [
+        0,
+        [
+          1792890847642306
+        ]
+      ],
+      "api_version_id": 20,
+      "tier": 1,
+      "method": "unlocker",
+      "status": "verified",
+      "fresh_value": "",
+      "supersedes_id": [
+        1,
+        []
+      ]
+    },
+    {
+      "id": 4986,
+      "order_id": 202,
+      "api_id": 3,
+      "row": 1,
+      "entity": "Senior Software Engineer, Infrastructure Platform (job 8487540002)",
+      "metric": "team",
+      "value": "Engineering",
+      "source_url": "https://boards-api.greenhouse.io/v1/boards/lattice/departments",
+      "excerpt": "\"name\":\"Engineering\"",
+      "snapshot_key": "page-7c49c95194b0754de0f9050c78b59fdd",
+      "snapshot_hash": "7c49c95194b0754de0f9050c78b59fdd685e8722739165b6feb5df3ae6cdacf6",
+      "observed_at": [
+        1792890835447000
+      ],
+      "verified_at": [
+        0,
+        [
+          1792890847642306
+        ]
+      ],
+      "api_version_id": 20,
+      "tier": 1,
+      "method": "unlocker",
+      "status": "verified",
+      "fresh_value": "",
+      "supersedes_id": [
+        1,
+        []
+      ]
+    },
+    {
+      "id": 4987,
+      "order_id": 202,
+      "api_id": 3,
+      "row": 1,
+      "entity": "Senior Software Engineer, Infrastructure Platform (job 8487540002)",
+      "metric": "location",
+      "value": "Remote - Canada",
+      "source_url": "https://boards-api.greenhouse.io/v1/boards/lattice/departments",
+      "excerpt": "\"location\":{\"name\":\"Remote - Canada\"",
+      "snapshot_key": "page-7c49c95194b0754de0f9050c78b59fdd",
+      "snapshot_hash": "7c49c95194b0754de0f9050c78b59fdd685e8722739165b6feb5df3ae6cdacf6",
+      "observed_at": [
+        1792890835447000
+      ],
+      "verified_at": [
+        0,
+        [
+          1792890847642306
+        ]
+      ],
+      "api_version_id": 20,
+      "tier": 1,
+      "method": "unlocker",
+      "status": "verified",
+      "fresh_value": "",
+      "supersedes_id": [
+        1,
+        []
+      ]
+    },
+    {
+      "id": 4988,
+      "order_id": 202,
+      "api_id": 3,
+      "row": 2,
+      "entity": "Engineering Manager, AI (job 8614333002)",
+      "metric": "title",
+      "value": "Engineering Manager, AI",
+      "source_url": "https://boards-api.greenhouse.io/v1/boards/lattice/departments",
+      "excerpt": "\"title\":\"Engineering Manager, AI\"",
+      "snapshot_key": "page-7c49c95194b0754de0f9050c78b59fdd",
+      "snapshot_hash": "7c49c95194b0754de0f9050c78b59fdd685e8722739165b6feb5df3ae6cdacf6",
+      "observed_at": [
+        1792890835447000
+      ],
+      "verified_at": [
+        0,
+        [
+          1792890847642306
+        ]
+      ],
+      "api_version_id": 20,
+      "tier": 1,
+      "method": "unlocker",
+      "status": "verified",
+      "fresh_value": "",
+      "supersedes_id": [
+        1,
+        []
+      ]
+    },
+    {
+      "id": 4989,
+      "order_id": 202,
+      "api_id": 3,
+      "row": 2,
+      "entity": "Engineering Manager, AI (job 8614333002)",
+      "metric": "team",
+      "value": "Engineering",
+      "source_url": "https://boards-api.greenhouse.io/v1/boards/lattice/departments",
+      "excerpt": "\"name\":\"Engineering\"",
+      "snapshot_key": "page-7c49c95194b0754de0f9050c78b59fdd",
+      "snapshot_hash": "7c49c95194b0754de0f9050c78b59fdd685e8722739165b6feb5df3ae6cdacf6",
+      "observed_at": [
+        1792890835447000
+      ],
+      "verified_at": [
+        0,
+        [
+          1792890847642306
+        ]
+      ],
+      "api_version_id": 20,
+      "tier": 1,
+      "method": "unlocker",
+      "status": "verified",
+      "fresh_value": "",
+      "supersedes_id": [
+        1,
+        []
+      ]
+    },
+    {
+      "id": 4990,
+      "order_id": 202,
+      "api_id": 3,
+      "row": 2,
+      "entity": "Engineering Manager, AI (job 8614333002)",
+      "metric": "location",
+      "value": "Remote - US",
+      "source_url": "https://boards-api.greenhouse.io/v1/boards/lattice/departments",
+      "excerpt": "\"location\":{\"name\":\"Remote - US\"",
+      "snapshot_key": "page-7c49c95194b0754de0f9050c78b59fdd",
+      "snapshot_hash": "7c49c95194b0754de0f9050c78b59fdd685e8722739165b6feb5df3ae6cdacf6",
+      "observed_at": [
+        1792890835447000
+      ],
+      "verified_at": [
+        0,
+        [
+          1792890847642306
+        ]
+      ],
+      "api_version_id": 20,
+      "tier": 1,
+      "method": "unlocker",
+      "status": "verified",
+      "fresh_value": "",
+      "supersedes_id": [
+        1,
+        []
+      ]
+    },
+    {
+      "id": 4991,
+      "order_id": 202,
+      "api_id": 3,
+      "row": 3,
+      "entity": "Engineering Manager, AI (job 8623297002)",
+      "metric": "title",
+      "value": "Engineering Manager, AI",
+      "source_url": "https://boards-api.greenhouse.io/v1/boards/lattice/departments",
+      "excerpt": "\"title\":\"Engineering Manager, AI\"",
+      "snapshot_key": "page-7c49c95194b0754de0f9050c78b59fdd",
+      "snapshot_hash": "7c49c95194b0754de0f9050c78b59fdd685e8722739165b6feb5df3ae6cdacf6",
+      "observed_at": [
+        1792890835447000
+      ],
+      "verified_at": [
+        0,
+        [
+          1792890847642306
+        ]
+      ],
+      "api_version_id": 20,
+      "tier": 1,
+      "method": "unlocker",
+      "status": "verified",
+      "fresh_value": "",
+      "supersedes_id": [
+        1,
+        []
+      ]
+    },
+    {
+      "id": 4992,
+      "order_id": 202,
+      "api_id": 3,
+      "row": 3,
+      "entity": "Engineering Manager, AI (job 8623297002)",
+      "metric": "team",
+      "value": "Engineering",
+      "source_url": "https://boards-api.greenhouse.io/v1/boards/lattice/departments",
+      "excerpt": "\"name\":\"Engineering\"",
+      "snapshot_key": "page-7c49c95194b0754de0f9050c78b59fdd",
+      "snapshot_hash": "7c49c95194b0754de0f9050c78b59fdd685e8722739165b6feb5df3ae6cdacf6",
+      "observed_at": [
+        1792890835447000
+      ],
+      "verified_at": [
+        0,
+        [
+          1792890847642306
+        ]
+      ],
+      "api_version_id": 20,
+      "tier": 1,
+      "method": "unlocker",
+      "status": "verified",
+      "fresh_value": "",
+      "supersedes_id": [
+        1,
+        []
+      ]
+    },
+    {
+      "id": 4993,
+      "order_id": 202,
+      "api_id": 3,
+      "row": 3,
+      "entity": "Engineering Manager, AI (job 8623297002)",
+      "metric": "location",
+      "value": "Remote - Canada",
+      "source_url": "https://boards-api.greenhouse.io/v1/boards/lattice/departments",
+      "excerpt": "\"location\":{\"name\":\"Remote - Canada\"",
+      "snapshot_key": "page-7c49c95194b0754de0f9050c78b59fdd",
+      "snapshot_hash": "7c49c95194b0754de0f9050c78b59fdd685e8722739165b6feb5df3ae6cdacf6",
+      "observed_at": [
+        1792890835447000
+      ],
+      "verified_at": [
+        0,
+        [
+          1792890847642306
+        ]
+      ],
+      "api_version_id": 20,
+      "tier": 1,
+      "method": "unlocker",
+      "status": "verified",
+      "fresh_value": "",
+      "supersedes_id": [
+        1,
+        []
+      ]
+    },
+    {
+      "id": 4994,
+      "order_id": 202,
+      "api_id": 3,
+      "row": 4,
+      "entity": "Senior Contracts Manager (job 8823719002)",
+      "metric": "title",
+      "value": "Senior Contracts Manager",
+      "source_url": "https://boards-api.greenhouse.io/v1/boards/lattice/departments",
+      "excerpt": "\"title\":\"Senior Contracts Manager\"",
+      "snapshot_key": "page-7c49c95194b0754de0f9050c78b59fdd",
+      "snapshot_hash": "7c49c95194b0754de0f9050c78b59fdd685e8722739165b6feb5df3ae6cdacf6",
+      "observed_at": [
+        1792890835447000
+      ],
+      "verified_at": [
+        0,
+        [
+          1792890847642306
+        ]
+      ],
+      "api_version_id": 20,
+      "tier": 1,
+      "method": "unlocker",
+      "status": "verified",
+      "fresh_value": "",
+      "supersedes_id": [
+        1,
+        []
+      ]
+    },
+    {
+      "id": 4995,
+      "order_id": 202,
+      "api_id": 3,
+      "row": 4,
+      "entity": "Senior Contracts Manager (job 8823719002)",
+      "metric": "team",
+      "value": "Legal",
+      "source_url": "https://boards-api.greenhouse.io/v1/boards/lattice/departments",
+      "excerpt": "\"name\":\"Legal\"",
+      "snapshot_key": "page-7c49c95194b0754de0f9050c78b59fdd",
+      "snapshot_hash": "7c49c95194b0754de0f9050c78b59fdd685e8722739165b6feb5df3ae6cdacf6",
+      "observed_at": [
+        1792890835447000
+      ],
+      "verified_at": [
+        0,
+        [
+          1792890847642306
+        ]
+      ],
+      "api_version_id": 20,
+      "tier": 1,
+      "method": "unlocker",
+      "status": "verified",
+      "fresh_value": "",
+      "supersedes_id": [
+        1,
+        []
+      ]
+    },
+    {
+      "id": 4996,
+      "order_id": 202,
+      "api_id": 3,
+      "row": 4,
+      "entity": "Senior Contracts Manager (job 8823719002)",
+      "metric": "location",
+      "value": "Remote - US",
+      "source_url": "https://boards-api.greenhouse.io/v1/boards/lattice/departments",
+      "excerpt": "\"location\":{\"name\":\"Remote - US\"",
+      "snapshot_key": "page-7c49c95194b0754de0f9050c78b59fdd",
+      "snapshot_hash": "7c49c95194b0754de0f9050c78b59fdd685e8722739165b6feb5df3ae6cdacf6",
+      "observed_at": [
+        1792890835447000
+      ],
+      "verified_at": [
+        0,
+        [
+          1792890847642306
+        ]
+      ],
+      "api_version_id": 20,
+      "tier": 1,
+      "method": "unlocker",
+      "status": "verified",
+      "fresh_value": "",
+      "supersedes_id": [
+        1,
+        []
+      ]
+    },
+    {
+      "id": 4997,
+      "order_id": 202,
+      "api_id": 3,
+      "row": 5,
+      "entity": "Lead Product Manager (job 8570063002)",
+      "metric": "title",
+      "value": "Lead Product Manager",
+      "source_url": "https://boards-api.greenhouse.io/v1/boards/lattice/departments",
+      "excerpt": "\"title\":\"Lead Product Manager\"",
+      "snapshot_key": "page-7c49c95194b0754de0f9050c78b59fdd",
+      "snapshot_hash": "7c49c95194b0754de0f9050c78b59fdd685e8722739165b6feb5df3ae6cdacf6",
+      "observed_at": [
+        1792890835447000
+      ],
+      "verified_at": [
+        0,
+        [
+          1792890847642306
+        ]
+      ],
+      "api_version_id": 20,
+      "tier": 1,
+      "method": "unlocker",
+      "status": "verified",
+      "fresh_value": "",
+      "supersedes_id": [
+        1,
+        []
+      ]
+    },
+    {
+      "id": 4998,
+      "order_id": 202,
+      "api_id": 3,
+      "row": 5,
+      "entity": "Lead Product Manager (job 8570063002)",
+      "metric": "team",
+      "value": "Product ",
+      "source_url": "https://boards-api.greenhouse.io/v1/boards/lattice/departments",
+      "excerpt": "\"name\":\"Product \"",
+      "snapshot_key": "page-7c49c95194b0754de0f9050c78b59fdd",
+      "snapshot_hash": "7c49c95194b0754de0f9050c78b59fdd685e8722739165b6feb5df3ae6cdacf6",
+      "observed_at": [
+        1792890835447000
+      ],
+      "verified_at": [
+        0,
+        [
+          1792890847642306
+        ]
+      ],
+      "api_version_id": 20,
+      "tier": 1,
+      "method": "unlocker",
+      "status": "verified",
+      "fresh_value": "",
+      "supersedes_id": [
+        1,
+        []
+      ]
+    },
+    {
+      "id": 4999,
+      "order_id": 202,
+      "api_id": 3,
+      "row": 5,
+      "entity": "Lead Product Manager (job 8570063002)",
+      "metric": "location",
+      "value": "Remote - Canada",
+      "source_url": "https://boards-api.greenhouse.io/v1/boards/lattice/departments",
+      "excerpt": "\"location\":{\"name\":\"Remote - Canada\"",
+      "snapshot_key": "page-7c49c95194b0754de0f9050c78b59fdd",
+      "snapshot_hash": "7c49c95194b0754de0f9050c78b59fdd685e8722739165b6feb5df3ae6cdacf6",
+      "observed_at": [
+        1792890835447000
+      ],
+      "verified_at": [
+        0,
+        [
+          1792890847642306
+        ]
+      ],
+      "api_version_id": 20,
+      "tier": 1,
+      "method": "unlocker",
+      "status": "verified",
+      "fresh_value": "",
+      "supersedes_id": [
+        1,
+        []
+      ]
+    },
+    {
+      "id": 5000,
+      "order_id": 202,
+      "api_id": 3,
+      "row": 6,
+      "entity": "Lead Product Manager (job 8855945002)",
+      "metric": "title",
+      "value": "Lead Product Manager",
+      "source_url": "https://boards-api.greenhouse.io/v1/boards/lattice/departments",
+      "excerpt": "\"title\":\"Lead Product Manager\"",
+      "snapshot_key": "page-7c49c95194b0754de0f9050c78b59fdd",
+      "snapshot_hash": "7c49c95194b0754de0f9050c78b59fdd685e8722739165b6feb5df3ae6cdacf6",
+      "observed_at": [
+        1792890835447000
+      ],
+      "verified_at": [
+        0,
+        [
+          1792890847642306
+        ]
+      ],
+      "api_version_id": 20,
+      "tier": 1,
+      "method": "unlocker",
+      "status": "verified",
+      "fresh_value": "",
+      "supersedes_id": [
+        1,
+        []
+      ]
+    },
+    {
+      "id": 5001,
+      "order_id": 202,
+      "api_id": 3,
+      "row": 6,
+      "entity": "Lead Product Manager (job 8855945002)",
+      "metric": "team",
+      "value": "Product ",
+      "source_url": "https://boards-api.greenhouse.io/v1/boards/lattice/departments",
+      "excerpt": "\"name\":\"Product \"",
+      "snapshot_key": "page-7c49c95194b0754de0f9050c78b59fdd",
+      "snapshot_hash": "7c49c95194b0754de0f9050c78b59fdd685e8722739165b6feb5df3ae6cdacf6",
+      "observed_at": [
+        1792890835447000
+      ],
+      "verified_at": [
+        0,
+        [
+          1792890847642306
+        ]
+      ],
+      "api_version_id": 20,
+      "tier": 1,
+      "method": "unlocker",
+      "status": "verified",
+      "fresh_value": "",
+      "supersedes_id": [
+        1,
+        []
+      ]
+    },
+    {
+      "id": 5002,
+      "order_id": 202,
+      "api_id": 3,
+      "row": 6,
+      "entity": "Lead Product Manager (job 8855945002)",
+      "metric": "location",
+      "value": "Remote - US",
+      "source_url": "https://boards-api.greenhouse.io/v1/boards/lattice/departments",
+      "excerpt": "\"location\":{\"name\":\"Remote - US\"",
+      "snapshot_key": "page-7c49c95194b0754de0f9050c78b59fdd",
+      "snapshot_hash": "7c49c95194b0754de0f9050c78b59fdd685e8722739165b6feb5df3ae6cdacf6",
+      "observed_at": [
+        1792890835447000
+      ],
+      "verified_at": [
+        0,
+        [
+          1792890847642306
+        ]
+      ],
+      "api_version_id": 20,
+      "tier": 1,
+      "method": "unlocker",
+      "status": "verified",
+      "fresh_value": "",
+      "supersedes_id": [
+        1,
+        []
+      ]
+    }
+  ]
+}
