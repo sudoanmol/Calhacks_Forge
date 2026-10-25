@@ -5,7 +5,7 @@
   "scripts": {
     "build": "spacetime build -p .",
     "typecheck": "tsc --noEmit -p .",
-    "publish:local": "spacetime publish -s local -p . --delete-data=always -y forge-test",
+    "publish:local": "env -u CREAO_API_KEY -u CREAO_APP_ID_COO -u CREAO_APP_ID_RESEARCH -u CREAO_APP_ID_CFO -u CREAO_APP_ID_AUDITOR -u PUBLIC_ROUTE_BASE spacetime publish -s local -p . --delete-data=always -y forge-test",
     "test:api": "node --test \"test/**/*.test.mjs\""
   },
   "dependencies": {

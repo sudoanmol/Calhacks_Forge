@@ -35,6 +35,6 @@ Alternative to steps 2 and 5: zip `skills/forge-cli/` (it contains `SKILL.md`) a
 
 ## 3. Check one run end to end
 
-Place a test order through the Front Desk (or the canary). Watch the dashboard: the `coo_triage` task goes `queued` → `dispatched` → `done`, a `run` row appears with `provider = creao`, and the order leaves `paid`. A run that ends without a reducer call marks the task `failed` (event `task_ended_without_decision`); open its run in CREAO to see why.
+Place a test order through the Front Desk (or the canary). Watch the dashboard: the `coo_triage` task goes `queued` → `dispatched` → `done`, a `run` row appears with `provider = creao`, and the order leaves `paid`. A run that ends without a reducer call requeues the task once. A second undecided run fails it (`task_ended_without_decision`) and refunds an eligible paid order, subject to the refund approval limit. Open the run to see why. The dispatcher polls lost callbacks and times out runs after 15 minutes.
 
 After editing `forge.mjs`, re-upload it to every agent's Files tab.

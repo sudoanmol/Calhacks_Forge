@@ -152,3 +152,8 @@ export function reachabilityProblem(text: string): string | null {
   const block = /(?:sign in|log in|login) (?:to (?:continue|view|access)|required)|subscribe to (?:continue reading|read (?:this|the full))|this (?:content|article) is (?:for subscribers|behind a paywall)/i.exec(start);
   return block ? block[0] : null;
 }
+
+
+export const retryableFetch = (result: { ok: boolean; httpStatus: number; reason: string }): boolean =>
+  !result.ok && !/compliance|requires special permission|kyc/i.test(result.reason)
+  && (result.httpStatus === 0 || result.httpStatus === 429 || result.httpStatus >= 500);

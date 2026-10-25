@@ -3,8 +3,9 @@ import { ScheduleAt, TimeDuration, Timestamp, type Identity } from 'spacetimedb'
 import { base64, classify, compareChallenge, verifyValue, type Rung } from './text';
 import { parseParams, resolveSources, validateApiInputs } from './params';
 import { validateConfigValue } from './config';
+import { undecidedAction, customerTaskPriority } from './creao';
 import { droppedFields, evaluateTriggers, parseFields, refitBudget, testsPassed, type RunCounts } from './compile';
-import { compareTexts, hostOf, looksLikeHtml, precheckSources, quotedOn, reachabilityProblem, robotsUrlFor, robotsVerdict, splitUrl, textHash } from './research';
+import { compareTexts, hostOf, looksLikeHtml, precheckSources, quotedOn, reachabilityProblem, robotsUrlFor, robotsVerdict, splitUrl, textHash, retryableFetch } from './research';
 
 const LEASE_MS = 10 * 60 * 1000;
 const LEASE_SWEEP_EVERY_MICROS = 15_000_000n;
@@ -807,6 +808,9 @@ function findOrder(ctx: Ctx, id: bigint): Order {
 // A paid order that ended without a deliverable gets its money back. Reaching `delivered` is the only
 // other door out of these states, so a delivered order is refunded only through a challenge.
 const DEAD_PAID = new Set(['rejected', 'counteroffered', 'audit_rejected', 'failed']);
+const STALLED = new Set(['paid', 'triaging', 'researching', 'auditing']);
+const CREAO_RUN_TIMEOUT_US = 15n * 60n * 1_000_000n;
+const CREAO_START_TIMEOUT_US = 5n * 60n * 1_000_000n;
 
 // Refunds what the customer still holds as a debit on this order. At or under refund_limit_cents the money
 // moves now; above it the refund waits on a founder approval. Returns the refund row, or undefined when
@@ -1008,6 +1012,8 @@ export const audit_verdict = spacetimedb.reducer(
       if (o.apiId !== undefined) checkCompileTriggers(ctx, o.apiId, false);
       return;
     }
+    const vals = currentValues(ctx, orderId).filter((r) => r.metric !== '_page');
+    if (!vals.some((r) => r.status === 'verified')) throw new SenderError(`order ${orderId} has no verified values; REJECT it`);
     setOrder(ctx, o, { status: 'delivered', decisionReason: reason }, 'auditor', 'audit_accepted', { reason });
     // Bonuses accrue only on accepted work.
     for (const role of ['coo', 'auditor']) {
@@ -1168,7 +1174,8 @@ export const decide_approval = spacetimedb.reducer(
     if (!r || r.status !== 'pending_approval') throw new SenderError(`refund ${ap.refId} is not pending approval`);
     ctx.db.approval.id.update({ ...ap, status: approve ? 'approved' : 'rejected', decidedAt: ctx.timestamp });
     ctx.db.refund.id.update({ ...r, status: approve ? 'issued' : 'rejected', decidedAt: ctx.timestamp });
-    if (approve) postTx(ctx, `refund order ${r.orderId} challenge ${r.challengeId} (TEST MODE, founder-approved)`, [[`customer:${r.orderId}`, BigInt(r.amountCents)], ['treasury', -BigInt(r.amountCents)]]);
+    if (approve) postTx(ctx, `refund order ${r.orderId} ${r.challengeId !== 0n ? `challenge ${r.challengeId} ` : ''}(TEST MODE, founder-approved)`, [[`customer:${r.orderId}`, BigInt(r.amountCents)], ['treasury', -BigInt(r.amountCents)]]);
+    logEvent(ctx, 'founder', approve ? 'order_refund_approved' : 'order_refund_declined', 'order', r.orderId, { refundId: r.id.toString(), amountCents: r.amountCents, challengeId: r.challengeId.toString() });
     logEvent(ctx, 'founder', approve ? 'approval_approved' : 'approval_rejected', 'approval', id, { kind: ap.kind, refundId: r.id.toString(), amountCents: r.amountCents });
   },
 );
@@ -1180,12 +1187,46 @@ export const refund_order = spacetimedb.reducer(
   (ctx, { orderId, reason }) => {
     requireRole(ctx, 'founder');
     if (!reason.trim()) throw new SenderError('a reason is required');
-    const o = findOrder(ctx, orderId);
-    if (!DEAD_PAID.has(o.status)) throw new SenderError(`order ${orderId} is ${o.status}; only rejected, counteroffered, audit_rejected or failed orders can be refunded by hand`);
+    let o = findOrder(ctx, orderId);
+    const declined = [...ctx.db.refund.orderId.filter(orderId)].find((r) => r.status === 'rejected' && r.challengeId !== 0n);
+    if (STALLED.has(o.status)) {
+      const tasks = [...ctx.db.task.iter()].filter((task) => task.orderId === orderId);
+      const active = tasks.find((task) => ['queued', 'claimed'].includes(task.status));
+      const admission = ctx.db.admissionJob.orderId.find(orderId);
+      if (active || (admission && ['pending', 'checking', 'waiting'].includes(admission.status))) {
+        throw new SenderError(`order ${orderId} still has work in flight; wait for it or cancel the task first`);
+      }
+      for (const task of tasks.filter((task) => task.status === 'dispatched')) {
+        const runs = [...ctx.db.run.iter()].filter((r) => r.provider === 'creao' && r.taskId === task.id && !CREAO_TERMINAL.includes(r.status) && r.status !== 'start_failed');
+        if (runs.some((r) => ctx.timestamp.microsSinceUnixEpoch - r.startedAt.microsSinceUnixEpoch < CREAO_RUN_TIMEOUT_US)) {
+          throw new SenderError('the CREAO run is still working; try creao_poll or wait');
+        }
+        for (const run of runs) {
+          ctx.db.run.id.update({ ...run, status: 'timed_out', endedAt: ctx.timestamp });
+          logEvent(ctx, 'founder', 'creao_run_timed_out', 'run', run.id, { taskId: task.id.toString() });
+        }
+        ctx.db.task.id.update({ ...task, status: 'failed', updatedAt: ctx.timestamp });
+      }
+      o = setOrder(ctx, o, { status: 'failed', decisionReason: `Stopped by the founder: ${reason}` }, 'founder', 'order_failed', { reason, stalledAt: o.status });
+    } else if (!DEAD_PAID.has(o.status) && !(o.status === 'delivered' && declined)) {
+      throw new SenderError(`order ${orderId} is ${o.status}; only rejected, counteroffered, audit_rejected, failed or stalled orders, or declined challenge refunds, can be refunded by hand`);
+    }
     if (o.priceCents === 0) throw new SenderError(`order ${orderId} was never paid`);
-    const row = refundOrder(ctx, o, 'founder', 'founder');
+    const row = refundOrder(ctx, o, 'founder', 'founder', declined?.challengeId ?? 0n);
     if (!row) throw new SenderError(`order ${orderId} has nothing left to refund`);
     logEvent(ctx, 'founder', 'order_refund_requested', 'order', o.id, { reason, refundId: row.id.toString(), amountCents: row.amountCents, status: row.status });
+  },
+);
+
+export const set_run_share_url = spacetimedb.reducer(
+  { runId: t.u64(), shareUrl: t.string() },
+  (ctx, { runId, shareUrl }) => {
+    requireRole(ctx, 'founder');
+    const run = ctx.db.run.id.find(runId);
+    if (!run || run.provider !== 'creao') throw new SenderError('a CREAO run is required');
+    if (!/^https:\/\/agent\.creao\.ai\/share\/[0-9a-f]{16,64}$/.test(shareUrl)) throw new SenderError('invalid CREAO share URL');
+    ctx.db.run.id.update({ ...run, shareUrl });
+    logEvent(ctx, 'founder', 'run_share_linked', 'run', runId, { shareUrl });
   },
 );
 
@@ -1286,7 +1327,7 @@ export const ping = spacetimedb.httpHandler((ctx, req) => {
 });
 
 const CREAO_BASE = 'https://agent.creao.ai';
-const CREAO_TERMINAL = ['completed', 'failed', 'cancelled'];
+const CREAO_TERMINAL = ['completed', 'failed', 'cancelled', 'timed_out'];
 const RESULT_TEXT_MAX = 20_000;
 
 type CreaoRun = { id?: string; runId?: string; status?: string; threadId?: string; result?: { text?: string; chatText?: string } };
@@ -1369,9 +1410,15 @@ function refreshCreaoRun(ctx: IoCtx, runRef: bigint, actor: string) {
     ctx.withTx((tx) => logEvent(tx, actor, 'creao_refresh_failed', 'run', runRef, { httpStatus: res.status }));
     return { changed: false, status: row.status };
   }
-  const fresh = JSON.parse(text) as CreaoRun;
+  let fresh: CreaoRun;
+  try { fresh = JSON.parse(text); if (!fresh || typeof fresh !== 'object') throw new Error('invalid response'); }
+  catch {
+    ctx.withTx((tx) => logEvent(tx, actor, 'creao_refresh_failed', 'run', runRef, { reason: 'invalid JSON response' }));
+    return { changed: false, status: row.status };
+  }
   return ctx.withTx((tx) => {
     const cur = tx.db.run.id.find(runRef)!;
+    if (CREAO_TERMINAL.includes(cur.status)) return { changed: false, status: cur.status };
     const status = fresh.status ?? cur.status;
     if (status === cur.status) return { changed: false, status };
     const done = CREAO_TERMINAL.includes(status);
@@ -1383,12 +1430,28 @@ function refreshCreaoRun(ctx: IoCtx, runRef: bigint, actor: string) {
     logEvent(tx, actor, `creao_run_${status}`, 'run', runRef, { externalId: cur.externalId, threadId: fresh.threadId ?? '', resultChars: result.length });
     const task = done && cur.taskId !== undefined ? tx.db.task.id.find(cur.taskId) : undefined;
     if (task && task.status === 'dispatched') {
-      // The agent acts only through reducers; a run that ends without one leaves the task undecided.
-      tx.db.task.id.update({ ...task, status: 'failed', output: JSON.stringify({ runStatus: status, result: result.slice(0, 2000) }), updatedAt: tx.timestamp });
-      logEvent(tx, actor, 'task_ended_without_decision', 'task', task.id, { runRef: runRef.toString(), runStatus: status });
+      settleUndecidedTask(tx, task, actor, `run ${status}`, false);
     }
     return { changed: true, status };
   });
+}
+
+function settleUndecidedTask(ctx: Ctx, task: TaskRow, actor: string, why: string, final: boolean) {
+  const runs = [...ctx.db.run.iter()].filter((r) => r.provider === 'creao' && r.taskId === task.id && r.status !== 'start_failed').length;
+  if (undecidedAction(runs, final) === 'retry') {
+    ctx.db.task.id.update({ ...task, status: 'queued', updatedAt: ctx.timestamp });
+    logEvent(ctx, actor, 'task_requeued', 'task', task.id, { why, runs });
+    return;
+  }
+  ctx.db.task.id.update({ ...task, status: 'failed', output: JSON.stringify({ why, runs }), updatedAt: ctx.timestamp });
+  logEvent(ctx, actor, 'task_ended_without_decision', 'task', task.id, { why, runs });
+  const o = task.orderId === undefined ? undefined : ctx.db.orders.id.find(task.orderId);
+  const states: Record<string, string[]> = { coo_triage: ['paid', 'triaging'], research_gate: ['researching'], audit: ['auditing'] };
+  if (o && states[task.kind]?.includes(o.status)) {
+    const reason = `The ${task.role} agent did not reach a decision (${why}).`;
+    const failed = setOrder(ctx, o, { status: 'failed', decisionReason: reason }, 'rules', 'order_failed', { reason });
+    refundOrder(ctx, failed, 'treasurer', 'agent_no_decision');
+  }
 }
 
 export const creao_poll = spacetimedb.procedure({ runRef: t.u64() }, t.unit(), (ctx, { runRef }) => {
@@ -2070,7 +2133,7 @@ function startAdmission(ctx: Ctx, o: Order) {
 }
 
 type AdmissionFetch = {
-  ok: boolean; url: string; text: string; reason: string; allowed?: boolean; rule?: string | null; note?: string;
+  ok: boolean; httpStatus: number; url: string; text: string; reason: string; allowed?: boolean; rule?: string | null; note?: string;
   compare?: { enoughGap: boolean; secondsApart: number; changedLines: number; numbersChanged: number; suggested: string };
 };
 
@@ -2096,16 +2159,23 @@ export const admission_precheck = spacetimedb.procedure(
     try {
       // Leave room within the existing per-order fetch cap for terms and discovery.
       if (sources.length > Math.min(job.pageCap, Math.floor((RESEARCH_MAX_FETCHES - 4) / 3))) throw new Error('Too many source URLs for the admission fetch budget; request fewer sources.');
+      const fetchPage = (kind: string, target: string): AdmissionFetch => {
+        let result: AdmissionFetch = JSON.parse(fetchResearchPage(ctx, arg.orderId, kind, target));
+        if (retryableFetch(result)) {
+          result = JSON.parse(fetchResearchPage(ctx, arg.orderId, kind, target));
+        }
+        return result;
+      };
       let volatility = job.volatility;
       for (source of sources) {
         if (arg.phase === 0) {
           check = 'robots';
-          const robots: AdmissionFetch = JSON.parse(fetchResearchPage(ctx, arg.orderId, 'robots', source));
+          const robots: AdmissionFetch = fetchPage('robots', source);
           if (!robots.ok || !robots.allowed) throw new Error(robots.rule ?? robots.reason ?? 'robots.txt could not be checked');
           ctx.withTx((tx) => admissionFinding(tx, arg.orderId, 'robots', 'pass', robots.url, robots.rule ?? robots.note ?? robots.text.split('\n').find((line) => /^\s*user-agent\s*:\s*\*\s*$/i.test(line)) ?? 'No matching disallow rule for user-agent *.'));
         }
         check = 'reachability';
-        const page: AdmissionFetch = JSON.parse(fetchResearchPage(ctx, arg.orderId, 'page', source));
+        const page: AdmissionFetch = fetchPage('page', source);
         const blocked = reachabilityProblem(page.text);
         if (!page.ok || blocked) throw new Error(blocked ?? page.reason);
         if (arg.phase === 0) {
@@ -2132,7 +2202,7 @@ export const admission_precheck = spacetimedb.procedure(
         const j = tx.db.admissionJob.orderId.find(arg.orderId)!;
         const o = findOrder(tx, arg.orderId);
         if (o.status !== 'researching') return;
-        const reason = `Admission ${check}: ${String(err).slice(0, 1800)} (${source})`;
+        const reason = `Admission ${check}: ${String(err).replace(/^(?:SenderError|Error):\s*/, '').slice(0, 1800)} (${source})`;
         admissionFinding(tx, arg.orderId, check, 'fail', check === 'robots' ? robotsUrlFor(source) : source, reason);
         tx.db.admissionJob.orderId.update({ ...j, status: 'rejected', reason, updatedAt: tx.timestamp });
         setOrder(tx, o, { status: 'rejected', decisionReason: reason }, 'rules', 'admission_rejected', { check, source, reason });
@@ -2343,6 +2413,14 @@ export const dispatch = spacetimedb.procedure(
     const apps: Record<string, string> = {};
     for (const [role, name] of Object.entries(ROLE_APP_ENV)) { const v = ctx.env.get(name); if (v) apps[role] = v; }
     if (!Object.keys(apps).length) return {};
+    // Reuse the dispatch schedule for lost webhooks; all IO stays outside transactions.
+    const stale = ctx.withTx((tx) => [...tx.db.run.iter()].filter((r) => r.provider === 'creao'
+      && ['pending', 'running', 'queued'].includes(r.status)
+      && tx.timestamp.microsSinceUnixEpoch - r.startedAt.microsSinceUnixEpoch > 180_000_000n).slice(0, 4).map((r) => r.id));
+    for (const id of stale) {
+      try { refreshCreaoRun(ctx, id, 'dispatch'); }
+      catch { ctx.withTx((tx) => logEvent(tx, 'dispatch', 'creao_refresh_failed', 'run', id, { reason: 'provider unavailable' })); }
+    }
     const picks = ctx.withTx((tx) => {
       const callbackRuns = new Set([...tx.db.callbackToken.iter()].map((c) => c.runRef));
       for (const r of tx.db.run.iter()) {
@@ -2353,13 +2431,22 @@ export const dispatch = spacetimedb.procedure(
         if (task?.status === 'dispatched') tx.db.task.id.update({ ...task, status: 'queued', updatedAt: tx.timestamp });
         logEvent(tx, 'dispatch', 'orphan_dispatch_recovered', 'run', r.id, { taskId: r.taskId?.toString() });
       }
+      for (const run of tx.db.run.iter()) {
+        if (run.provider !== 'creao' || !['starting', 'pending', 'running', 'queued'].includes(run.status)
+          || tx.timestamp.microsSinceUnixEpoch - run.startedAt.microsSinceUnixEpoch < CREAO_RUN_TIMEOUT_US) continue;
+        tx.db.run.id.update({ ...run, status: 'timed_out', endedAt: tx.timestamp });
+        logEvent(tx, 'dispatch', 'creao_run_timed_out', 'run', run.id, { taskId: run.taskId?.toString() });
+        const task = run.taskId === undefined ? undefined : tx.db.task.id.find(run.taskId);
+        if (task?.status === 'dispatched') settleUndecidedTask(tx, task, 'dispatch', 'run timed out', false);
+      }
       const inFlight = [...tx.db.run.iter()].filter((r) => r.provider === 'creao' && ['starting', 'pending', 'running', 'queued'].includes(r.status)).length;
       const free = cfgInt(tx, 'creao_max_concurrency') - inFlight;
       if (free <= 0) return [];
       const queued = [...tx.db.task.iter()]
         .filter((r) => r.status === 'queued' && CREAO_ROLES.includes(r.role) && CREAO_KINDS.includes(r.kind) && apps[r.role]
           && !(r.orderId !== undefined && isCanary(tx, r.orderId)))
-        .sort((a, b) => (a.id < b.id ? -1 : 1))
+        .filter((task) => ![...tx.db.run.iter()].some((r) => r.taskId === task.id && r.status === 'start_failed' && tx.timestamp.microsSinceUnixEpoch - r.startedAt.microsSinceUnixEpoch < 30_000_000n))
+        .sort((a, b) => customerTaskPriority(a.kind) - customerTaskPriority(b.kind) || (a.id < b.id ? -1 : 1))
         .slice(0, free);
       return queued.map((task) => {
         tx.db.task.id.update({ ...task, status: 'dispatched', attempt: task.attempt + 1, updatedAt: tx.timestamp });
@@ -2401,7 +2488,11 @@ export const dispatch = spacetimedb.procedure(
           resultText: ok ? '' : text.slice(0, 2000), endedAt: ok ? undefined : tx.timestamp });
         if (!ok) {
           const cur = tx.db.task.id.find(task.id)!;
-          tx.db.task.id.update({ ...cur, status: 'queued', updatedAt: tx.timestamp });
+          const first = [...tx.db.run.iter()].filter((r) => r.taskId === task.id && r.status === 'start_failed').sort((a, b) => a.id < b.id ? -1 : 1)[0];
+          if (cur.status === 'dispatched') {
+            if (first && tx.timestamp.microsSinceUnixEpoch - first.startedAt.microsSinceUnixEpoch >= CREAO_START_TIMEOUT_US) settleUndecidedTask(tx, cur, 'dispatch', `CREAO did not start the run (http ${status})`, true);
+            else tx.db.task.id.update({ ...cur, status: 'queued', updatedAt: tx.timestamp });
+          }
         }
         logEvent(tx, 'dispatch', ok ? 'creao_run_started' : 'creao_run_start_failed', 'run', runRef, { role: task.role, taskId: task.id.toString(), httpStatus: status });
       });

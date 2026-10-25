@@ -64,6 +64,7 @@ import RetireApiReducer from "./retire_api_reducer";
 import SetBudgetCapReducer from "./set_budget_cap_reducer";
 import SetConfigReducer from "./set_config_reducer";
 import SetOrderParamsReducer from "./set_order_params_reducer";
+import SetRunShareUrlReducer from "./set_run_share_url_reducer";
 import SetStaffReducer from "./set_staff_reducer";
 import SubmitCompileReducer from "./submit_compile_reducer";
 import UpdateApiReducer from "./update_api_reducer";
@@ -512,6 +513,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_budget_cap", SetBudgetCapReducer),
   __reducerSchema("set_config", SetConfigReducer),
   __reducerSchema("set_order_params", SetOrderParamsReducer),
+  __reducerSchema("set_run_share_url", SetRunShareUrlReducer),
   __reducerSchema("set_staff", SetStaffReducer),
   __reducerSchema("submit_compile", SubmitCompileReducer),
   __reducerSchema("update_api", UpdateApiReducer),

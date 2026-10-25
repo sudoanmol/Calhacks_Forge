@@ -81,3 +81,12 @@ test('quotedOn ignores whitespace and case but not words; textHash tells texts a
   assert.notEqual(textHash('a'), textHash('b'));
   assert.equal(textHash('héllo'), textHash('héllo'));
 });
+
+
+test('only transient research failures retry, never compliance blocks', async () => {
+  const { retryableFetch } = await import('../src/research.ts');
+  for (const httpStatus of [0, 429, 500, 503]) assert.equal(retryableFetch({ ok: false, httpStatus, reason: 'transport failed' }), true);
+  for (const httpStatus of [200, 403, 404]) assert.equal(retryableFetch({ ok: false, httpStatus, reason: 'denied' }), false);
+  assert.equal(retryableFetch({ ok: false, httpStatus: 500, reason: 'compliance policy' }), false);
+  assert.equal(retryableFetch({ ok: true, httpStatus: 200, reason: '' }), false);
+});

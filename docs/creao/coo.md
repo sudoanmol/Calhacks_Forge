@@ -78,3 +78,5 @@ Rules: one decision per run; a run that ends without a decision fails the task. 
 What the reducer enforces: the sender must hold the `coo` seat; the order must be `paid` or `triaging`; `decision` must be one of the four; the reason must be non-empty; ACCEPT needs an existing API name. REQUEST_RESEARCH moves the order to `researching` and queues a `research_gate` task for the Research seat; it is refused once the order has a research report.
 
 `create_api` from the COO seat: Tier 0 only (empty apifyId, engine `task`), `pageCap` within `config.page_cap`, named output fields, and every source host must come from a research report whose robots, terms and reachability checks all passed. The module then creates the forge-extract Apify Task (`create_apify_task`, table `apify_task_job`); an order accepted before the Task exists waits in `accepted` and starts once it does.
+
+COUNTEROFFER ends the current order and books a TEST MODE ledger refund, above the configured limit only after founder approval. Put the smaller scope in the reason so the customer can place a fresh order for that scope. There is no accept-counteroffer reducer.

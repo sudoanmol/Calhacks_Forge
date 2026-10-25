@@ -91,7 +91,7 @@ N = values excluding `_page` rows; V = verified; M = mismatch.
 | REJECT | N = 0, V = 0, M > 0, V/N < 0.8 (the `compile_min_verified_rate` default), values do not answer the request, or a requested source never loaded |
 | ACCEPT | Otherwise. Stale values on volatile APIs and a few unverifiable values are allowed and stated in the reason |
 
-What the reducer enforces: the sender must hold the `auditor` seat; the order must be `auditing`; the verdict must be ACCEPT or REJECT; the reason must be non-empty. ACCEPT moves the order to `delivered` and accrues the COO and Auditor bonuses; REJECT moves it to `audit_rejected`.
+What the reducer enforces: the sender must hold the `auditor` seat; the order must be `auditing`; the verdict must be ACCEPT or REJECT; the reason must be non-empty. ACCEPT also requires at least one current non-`_page` value with status `verified`. ACCEPT moves the order to `delivered` and accrues the COO and Auditor bonuses; REJECT moves it to `audit_rejected`.
 
 ### Challenges (`audit_challenge`)
 
