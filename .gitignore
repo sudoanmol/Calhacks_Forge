@@ -24,5 +24,8 @@ __pycache__/
 
 .DS_Store
 
+# proof screenshots stay local (large; linked from docs by path only)
+docs/proof/**/*.png
+
 # uAgents local storage
 fetch-agents/*_data.json
