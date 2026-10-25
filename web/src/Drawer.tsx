@@ -162,7 +162,7 @@ function Body({ id, d }: { id: StationId; d: SceneData }) {
         <>
           <Section title={`Engineering tasks (${ts.length})`}>
             {ts.length ? <table><thead><tr><th>task</th><th>kind</th><th>status</th><th>attempt</th></tr></thead>
-              <tbody>{ts.map((t) => <tr key={String(t.id)}><td>#{String(t.id)}</td><td>{t.kind}</td><td>{t.status}</td><td>{t.attempt}</td></tr>)}</tbody></table> : <p className="muted">No compile, enhancement or warranty task yet. Droid is sleeping.</p>}
+              <tbody>{ts.map((t) => <tr key={String(t.id)}><td>#{String(t.id)}</td><td>{t.kind}</td><td>{t.status}</td><td>{t.attempt}</td></tr>)}</tbody></table> : <p className="muted">No compile, enhancement or warranty task yet. No engineering queued.</p>}
           </Section>
           <Section title={`Tickets (${tk.length})`}>
             {tk.length ? <table><thead><tr><th>ticket</th><th>label</th><th>status</th><th>text</th></tr></thead>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { FLOW, STATION_META, durationText, type FlowId, type SState, type Scene, type SceneData, type StationId, type StationView } from './scene';
+import { FLOW, STATION_META, type FlowId, type SState, type Scene, type SceneData, type StationId, type StationView } from './scene';
 
 const W = 1400;
 const H = 910;
@@ -146,12 +146,6 @@ export function FloorScene({ scene, data, onOpen, selected }: Props) {
           />
         ))}
       </svg>
-      <div className="floor-legend">
-        {(['working', 'done', 'waiting', 'rejected', 'idle'] as SState[]).map((s) => (
-          <span key={s}><i style={{ background: STATE_COLOR[s] }} />{s === 'rejected' ? 'rejected / failed' : s}</span>
-        ))}
-        <span className="muted">click a station for its details</span>
-      </div>
     </div>
   );
 }
@@ -187,7 +181,6 @@ function Station({ id, view, selected, onOpen, side, icon }: { id: StationId; vi
   const top = `${x},${y - bb} ${x + a},${y} ${x},${y + bb} ${x - a},${y}`;
   const left = `${x - a},${y} ${x},${y + bb} ${x},${y + bb + h} ${x - a},${y + h}`;
   const right = `${x},${y + bb} ${x + a},${y} ${x + a},${y + h} ${x},${y + bb + h}`;
-  const sub = view.state === 'working' || view.state === 'skipped' ? '' : durationText(view.start, view.end);
   const labelY = y + bb + h + 32;
   const caption = view.caption || (view.state === 'idle' ? 'idle' : '');
   const tip = [meta.name, meta.role, view.detail || view.caption].filter(Boolean).join('\n');
@@ -232,7 +225,6 @@ function Station({ id, view, selected, onOpen, side, icon }: { id: StationId; vi
       <text x={x} y={labelY + 66} textAnchor="middle" className="st-cap" fill={dim ? '#9a958c' : view.state === 'rejected' || view.state === 'failed' ? '#ff9c8f' : '#ece6da'}>
         {wrap(caption, 23, side ? 1 : 2).map((line, i) => <tspan key={i} x={x} dy={i ? 27 : 0}>{line}</tspan>)}
       </text>
-      {sub && <text x={x + a + 10} y={y - 8} className="st-sub">{sub}</text>}
     </g>
   );
 }

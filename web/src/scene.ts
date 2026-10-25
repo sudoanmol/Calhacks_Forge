@@ -258,7 +258,7 @@ export function buildScene(d: SceneData): Scene {
     ? { id: 'droid', state: 'working', caption: `Droid is awake: ${awake.kind} #${awake.id}`, start: awake.updatedAt }
     : queued.length
       ? { id: 'droid', state: 'waiting', caption: `${queued.length} ${queued[0].kind} task${queued.length === 1 ? '' : 's'} queued` }
-      : { id: 'droid', state: 'idle', caption: 'Droid is sleeping', detail: compileTickets.length ? `${compileTickets.length} compile/warranty ticket${compileTickets.length === 1 ? '' : 's'} open, no engineering task claimed` : undefined };
+      : { id: 'droid', state: 'idle', caption: 'No engineering queued', detail: compileTickets.length ? `${compileTickets.length} compile/warranty ticket${compileTickets.length === 1 ? '' : 's'} open, no engineering task claimed` : undefined };
 
   const cost = d.runCosts.reduce((s, r) => s + r.totalMicros, 0n);
   const bonus = d.bonuses.filter((x) => x.status !== 'clawed_back').reduce((s, x) => s + x.amountCents, 0);

@@ -25,7 +25,7 @@ const builder = DbConnection.builder()
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <SpacetimeDBProvider connectionBuilder={builder}>
-      <App db={DB} />
+      <App />
     </SpacetimeDBProvider>
   </StrictMode>,
 );

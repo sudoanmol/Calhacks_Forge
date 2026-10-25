@@ -54,7 +54,7 @@ export function EngineeringTab({ founder }: { founder: boolean }) {
       })}
       <details><summary>Extractor diff</summary><pre>{typeof result.diff === 'string' && result.diff ? result.diff : 'No diff submitted yet.'}</pre></details>
       <h3>Droid trace</h3>
-      {!trace.length && <p className="muted">Droid is sleeping. The worker has not emitted any events for this job.</p>}
+      {!trace.length && <p className="muted">The worker has not emitted any events for this job.</p>}
       {trace.map((e) => {
         const data = payloadObj(e.payload);
         const outcome = typeof data.outcome === 'string' ? data.outcome : '';
