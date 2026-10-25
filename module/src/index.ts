@@ -804,6 +804,36 @@ function findOrder(ctx: Ctx, id: bigint): Order {
   return o;
 }
 
+// A paid order that ended without a deliverable gets its money back. Reaching `delivered` is the only
+// other door out of these states, so a delivered order is refunded only through a challenge.
+const DEAD_PAID = new Set(['rejected', 'counteroffered', 'audit_rejected', 'failed']);
+
+// Refunds what the customer still holds as a debit on this order. At or under refund_limit_cents the money
+// moves now; above it the refund waits on a founder approval. Returns the refund row, or undefined when
+// nothing is owed. challengeId is 0n when the refund has no challenge behind it.
+function refundOrder(ctx: Ctx, o: Order, actor: string, cause: string, challengeId = 0n) {
+  const refunded = [...ctx.db.refund.orderId.filter(o.id)].filter((r) => r.status !== 'rejected').reduce((s, r) => s + r.amountCents, 0);
+  const amount = Math.max(0, o.priceCents - refunded);
+  if (amount === 0) return undefined;
+  const overLimit = amount > cfgInt(ctx, 'refund_limit_cents');
+  const row = ctx.db.refund.insert({
+    id: 0n, orderId: o.id, challengeId, amountCents: amount,
+    status: overLimit ? 'pending_approval' : 'issued', createdAt: ctx.timestamp, decidedAt: overLimit ? undefined : ctx.timestamp,
+  });
+  if (overLimit) {
+    const ap = ctx.db.approval.insert({
+      id: 0n, kind: 'refund_over_limit', refType: 'refund', refId: row.id, amountCents: amount,
+      detail: JSON.stringify({ orderId: o.id.toString(), challengeId: challengeId.toString(), cause, limitCents: cfgInt(ctx, 'refund_limit_cents') }),
+      status: 'pending', createdAt: ctx.timestamp, decidedAt: undefined,
+    });
+    logEvent(ctx, 'treasurer', 'approval_requested', 'approval', ap.id, { kind: ap.kind, amountCents: amount, refundId: row.id.toString(), cause });
+  } else {
+    postTx(ctx, `refund order ${o.id} (${cause}, TEST MODE)`, [[`customer:${o.id}`, BigInt(amount)], ['treasury', -BigInt(amount)]]);
+  }
+  logEvent(ctx, actor, 'order_refunded', 'order', o.id, { amountCents: amount, status: row.status, cause, challengeId: challengeId.toString(), refundId: row.id.toString() });
+  return row;
+}
+
 function customerFor(ctx: Ctx, asiSender: string) {
   const existing = ctx.db.customer.asiSender.find(asiSender);
   if (existing) return existing;
@@ -957,6 +987,7 @@ export const coo_decide = spacetimedb.reducer(
     } else {
       const status = decision === 'REJECT' ? 'rejected' : 'counteroffered';
       setOrder(ctx, o, { status, decisionReason: reason }, 'coo', `coo_${status}`, { reason });
+      refundOrder(ctx, o, 'treasurer', status === 'rejected' ? 'coo_rejected' : 'coo_counteroffered');
     }
   },
 );
@@ -973,6 +1004,7 @@ export const audit_verdict = spacetimedb.reducer(
     closeTasks(ctx, orderId, 'audit', { verdict, reason });
     if (verdict === 'REJECT') {
       setOrder(ctx, o, { status: 'audit_rejected', decisionReason: reason }, 'auditor', 'audit_rejected', { reason });
+      refundOrder(ctx, o, 'treasurer', 'audit_rejected');
       if (o.apiId !== undefined) checkCompileTriggers(ctx, o.apiId, false);
       return;
     }
@@ -1083,26 +1115,7 @@ export const challenge_verdict = spacetimedb.reducer(
     });
 
     // Refund what is left of the order's price; over the limit it waits on the founder.
-    const refunded = [...ctx.db.refund.orderId.filter(o.id)].filter((r) => r.status !== 'rejected').reduce((s, r) => s + r.amountCents, 0);
-    const amount = Math.max(0, o.priceCents - refunded);
-    let refundRow: { id: bigint; status: string; amountCents: number } | undefined;
-    if (amount > 0) {
-      const overLimit = amount > cfgInt(ctx, 'refund_limit_cents');
-      refundRow = ctx.db.refund.insert({
-        id: 0n, orderId: o.id, challengeId, amountCents: amount, status: overLimit ? 'pending_approval' : 'issued',
-        createdAt: ctx.timestamp, decidedAt: overLimit ? undefined : ctx.timestamp,
-      });
-      if (overLimit) {
-        const ap = ctx.db.approval.insert({
-          id: 0n, kind: 'refund_over_limit', refType: 'refund', refId: refundRow.id, amountCents: amount,
-          detail: JSON.stringify({ orderId: o.id.toString(), challengeId: challengeId.toString(), limitCents: cfgInt(ctx, 'refund_limit_cents') }),
-          status: 'pending', createdAt: ctx.timestamp, decidedAt: undefined,
-        });
-        logEvent(ctx, 'treasurer', 'approval_requested', 'approval', ap.id, { kind: ap.kind, amountCents: amount, refundId: refundRow.id.toString() });
-      } else {
-        postTx(ctx, `refund order ${o.id} challenge ${challengeId} (TEST MODE)`, [[`customer:${o.id}`, BigInt(amount)], ['treasury', -BigInt(amount)]]);
-      }
-    }
+    const refundRow = refundOrder(ctx, o, 'treasurer', 'challenge_upheld', challengeId);
 
     // Bonuses are paid only for accepted work; this deliverable turned out wrong.
     const clawed: string[] = [];
@@ -1157,6 +1170,22 @@ export const decide_approval = spacetimedb.reducer(
     ctx.db.refund.id.update({ ...r, status: approve ? 'issued' : 'rejected', decidedAt: ctx.timestamp });
     if (approve) postTx(ctx, `refund order ${r.orderId} challenge ${r.challengeId} (TEST MODE, founder-approved)`, [[`customer:${r.orderId}`, BigInt(r.amountCents)], ['treasury', -BigInt(r.amountCents)]]);
     logEvent(ctx, 'founder', approve ? 'approval_approved' : 'approval_rejected', 'approval', id, { kind: ap.kind, refundId: r.id.toString(), amountCents: r.amountCents });
+  },
+);
+
+// Founder: refund a paid order that ended without a deliverable before this rule existed, or that the
+// Treasurer could not refund for any reason. Same limit and approval rule as every other refund.
+export const refund_order = spacetimedb.reducer(
+  { orderId: t.u64(), reason: t.string() },
+  (ctx, { orderId, reason }) => {
+    requireRole(ctx, 'founder');
+    if (!reason.trim()) throw new SenderError('a reason is required');
+    const o = findOrder(ctx, orderId);
+    if (!DEAD_PAID.has(o.status)) throw new SenderError(`order ${orderId} is ${o.status}; only rejected, counteroffered, audit_rejected or failed orders can be refunded by hand`);
+    if (o.priceCents === 0) throw new SenderError(`order ${orderId} was never paid`);
+    const row = refundOrder(ctx, o, 'founder', 'founder');
+    if (!row) throw new SenderError(`order ${orderId} has nothing left to refund`);
+    logEvent(ctx, 'founder', 'order_refund_requested', 'order', o.id, { reason, refundId: row.id.toString(), amountCents: row.amountCents, status: row.status });
   },
 );
 
@@ -1410,7 +1439,18 @@ function envOrThrow(env: IoCtx['env'], name: 'APIFY_TOKEN' | 'BRIGHTDATA_API_KEY
 
 function failOrder(tx: Ctx, orderId: bigint, actor: string, reason: string) {
   const o = tx.db.orders.id.find(orderId);
-  if (o) setOrder(tx, o, { status: 'failed', decisionReason: reason }, actor, 'order_failed', { reason });
+  if (!o) return;
+  setOrder(tx, o, { status: 'failed', decisionReason: reason }, actor, 'order_failed', { reason });
+  refundOrder(tx, o, 'treasurer', 'run_failed');
+}
+
+// A run that Apify failed to start or that ended FAILED/ABORTED/TIMED-OUT gets exactly one more try.
+// Config and param problems do not come through here; they fail (and refund) at once.
+function retryOrFail(tx: Ctx, o: Order, actor: string, reason: string) {
+  const attempts = [...tx.db.run.iter()].filter((r) => r.provider === 'apify' && r.threadId === String(o.id)).length;
+  if (attempts >= 2) { failOrder(tx, o.id, actor, `${reason} (after a retry)`); return; }
+  setOrder(tx, o, { status: 'accepted', apifyRunId: '' }, actor, 'order_run_retried', { reason, attempt: attempts + 1 });
+  tx.db.apiRunSchedule.insert({ scheduledId: 0n, scheduledAt: ScheduleAt.time(tx.timestamp.microsSinceUnixEpoch + 5_000_000n), orderId: o.id });
 }
 
 // Param contract (see params.ts). An API declares params in api.inputs and uses them as {name} in
@@ -1473,7 +1513,8 @@ export const start_api_run = spacetimedb.procedure(
       try { data = (JSON.parse(text) as { data?: typeof data }).data ?? {}; } catch { /* error body */ }
       if (status !== 201 || !data.id) {
         tx.db.run.id.update({ ...run, status: 'start_failed', resultText: text.slice(0, 2000), endedAt: tx.timestamp });
-        failOrder(tx, job.orderId, 'procedure', `apify start failed (http ${status})`);
+        const o = tx.db.orders.id.find(job.orderId);
+        if (o) retryOrFail(tx, o, 'procedure', `apify start failed (http ${status})`);
         return;
       }
       tx.db.run.id.update({ ...run, externalId: data.id, status: data.status ?? 'READY',
@@ -1636,7 +1677,7 @@ function refreshApifyRun(ctx: IoCtx, runRef: bigint, actor: string): string {
     recordRunCost(tx, runRef, orderId, o.apiId ?? 0n, run.usageTotalUsd ?? 0, summary);
     if (run.status !== 'SUCCEEDED') {
       finalizeRunCost(tx, runRef, undefined, 0);
-      failOrder(tx, orderId, actor, `apify run ${run.status}`);
+      retryOrFail(tx, o, actor, `apify run ${run.status}`);
       return;
     }
     const v = o.apiVersionId !== undefined ? tx.db.apiVersion.id.find(o.apiVersionId) : undefined;
@@ -2095,6 +2136,7 @@ export const admission_precheck = spacetimedb.procedure(
         admissionFinding(tx, arg.orderId, check, 'fail', check === 'robots' ? robotsUrlFor(source) : source, reason);
         tx.db.admissionJob.orderId.update({ ...j, status: 'rejected', reason, updatedAt: tx.timestamp });
         setOrder(tx, o, { status: 'rejected', decisionReason: reason }, 'rules', 'admission_rejected', { check, source, reason });
+        refundOrder(tx, o, 'treasurer', 'admission_rejected');
       });
     }
     return {};

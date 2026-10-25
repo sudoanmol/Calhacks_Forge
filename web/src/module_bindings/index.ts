@@ -55,6 +55,7 @@ import OpenChallengeReducer from "./open_challenge_reducer";
 import RecordApiVersionReducer from "./record_api_version_reducer";
 import RecordGateCheckReducer from "./record_gate_check_reducer";
 import RecordPaymentReducer from "./record_payment_reducer";
+import RefundOrderReducer from "./refund_order_reducer";
 import RejectAtDeskReducer from "./reject_at_desk_reducer";
 import RenewLeaseReducer from "./renew_lease_reducer";
 import RequestDroidActionReducer from "./request_droid_action_reducer";
@@ -502,6 +503,7 @@ const reducersSchema = __reducers(
   __reducerSchema("record_api_version", RecordApiVersionReducer),
   __reducerSchema("record_gate_check", RecordGateCheckReducer),
   __reducerSchema("record_payment", RecordPaymentReducer),
+  __reducerSchema("refund_order", RefundOrderReducer),
   __reducerSchema("reject_at_desk", RejectAtDeskReducer),
   __reducerSchema("renew_lease", RenewLeaseReducer),
   __reducerSchema("request_droid_action", RequestDroidActionReducer),
