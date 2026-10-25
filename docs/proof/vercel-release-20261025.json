@@ -1,0 +1,46 @@
+{
+  "at": "2026-10-25T10:37:29.279Z",
+  "url": "https://forge-calhacks.vercel.app",
+  "deploymentId": "dpl_DkJNLYTHpB4zgQM5eUB7qYJuQBko",
+  "deploymentUrl": "https://forge-calhacks-72v9dsppe-anmol-hurkats-projects.vercel.app",
+  "sourceCommit": "d0c85d17323c2ce5a02f98146894fb3c93cadbe8",
+  "buildCommand": "pnpm --filter @forge/web build",
+  "deployCommand": "vercel deploy web/dist --project forge-calhacks --scope anmol-hurkats-projects --prod --yes",
+  "uploadedFiles": 3,
+  "anonymousHttpStatus": 200,
+  "database": "maincloud/forge",
+  "browser": {
+    "desktop": {
+      "width": 1440,
+      "height": 1000,
+      "screenshot": "release-vercel-desktop.png"
+    },
+    "phone": {
+      "width": 390,
+      "height": 844,
+      "pageWidth": 390,
+      "screenshot": "release-vercel-phone.png"
+    },
+    "live": true,
+    "viewer": true,
+    "founderControlsDisabled": true,
+    "orderId": 206,
+    "verifiedValues": 21,
+    "completionDuration": "2m 0s",
+    "replayAndReturnToLivePassed": true
+  },
+  "regressions": [
+    "Dataset-link maintenance does not extend replay",
+    "Completed order duration stops at terminal status",
+    "119.6 seconds formats as 2m 0s"
+  ],
+  "deployment": {
+    "staticOnly": true,
+    "backendSecretsUploaded": false,
+    "gitAutoDeploy": false
+  },
+  "limits": [
+    "Physical phone not tested in this deployment check",
+    "Repository visibility remains private"
+  ]
+}

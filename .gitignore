@@ -34,3 +34,4 @@ fetch-agents/*_data.json
 !docs/proof/audit-*.png
 
 !docs/proof/release-maincloud-dashboard.png
+!docs/proof/release-vercel-*.png

@@ -8,6 +8,8 @@ All money in this project is **TEST MODE**. No real money moves. Payments are St
 
 ## Judge tour (60 seconds)
 
+[Open the live read-only dashboard](https://forge-calhacks.vercel.app). It subscribes to Maincloud; visitors cannot approve founder actions.
+
 1. [Find the Front Desk on Agentverse](https://agentverse.ai/agents/details/agent1qwxszhvaegkq6lsu8n0aks5sqz0l4h63janfx0xgrgcnvxgkl6n6uafetjq/profile) and ask for open roles in ASI:One.
 2. Inspect the [four CREAO seats and public CFO decision](docs/creao/deployment.md), then the [real customer delivery and challenge](docs/proof/asi-challenge-202.json).
 3. Read the [compile trace, founder approval and measured savings](docs/compile-proof.md). The founder fixed the shared test; Droid resumed with the same extractor.
@@ -53,7 +55,7 @@ The dashboard is a forge floor drawn in React, SVG and Framer Motion. The design
 
 ## Proof
 
-Each row below is a recorded real run. `audit-dataset-206.png` shows the live Maincloud dashboard; the other curated `audit-*.png` screenshots show local SIMULATED QA. Other screenshots stay on the founder's machine (`.gitignore`); the JSON records are committed.
+Each row below is a recorded real run. `audit-dataset-206.png` and `release-*.png` show the live Maincloud dashboard; the other curated `audit-*.png` screenshots show local SIMULATED QA. Other screenshots stay on the founder's machine (`.gitignore`); the JSON records are committed.
 
 | What | Record | What it shows |
 |---|---|---|

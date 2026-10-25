@@ -23,7 +23,16 @@ uv run --env-file ../.env python -m front_desk.agent
 
 The committed `.env.example` defaults to `false`. With the flag unset or false, the original Stripe test checkout and testnet FET Payment Protocol run as before. The demo shortcut does not send a Stripe RequestPayment card or a CompletePayment message for a transaction that never happened. Disable it when demonstrating the independent buyer's real Payment Protocol purchase.
 
-A public dashboard URL is not recorded yet; publish `web/dist` as a read-only static site and add the URL here before judging. The laptop dashboard is `http://localhost:5173`. A second device on the tailnet can use `http://100.70.205.123:5173`. The user confirmed a live budget update on a physical phone without refreshing.
+The public dashboard is https://forge-calhacks.vercel.app. It connects to Maincloud and gives fresh visitors **Viewer · read-only** access. Keep the authorized local founder dashboard at `http://localhost:5180` for approvals. Judges can open the public URL on their phones; the user previously confirmed a live budget update on a physical phone without refreshing.
+
+To publish a frontend update, run from the repository root:
+
+```sh
+pnpm --filter @forge/web build
+vercel deploy web/dist --project forge-calhacks --scope anmol-hurkats-projects --prod --yes
+```
+
+This uploads only the built static frontend. No backend keys or founder identity are required. Deployments are manual; a GitHub push alone does not redeploy the site.
 
 ## Recorded evidence
 
