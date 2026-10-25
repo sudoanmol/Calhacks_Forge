@@ -126,23 +126,23 @@ The agents hand work to each other through the shared task queue rather than cal
 | CFO | [`63d131de-1b0c-4801-a58f-1698c894a672`](https://agent.creao.ai/apps/63d131de-1b0c-4801-a58f-1698c894a672) |
 | Auditor | [`6865c094-e20c-48c7-a969-d5e75c67dd06`](https://agent.creao.ai/apps/6865c094-e20c-48c7-a969-d5e75c67dd06) |
 
-Recorded runs from real orders and the `open-roles` compile, with their CREAO run IDs:
+Recorded runs from real orders and the `open-roles` compile. Each run ID opens its public CREAO share page:
 
 | Seat | What it decided | Run ID |
 | --- | --- | --- |
-| COO | Order #202: accepted the existing `open-roles` API | `d808efca-0904-4c0c-bf2a-57934c77643b` |
-| Auditor | Order #202: accepted 21/21 verified values | `a10d1414-5b62-494e-bf29-df3e28885c76` |
-| Auditor | Challenge #14 on order #202: rejected, the saved page supports the value | `3c503efd-776f-48da-b3e8-fe611bb41b22` |
-| Research | Order #199: gate checks for a new Wikipedia source | `3c53bb8a-ca6a-4858-a208-a729f940d8ad` |
-| COO | Order #199: decided after reading Research's findings | `88e3561d-b521-4aad-86db-035c099c1c24` |
-| Auditor | Order #199: rejected a delivery missing a requested field | `d1a138fb-f4c1-42c2-bd89-bba9c3698135` |
-| CFO | Compile ticket #6: funded the `open-roles` compile | `57cb47f7-b02e-4d58-8fe1-29943d0937dc` |
-| Auditor | Compile ticket #6, attempt 1: rejected | `4e5f8425-ec46-4d3e-9960-e967e5a40987` |
-| Auditor | Compile ticket #6, attempt 2: accepted | `e0b6c53f-079d-4bf7-b419-17c7d6babdcc` |
+| COO | Order #202: accepted the existing `open-roles` API | [`d808efca-0904-4c0c-bf2a-57934c77643b`](https://agent.creao.ai/share/3214dd91ef130d1744acef28b49d771c) |
+| Auditor | Order #202: accepted 21/21 verified values | [`a10d1414-5b62-494e-bf29-df3e28885c76`](https://agent.creao.ai/share/ee78defeb4a58051712f21d6721d8b08) |
+| Auditor | Challenge #14 on order #202: rejected, the saved page supports the value | [`3c503efd-776f-48da-b3e8-fe611bb41b22`](https://agent.creao.ai/share/799a13f02622d1236cd6a18d6ff48c24) |
+| Research | Order #199: gate checks for a new Wikipedia source | [`3c53bb8a-ca6a-4858-a208-a729f940d8ad`](https://agent.creao.ai/share/56e31b7d730075775e9214107c845209) |
+| COO | Order #199: decided after reading Research's findings | [`88e3561d-b521-4aad-86db-035c099c1c24`](https://agent.creao.ai/share/f2e5faea81abcb3a6d39b58c6bb454bb) |
+| Auditor | Order #199: rejected a delivery missing a requested field | [`d1a138fb-f4c1-42c2-bd89-bba9c3698135`](https://agent.creao.ai/share/8f6e654c82409cb3d2a690eec9324561) |
+| CFO | Compile ticket #6: funded the `open-roles` compile | [`57cb47f7-b02e-4d58-8fe1-29943d0937dc`](https://agent.creao.ai/share/2361cbf6417714be089c498e9e96c580) |
+| Auditor | Compile ticket #6, attempt 1: rejected | [`4e5f8425-ec46-4d3e-9960-e967e5a40987`](https://agent.creao.ai/share/b5df27665ee55ab36e6371095f289e4f) |
+| Auditor | Compile ticket #6, attempt 2: accepted | [`e0b6c53f-079d-4bf7-b419-17c7d6babdcc`](https://agent.creao.ai/share/6d5285c0ae9d6d3315e5a3f9b408da88) |
 
-Run IDs come from the `run` table and the saved records in [`docs/proof/`](docs/proof/). Run pages need the owner's CREAO login; share links are public.
+Run IDs come from the `run` table and the saved records in [`docs/proof/`](docs/proof/).
 
-[Saved prompts and setup](docs/creao/README.md) · [Deployment notes](docs/creao/deployment.md) · [Public CFO run](https://agent.creao.ai/share/2361cbf6417714be089c498e9e96c580), available until November 23, 2026. The run's comparison includes simulated compile-test fixtures, as documented in the deployment notes.
+[Saved prompts and setup](docs/creao/README.md) · [Deployment notes](docs/creao/deployment.md). The CFO run's comparison includes simulated compile-test fixtures, as documented in the deployment notes. CREAO share links expire; the CFO link expires November 23, 2026.
 
 Official references: [Cal Hacks guide](https://community.creao.ai/CalHacks2026), [technical guide](https://community.creao.ai/CalHacks2026/tech), and [saved agents](https://docs.creao.ai/features/agents).
 

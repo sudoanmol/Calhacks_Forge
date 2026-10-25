@@ -41,19 +41,21 @@ The agents hand work to each other through the shared task queue: the COO sends 
 | CFO | `63d131de-1b0c-4801-a58f-1698c894a672` |
 | Auditor | `6865c094-e20c-48c7-a969-d5e75c67dd06` |
 
+Each run ID links to its public CREAO share page.
+
 | Seat | What it decided | Run ID |
 |---|---|---|
-| COO | Order #202: accepted the existing `open-roles` API | `d808efca-0904-4c0c-bf2a-57934c77643b` |
-| Auditor | Order #202: accepted 21/21 verified values | `a10d1414-5b62-494e-bf29-df3e28885c76` |
-| Auditor | Challenge #14 on order #202: rejected, the saved page supports the value | `3c503efd-776f-48da-b3e8-fe611bb41b22` |
-| Research | Order #199: gate checks for a new Wikipedia source | `3c53bb8a-ca6a-4858-a208-a729f940d8ad` |
-| COO | Order #199: decided after reading Research's findings | `88e3561d-b521-4aad-86db-035c099c1c24` |
-| Auditor | Order #199: rejected a delivery missing a requested field | `d1a138fb-f4c1-42c2-bd89-bba9c3698135` |
-| CFO | Compile ticket #6: funded the `open-roles` compile | `57cb47f7-b02e-4d58-8fe1-29943d0937dc` |
-| Auditor | Compile ticket #6, attempt 1: rejected | `4e5f8425-ec46-4d3e-9960-e967e5a40987` |
-| Auditor | Compile ticket #6, attempt 2: accepted | `e0b6c53f-079d-4bf7-b419-17c7d6babdcc` |
+| COO | Order #202: accepted the existing `open-roles` API | [`d808efca-0904-4c0c-bf2a-57934c77643b`](https://agent.creao.ai/share/3214dd91ef130d1744acef28b49d771c) |
+| Auditor | Order #202: accepted 21/21 verified values | [`a10d1414-5b62-494e-bf29-df3e28885c76`](https://agent.creao.ai/share/ee78defeb4a58051712f21d6721d8b08) |
+| Auditor | Challenge #14 on order #202: rejected, the saved page supports the value | [`3c503efd-776f-48da-b3e8-fe611bb41b22`](https://agent.creao.ai/share/799a13f02622d1236cd6a18d6ff48c24) |
+| Research | Order #199: gate checks for a new Wikipedia source | [`3c53bb8a-ca6a-4858-a208-a729f940d8ad`](https://agent.creao.ai/share/56e31b7d730075775e9214107c845209) |
+| COO | Order #199: decided after reading Research's findings | [`88e3561d-b521-4aad-86db-035c099c1c24`](https://agent.creao.ai/share/f2e5faea81abcb3a6d39b58c6bb454bb) |
+| Auditor | Order #199: rejected a delivery missing a requested field | [`d1a138fb-f4c1-42c2-bd89-bba9c3698135`](https://agent.creao.ai/share/8f6e654c82409cb3d2a690eec9324561) |
+| CFO | Compile ticket #6: funded the `open-roles` compile | [`57cb47f7-b02e-4d58-8fe1-29943d0937dc`](https://agent.creao.ai/share/2361cbf6417714be089c498e9e96c580) |
+| Auditor | Compile ticket #6, attempt 1: rejected | [`4e5f8425-ec46-4d3e-9960-e967e5a40987`](https://agent.creao.ai/share/b5df27665ee55ab36e6371095f289e4f) |
+| Auditor | Compile ticket #6, attempt 2: accepted | [`e0b6c53f-079d-4bf7-b419-17c7d6babdcc`](https://agent.creao.ai/share/6d5285c0ae9d6d3315e5a3f9b408da88) |
 
-Public CFO run: https://agent.creao.ai/share/2361cbf6417714be089c498e9e96c580 (available until November 23, 2026; its comparison includes simulated compile-test fixtures).
+The CFO run's comparison includes simulated compile-test fixtures. CREAO share links expire; the CFO link expires November 23, 2026.
 ## How we built it
 
 - **SpacetimeDB** is the only database. A TypeScript module on Maincloud holds APIs, orders, tasks, budgets, a double-entry ledger and an append-only event log. Reducers enforce every rule by the caller's role. Procedures are the only code that calls the outside world, and they never call out with a transaction open. HTTP routes receive CREAO and Apify callbacks with one-time tokens.
@@ -115,7 +117,7 @@ TypeScript, Node.js, Python, pnpm, uv, SpacetimeDB (Maincloud), CREAO, Factory D
 - [ ] Demo video link (required by Devpost).
 - [ ] Separate 3 to 5 minute Fetch.ai video link.
 - [ ] Redesign steps 3 to 6 (`docs/dashboard-redesign-spec.md` §11) are built and match the README's "How to see it" section: Org chart tab, Needs-you approval cards in the right rail, Droid strip, Engineering tab layout, phone layout. Remove or reword any part that did not ship.
-- [ ] CREAO share links for the COO, Research and Auditor runs listed under "CREAO agents" (run IDs are listed; no `run` row has a share URL yet). The CFO share link expires November 23, 2026.
+- [x] CREAO share links for the COO, Research, CFO and Auditor runs listed under "CREAO agents". The dashboard's `run` rows still have no share URL, so its run links need the founder's login.
 - [ ] Verify the committed Front Desk README/badges render on Agentverse; complete ASI:One submission registration.
 - [ ] `forge-extract` Actor link and Apify Store listing; verify the Best Use entry.
 - [ ] Student eligibility under the event rules; the original planning notes did not confirm it.
