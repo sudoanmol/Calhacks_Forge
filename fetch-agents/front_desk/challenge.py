@@ -31,6 +31,7 @@ class Challenge:
     row: int
     order_id: int | None
     reason: str
+    metric: str | None = None
 
 
 def parse_challenge(text: str) -> Challenge | None:
@@ -88,6 +89,6 @@ def format_challenge(c: dict, check: dict | None, refunds: list[dict] | None = N
     if c["status"] in ("upheld", "rejected") and c.get("auditor_reason"):
         parts.append(f"Auditor: {c['auditor_reason']}")
     for r in refunds or []:
-        state = {"issued": "issued", "pending_approval": "waiting for the founder's approval", "rejected": "declined"}.get(r["status"], r["status"])
+        state = {"issued": "booked in FORGE's ledger; the test payment itself is not reversed", "pending_approval": "waiting for the founder's approval", "rejected": "declined"}.get(r["status"], r["status"])
         parts.append(f"Refund: ${r['amount_cents'] / 100:.2f} (TEST MODE) {state}.")
     return "\n\n".join(parts)

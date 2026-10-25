@@ -45,7 +45,7 @@ def test_quoted_order_names_the_order_and_test_mode_price():
 
 def test_rejection_shows_the_reason():
     out = format_order(order(status="rejected", decision_reason="Terms forbid scraping: https://x/terms"))
-    assert "rejected by the COO" in out and "Terms forbid scraping" in out
+    assert "rejected" in out and "Terms forbid scraping" in out
 
 
 def test_desk_rejection_has_no_price():
@@ -82,19 +82,34 @@ def refund(status, amount_cents=100):
 
 def test_refund_lines():
     issued = format_order(order(status="rejected", decision_reason="Terms forbid it."), [], None, [refund("issued")])
-    assert "Refunded $1.00 (TEST MODE)." in issued
+    assert "Refund booked: $1.00" in issued
     pending = format_order(order(status="failed", decision_reason="Apify failed."), [], None, [refund("pending_approval")])
-    assert "Refund of $1.00 is waiting for the founder's approval (TEST MODE)." in pending
+    assert "Refund of $1.00 is waiting for the founder's approval (TEST MODE ledger)." in pending
     declined = format_order(order(status="audit_rejected", decision_reason="Values mismatch."), [], None, [refund("rejected")])
     assert "The founder declined the refund of $1.00 (TEST MODE)." in declined
 
 
 def test_counteroffer_says_what_to_do_next():
     out = format_order(order(status="counteroffered", decision_reason="Too broad; top 25 pages."), [], None, [refund("issued")])
-    assert "your payment was refunded; ask for the smaller scope" in out
-    assert "Refunded $1.00 (TEST MODE)." in out
+    assert "ask for the smaller scope" in out
+    assert "Refund booked: $1.00" in out
 
 
 def test_older_orders_are_listed_briefly():
     out = format_status([order(id=3, status="paid"), order(id=2, status="delivered"), order(id=1, status="rejected_at_desk")])
     assert out.startswith("**Order #3**") and "Earlier: #2 delivered · #1 rejected at desk" in out
+
+
+def test_counteroffer_without_refund_never_claims_money_moved():
+    assert "refund" not in format_order(order(status="counteroffered")).lower()
+
+
+def test_issued_refund_is_explicitly_ledger_only_and_hides_old_declines():
+    out = format_order(order(status="failed"), refunds=[refund("rejected"), refund("issued")])
+    assert "FORGE's ledger" in out and "TEST MODE" in out and "not reversed" in out
+    assert "declined" not in out
+
+
+def test_older_orders_include_refund_state():
+    out = format_status([order(id=13), order(id=12, status="rejected")], refunds_by_order={12: [refund("issued")]})
+    assert "#12 rejected (refunded $1.00 in ledger, TEST MODE)" in out

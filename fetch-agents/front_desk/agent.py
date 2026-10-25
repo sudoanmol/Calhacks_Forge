@@ -9,6 +9,7 @@ import asyncio
 import json
 import os
 from datetime import datetime, timezone
+from pathlib import Path
 from uuid import uuid4
 
 from uagents import Agent, Context, Protocol
@@ -16,6 +17,7 @@ from uagents_core.contrib.protocols.chat import (
     ChatAcknowledgement,
     ChatMessage,
     EndSessionContent,
+    MetadataContent,
     TextContent,
     chat_protocol_spec,
 )
@@ -28,6 +30,7 @@ from uagents_core.contrib.protocols.payment import (
 )
 
 from front_desk import fet, stdb
+from front_desk.cards import catalog_card, challenge_form, order_card, parse_challenge_fields, parse_selection, quote_card, quote_is_fresh
 from front_desk.challenge import Challenge, format_challenge, parse_challenge, pick_metric
 from front_desk.gate import run_layer2
 from front_desk.intent import NotARequest, parse_intent, strip_mentions
@@ -36,7 +39,8 @@ from front_desk.payments import create_checkout, demo_pay_enabled, is_paid, paym
 from front_desk.status import format_status, is_status_request
 
 QUOTE_CENTS = 100  # Flat test price until the COO prices orders.
-PAY_WORDS = {"pay", "buy", "yes", "accept", "ok"}
+PAY_WORDS = {"pay", "pay now"}
+CONFIRM_WORDS = {"yes", "ok", "okay", "accept", "buy", "sure"}
 RECHECK_WAIT_S = 45  # the recheck is one saved-page read plus one Bright Data fetch
 SHOWN_CHALLENGES = 3
 
@@ -46,6 +50,7 @@ agent = Agent(
     port=int(os.environ.get("FRONT_DESK_PORT", "8001")),
     mailbox=True,
     publish_agent_details=True,
+    readme_path=str(Path(__file__).with_name("README.md")),
 )
 # ctx.agent in a handler is an AgentRepresentation, which has no wallet.
 WALLET = str(agent.wallet.address())
@@ -57,8 +62,10 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _text(body: str, end: bool = False) -> ChatMessage:
+def _text(body: str, end: bool = False, card: dict[str, str] | None = None) -> ChatMessage:
     content = [TextContent(type="text", text=body)]
+    if card:
+        content.append(MetadataContent(type="metadata", metadata=card))
     if end:
         content.append(EndSessionContent(type="end-session"))
     return ChatMessage(timestamp=_now(), msg_id=uuid4(), content=content)
@@ -73,24 +80,25 @@ async def send(ctx: Context, to: str, message, what: str) -> None:
     _log(ctx, f"OUT[{getattr(status, 'status', status)}]", to, what)
 
 
-async def reply(ctx: Context, to: str, body: str) -> None:
-    await send(ctx, to, _text(body), body)
+async def reply(ctx: Context, to: str, body: str, card: dict[str, str] | None = None) -> None:
+    await send(ctx, to, _text(body, card=card), body)
 
 
 def _challenge_text(c: dict) -> str:
     return format_challenge(c, stdb.challenge_check(c["id"]), stdb.refunds_for_challenge(c["id"]))
 
 
-def _status_text(sender: str) -> str:
+def _status_data(sender: str) -> tuple[str, dict[str, str] | None]:
     orders = stdb.orders_for_sender(sender)
     if not orders:
-        return format_status([])
+        return format_status([]), None
     latest = orders[0]
     values = stdb.value_records(latest["id"])
     api = stdb.api_name(latest["api_id"]) if latest["api_id"] is not None else None
-    out = format_status(orders, values, api, stdb.refunds_for_order(latest["id"]))
+    refunds = stdb.refunds_for_orders([o["id"] for o in orders])
+    out = format_status(orders, values, api, refunds[latest["id"]], refunds)
     challenges = stdb.challenges_for_orders([o["id"] for o in orders])[:SHOWN_CHALLENGES]
-    return "\n\n".join([out, *(_challenge_text(c) for c in challenges)])
+    return "\n\n".join([out, *(_challenge_text(c) for c in challenges)]), order_card(latest, values, api, refunds[latest["id"]])
 
 
 def _open_challenge(sender: str, ch: Challenge) -> tuple[str, int | None]:
@@ -105,7 +113,7 @@ def _open_challenge(sender: str, ch: Challenge) -> tuple[str, int | None]:
         if order is None:
             return "You have no delivered order to challenge yet. Reply **status** to see your orders.", None
     in_row = [v for v in stdb.value_records(order["id"]) if v["row"] == ch.row and v["metric"] != "_page"]
-    metric = pick_metric(ch.reason, [v["metric"] for v in in_row])
+    metric = ch.metric or pick_metric(ch.reason, [v["metric"] for v in in_row])
     before = {c["id"] for c in stdb.challenges_for_orders([order["id"]])}
     try:
         stdb.open_challenge(order["id"], sender, ch.row, metric, ch.reason)
@@ -143,7 +151,7 @@ async def handle_challenge(ctx: Context, sender: str, ch: Challenge) -> None:
         body, challenge_id = await asyncio.to_thread(_open_challenge, sender, ch)
     except Exception as err:  # noqa: BLE001
         ctx.logger.exception("open_challenge failed")
-        await reply(ctx, sender, f"Sorry, I couldn't open that challenge right now ({type(err).__name__}). Please try again.")
+        await reply(ctx, sender, f"Sorry, I couldn't open that challenge right now. Please try again.")
         return
     await reply(ctx, sender, body)
     if challenge_id is not None:
@@ -156,11 +164,50 @@ def _resolve_params(text: str) -> Resolution:
 
 async def reply_status(ctx: Context, sender: str) -> None:
     try:
-        body = await asyncio.to_thread(_status_text, sender)
+        body, card = await asyncio.to_thread(_status_data, sender)
     except Exception as err:  # noqa: BLE001
         ctx.logger.exception("status read failed")
-        body = f"Sorry, I couldn't read your orders right now ({type(err).__name__}). Please try again."
-    await reply(ctx, sender, body)
+        body = f"Sorry, I couldn't read your orders right now. Please try again."
+        card = None
+    await reply(ctx, sender, body, card)
+
+
+async def handle_selection(ctx: Context, sender: str, selection: tuple[str, int | None], text: str = "") -> None:
+    action, order_id = selection
+    pending = ctx.storage.get(f"quote:{sender}")
+    if action == "status":
+        await reply_status(ctx, sender)
+    elif action in ("pay", "cancel"):
+        if not pending or pending["order_id"] != order_id or not quote_is_fresh(pending):
+            await reply(ctx, sender, "That quote is no longer open. Ask for a fresh quote.")
+        elif action == "cancel" and ctx.storage.get(f"payreq:{pending['ref']}"):
+            await reply(ctx, sender, "A payment request is already open for this quote. Cancel it in checkout.")
+        elif action == "cancel":
+            ctx.storage.remove(f"quote:{sender}")
+            await reply(ctx, sender, "Quote cancelled. No payment was requested.")
+        else:
+            await request_payment(ctx, sender, pending)
+    elif action == "api":
+        apis = await asyncio.to_thread(stdb.catalog)
+        api = next((a for a in apis if a['id'] == order_id), None)
+        await reply(ctx, sender, f"{api['name']}: {api['description']} Ask for this API and the scope you want; I will quote it before payment." if api else "That API is no longer for sale.")
+    elif action in ("challenge", "recheck"):
+        orders = await asyncio.to_thread(stdb.orders_for_sender, sender)
+        order = next((o for o in orders if o["id"] == order_id and o["status"] == "delivered"), None)
+        if not order:
+            await reply(ctx, sender, "There is no delivered order with that number among your orders.")
+            return
+        values = await asyncio.to_thread(stdb.value_records, order_id)
+        fields = sorted({v["metric"] for v in values if v["metric"] != "_page"})
+        submitted = parse_challenge_fields(text) if action == 'recheck' else None
+        if submitted:
+            row, metric, reason = submitted
+            if metric not in fields:
+                await reply(ctx, sender, "Choose a field from this order.")
+                return
+            await handle_challenge(ctx, sender, Challenge(row=row, order_id=order_id, reason=reason, metric=metric))
+            return
+        await reply(ctx, sender, f'Reply "order #{order_id} row 3 team is wrong because …". Fields: {", ".join(fields)}.', challenge_form(order_id, fields) if fields else None)
 
 
 @chat.on_message(ChatMessage)
@@ -170,6 +217,21 @@ async def on_chat(ctx: Context, sender: str, msg: ChatMessage) -> None:
     _log(ctx, "IN", sender, text)
     if not text:
         return
+    if selection := parse_selection(text):
+        try:
+            await handle_selection(ctx, sender, selection, text)
+        except Exception:
+            ctx.logger.exception("card action failed")
+            await reply(ctx, sender, "I couldn't complete that action right now. Reply **status** or try again.")
+        return
+    if text.lower().strip(" ?.! ") in {"catalog", "what can you sell me", "what do you sell", "list apis"}:
+        try:
+            apis = await asyncio.to_thread(stdb.catalog)
+            await reply(ctx, sender, "APIs for sale: " + ", ".join(a['name'] for a in apis) + ". Ask for a quote. All money is TEST MODE.", catalog_card(apis) if apis else None)
+        except Exception:
+            ctx.logger.exception("catalog read failed")
+            await reply(ctx, sender, "I couldn't read the catalog right now. Please try again.")
+        return
     if is_status_request(text):
         await reply_status(ctx, sender)
         return
@@ -177,6 +239,9 @@ async def on_chat(ctx: Context, sender: str, msg: ChatMessage) -> None:
         await handle_challenge(ctx, sender, challenge)
         return
     pending = ctx.storage.get(f"quote:{sender}")
+    if text.lower().strip(" .!") in CONFIRM_WORDS:
+        await reply(ctx, sender, f"To pay for order #{pending['order_id']} (${pending['cents'] / 100:.2f} TEST MODE), tap Pay or reply **pay**." if pending else "There is no open quote. Tell me what public data you need first.")
+        return
     if text.lower().strip(" .!") in PAY_WORDS:
         if pending:
             await request_payment(ctx, sender, pending)
@@ -198,7 +263,7 @@ async def on_chat(ctx: Context, sender: str, msg: ChatMessage) -> None:
         return
     except Exception as err:  # noqa: BLE001 - the customer gets a reply, the log gets the cause
         ctx.logger.exception("intent/gate failed")
-        await reply(ctx, sender, f"Sorry, I couldn't read that request right now ({type(err).__name__}). Please try again.")
+        await reply(ctx, sender, f"Sorry, I couldn't read that request right now. Please try again.")
         return
     ctx.storage.remove(f"nudged:{sender}")
     result = run_layer2(fields=intent.fields, sources=intent.sources, request_text=text,
@@ -230,7 +295,7 @@ async def on_chat(ctx: Context, sender: str, msg: ChatMessage) -> None:
             raise RuntimeError(f"order {ref} not found after create_order")
     except Exception as err:  # noqa: BLE001
         ctx.logger.exception("create_order failed")
-        await reply(ctx, sender, f"Sorry, I couldn't open an order right now ({type(err).__name__}). Please try again.")
+        await reply(ctx, sender, f"Sorry, I couldn't open an order right now. Please try again.")
         return
     if resolved.params:
         try:
@@ -240,7 +305,7 @@ async def on_chat(ctx: Context, sender: str, msg: ChatMessage) -> None:
             resolved = Resolution()
     scope = f"top {result.counteroffer_pages} pages" if result.counteroffer_pages else f"{intent.estimated_pages} page(s)"
     quote = {"ref": ref, "order_id": order["id"], "summary": intent.summary, "sources": intent.sources,
-             "fields": intent.fields, "pages": intent_json["pages"], "cents": QUOTE_CENTS, "params": resolved.params}
+             "fields": intent.fields, "pages": intent_json["pages"], "cents": QUOTE_CENTS, "params": resolved.params, "quoted_at": _now().isoformat()}
     ctx.storage.set(f"quote:{sender}", quote)
     lines = [
         f"**Order #{order['id']}: {intent.summary}**",
@@ -251,7 +316,7 @@ async def on_chat(ctx: Context, sender: str, msg: ChatMessage) -> None:
         f"Quote: ${QUOTE_CENTS / 100:.2f} (TEST MODE). Reply **pay** to accept."
         + (" **SIMULATED PAYMENT:** demo mode skips checkout; no money is charged." if demo_pay_enabled() else ""),
     ]
-    await reply(ctx, sender, "\n\n".join(lines))
+    await reply(ctx, sender, "\n\n".join(lines), quote_card(quote, scope, demo_pay_enabled()))
 
 
 @chat.on_message(ChatAcknowledgement)
@@ -259,7 +324,27 @@ async def on_ack(ctx: Context, sender: str, msg: ChatAcknowledgement) -> None:
     pass  # The chat protocol requires a handler for every message type it defines.
 
 
+_payment_requests: set[str] = set()
+
+
 async def request_payment(ctx: Context, sender: str, quote: dict) -> None:
+    if not quote_is_fresh(quote):
+        ctx.storage.remove(f"quote:{sender}")
+        await reply(ctx, sender, "That quote expired. Ask for a fresh quote before paying.")
+        return
+    if sender in _payment_requests:
+        return
+    _payment_requests.add(sender)
+    try:
+        await _request_payment(ctx, sender, quote)
+    except Exception:
+        ctx.logger.exception("payment request failed")
+        await reply(ctx, sender, "I couldn't open checkout right now. Please try again.")
+    finally:
+        _payment_requests.discard(sender)
+
+
+async def _request_payment(ctx: Context, sender: str, quote: dict) -> None:
     reference = quote["ref"]
     if demo_pay_enabled():
         await _record_payment(reference, f"demo-simulated:{reference}")
@@ -267,6 +352,10 @@ async def request_payment(ctx: Context, sender: str, quote: dict) -> None:
         await reply(ctx, sender, f"**SIMULATED PAYMENT · TEST MODE.** No money was charged. "
                                  f"**Order #{quote['order_id']}** ({quote['summary']}) is queued for the COO. "
                                  "Reply **status** to follow the real extraction and verification.")
+        return
+    existing = ctx.storage.get(f"payreq:{reference}")
+    if existing:
+        await reply(ctx, sender, "A TEST MODE payment request is already open for this quote. Use its payment card.")
         return
     checkout = await asyncio.to_thread(
         create_checkout, amount_cents=quote["cents"], description=quote["summary"], reference=reference, customer=sender)
@@ -373,7 +462,7 @@ async def on_commit_fet(ctx: Context, sender: str, msg: CommitPayment) -> None:
     except Exception as err:  # noqa: BLE001 - the buyer is told; the log keeps the cause
         _fet_claims.discard(tx_hash)
         ctx.logger.exception(f"fet verification failed for {tx_hash}")
-        await cancel(f"FORGE could not check the transaction right now ({type(err).__name__}).")
+        await cancel(f"FORGE could not check the transaction right now.")
         return
     if reason:
         _fet_claims.discard(tx_hash)

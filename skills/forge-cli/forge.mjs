@@ -367,7 +367,7 @@ function task(raw) {
   if (!t || typeof t !== 'object') throw new CliError('task is not valid JSON');
   const next = NEXT[t.kind];
   if (!next) throw new CliError(`unknown task kind ${JSON.stringify(t.kind)}`);
-  const orderId = String(t.orderId ?? t.input?.orderId ?? '');
+  const orderId = String(t.orderId || t.input?.orderId || '');
   const challengeId = String(t.input?.challengeId ?? '');
   const ticketId = String(t.input?.ticketId ?? '');
   const fill = (s) => [['<orderId>', orderId], ['<challengeId>', challengeId], ['<ticketId>', ticketId]].reduce((acc, [k, v]) => (v ? acc.replaceAll(k, v) : acc), s);

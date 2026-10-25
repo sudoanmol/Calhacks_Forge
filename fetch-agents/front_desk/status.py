@@ -23,8 +23,8 @@ PLAIN = {
     "paid": "paid, waiting for the COO to review it",
     "triaging": "with the COO for review",
     "accepted": "accepted by the COO, about to run",
-    "counteroffered": "counteroffered by the COO: your payment was refunded; ask for the smaller scope and we'll quote it",
-    "rejected": "rejected by the COO",
+    "counteroffered": "counteroffered by the COO: ask for the smaller scope and we'll quote it",
+    "rejected": "rejected",
     "researching": "being checked by Research (terms, robots.txt, reachability)",
     "running": "collecting data from the source pages",
     "verifying": "re-checking every value against the source (independent fetch)",
@@ -94,10 +94,10 @@ def format_order(o: dict, values: list[dict] | None = None, api: str | None = No
     for r in refunds or []:
         by_status[r["status"]] = by_status.get(r["status"], 0) + int(r["amount_cents"])
     if by_status.get("issued"):
-        parts.append(f"Refunded ${by_status['issued'] / 100:.2f} (TEST MODE).")
-    if by_status.get("pending_approval"):
-        parts.append(f"Refund of ${by_status['pending_approval'] / 100:.2f} is waiting for the founder's approval (TEST MODE).")
-    if by_status.get("rejected"):
+        parts.append(f"Refund booked: ${by_status['issued'] / 100:.2f} back to you in FORGE's ledger (TEST MODE). The test payment itself is not reversed.")
+    if by_status.get("pending_approval") and by_status.get("issued", 0) < o.get("price_cents", 0):
+        parts.append(f"Refund of ${by_status['pending_approval'] / 100:.2f} is waiting for the founder's approval (TEST MODE ledger).")
+    if by_status.get("rejected") and not by_status.get("pending_approval") and by_status.get("issued", 0) < o.get("price_cents", 0):
         parts.append(f"The founder declined the refund of ${by_status['rejected'] / 100:.2f} (TEST MODE).")
     values = values or []
     if st in VALUE_STATUSES and values:
@@ -110,12 +110,17 @@ def format_order(o: dict, values: list[dict] | None = None, api: str | None = No
 
 
 def format_status(orders: list[dict], latest_values: list[dict] | None = None, latest_api: str | None = None,
-                  latest_refunds: list[dict] | None = None) -> str:
+                  latest_refunds: list[dict] | None = None, refunds_by_order: dict[int, list[dict]] | None = None) -> str:
     """`orders` newest first; the newest one is shown in full, up to three older ones in one line each."""
     if not orders:
         return "You have no orders yet. Tell me which public site and which fields you want."
     out = format_order(orders[0], latest_values, latest_api, latest_refunds)
     older = orders[1:4]
+    def earlier(o):
+        refunds = (refunds_by_order or {}).get(int(o['id']), [])
+        issued = sum(int(r['amount_cents']) for r in refunds if r['status'] == 'issued')
+        suffix = f" (refunded ${issued / 100:.2f} in ledger, TEST MODE)" if issued else " (refund pending)" if any(r['status'] == 'pending_approval' for r in refunds) else " (refund declined)" if refunds else ""
+        return f"#{o['id']} {o['status'].replace('_', ' ')}{suffix}"
     if older:
-        out += "\n\nEarlier: " + " · ".join(f"#{o['id']} {o['status'].replace('_', ' ')}" for o in older)
+        out += "\n\nEarlier: " + " · ".join(earlier(o) for o in older)
     return out

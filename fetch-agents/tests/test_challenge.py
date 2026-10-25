@@ -63,7 +63,7 @@ def test_verdict_and_refund_are_shown():
                            [{"amount_cents": 100, "status": "issued"}])
     assert "upheld by the Auditor" in out and "Auditor: The saved page shows another company's batch." in out
     assert "Fresh fetch (2026-10-24 21:52:41 UTC): could not be loaded (http 502)." in out
-    assert "Refund: $1.00 (TEST MODE) issued." in out
+    assert "Refund: $1.00 (TEST MODE) booked in FORGE's ledger; the test payment itself is not reversed." in out
 
 
 def test_rechecking_without_results_yet():

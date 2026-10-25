@@ -140,3 +140,11 @@ def refunds_for_order(order_id: int) -> list[dict]:
 def api_name(api_id: int) -> str | None:
     rows = _sql(f"SELECT * FROM api WHERE id = {int(api_id)}")
     return rows[0]["name"] if rows else None
+
+
+def refunds_for_orders(order_ids: list[int]) -> dict[int, list[dict]]:
+    by_order = {int(i): [] for i in order_ids}
+    for row in _sql("SELECT * FROM refund"):
+        if int(row["order_id"]) in by_order:
+            by_order[int(row["order_id"])].append(row)
+    return by_order
