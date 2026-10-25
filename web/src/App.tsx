@@ -9,6 +9,7 @@ import { Header } from './Header';
 import { OrderHero } from './OrderHero';
 import { Feed } from './Feed';
 import { NeedsYou } from './NeedsYou';
+import { DroidStrip } from './DroidStrip';
 import { useScope } from './scope';
 import type { StationId } from './scene';
 
@@ -19,6 +20,8 @@ export function App() {
   const [tab, setTab] = useState<Tab>('Office');
   const [controls, setControls] = useState(false);
   const [showTest, setShowTest] = useState(false);
+  const [engJob, setEngJob] = useState<bigint | null>(null);
+  const openEngineering = (ticketId: bigint) => { setEngJob(ticketId); setTab('Engineering'); };
   const scope = useScope(showTest);
   const sel = useOrderSelection(scope);
   const connection = useSpacetimeDB();
@@ -42,11 +45,12 @@ export function App() {
           </nav>
           {tab === 'Office'
             ? <OfficeTab scope={scope} setShowTest={setShowTest} sel={sel} />
-            : tab === 'Catalog' ? <ApisTab scope={scope} onEngineering={() => setTab('Engineering')} /> : <EngineeringTab founder={founder} />}
+            : tab === 'Catalog' ? <ApisTab scope={scope} onEngineering={() => setTab('Engineering')} /> : <EngineeringTab founder={founder} jobId={engJob} onJob={setEngJob} />}
         </section>
         <aside className="rail">
           {!phone && <NeedsYou scope={scope} founder={founder} />}
           <Feed order={sel.selected} scope={scope} onOpen={openStation} />
+          <DroidStrip onOpen={openEngineering} />
         </aside>
       </main>
       {controls && <ControlsModal founder={founder} onClose={() => setControls(false)} />}

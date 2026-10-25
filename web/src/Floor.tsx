@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { FLOW, STATION_META, type FlowId, type SState, type Scene, type SceneData, type StationId, type StationView } from './scene';
+import { useTable } from 'spacetimedb/react';
+import { tables } from './module_bindings';
+import { droidStationView, shipPipeLit, FLOW, STATION_META, type FlowId, type SState, type Scene, type SceneData, type StationId, type StationView } from './scene';
 
 const W = 1400;
 const H = 910;
@@ -71,7 +73,14 @@ function wrap(s: string, width: number, maxLines: number): string[] {
 type Props = { scene: Scene; data: SceneData; onOpen: (id: StationId) => void; selected: StationId | null };
 
 export function FloorScene({ scene, data, onOpen, selected }: Props) {
-  const { stations, active } = scene;
+  const [jobs] = useTable(tables.compileJob);
+  const [apis] = useTable(tables.api);
+  const [retiredRows] = useTable(tables.apiRetired);
+  const retired = new Set(retiredRows.map((r) => r.apiId));
+  const droid = droidStationView(jobs, (id) => apis.find((a) => a.id === id)?.name, retired);
+  const shipLit = shipPipeLit(jobs, retired, BigInt(Date.now()) * 1000n);
+  const stations = { ...scene.stations, droid };
+  const { active } = scene;
   const activeIdx = FLOW.indexOf(active);
   const activeState = stations[active].state;
 
@@ -116,7 +125,8 @@ export function FloorScene({ scene, data, onOpen, selected }: Props) {
 
         {/* back office platform */}
         <rect x={290} y={356} width={820} height={258} rx="20" fill="#1a1815" stroke="#2f2a22" strokeDasharray="6 8" />
-        <text x={310} y={386} className="floor-note">BACK OFFICE</text>
+        <text x={310} y={376} className="floor-note" data-testid="backoffice-label">BACK OFFICE · improves the catalog, not this order</text>
+        <ShipPipe lit={shipLit} />
 
         {/* return conveyor: delivery goes back to the customer's chat */}
         <Pipe a={anchor('delivered')} b={anchor('customer')} state={delivered ? 'done' : 'idle'} dashed />
@@ -189,7 +199,7 @@ function Station({ id, view, selected, onOpen, side, icon }: { id: StationId; vi
     <g
       className={`station st-${view.state} ${selected ? 'sel' : ''}`} role="button" tabIndex={0} aria-label={`${meta.name}: ${view.state}`}
       onClick={() => onOpen(id)} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onOpen(id)}
-      data-testid={`station-${id}`} data-state={view.state} opacity={dim ? (view.state === 'skipped' ? 0.42 : 0.55) : 1}
+      data-testid={`station-${id}`} data-state={view.state} opacity={dim ? (view.state === 'skipped' ? 0.42 : side ? 0.5 : 0.55) : 1}
     >
       <title>{tip}</title>
       {view.state === 'working' && (
@@ -229,6 +239,21 @@ function Station({ id, view, selected, onOpen, side, icon }: { id: StationId; vi
   );
 }
 
+
+// Dashed pipe from the Droid anvil to the Warehouse shelf. It runs above the Treasurer's icon and climbs through the
+// gap between the Research and Warehouse captions so it never crosses a station's text.
+const SHIP_PATH = 'M760 452 L900 390 L1140 390 L1140 212 L1196 194';
+
+function ShipPipe({ lit }: { lit: boolean }) {
+  return (
+    <g data-testid="ship-pipe" data-lit={lit ? 'true' : 'false'}>
+      <path d={SHIP_PATH} stroke="#0d0c0b" strokeWidth={14} fill="none" strokeLinecap="round" strokeLinejoin="round" opacity={0.7} />
+      <path d={SHIP_PATH} stroke={lit ? '#f2b33d' : '#4a4f59'} strokeWidth={4} fill="none" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="10 10"
+        filter={lit ? 'url(#glow)' : undefined} />
+      <text x={1020} y={380} className={`floor-note ship-note${lit ? ' lit' : ''}`} textAnchor="middle">ships new versions</text>
+    </g>
+  );
+}
 
 const stampColor = (s: NonNullable<StationView['stamp']>) => (s === 'ACCEPT' ? '#5fe0a0' : s === 'REJECT' ? '#ff5a5a' : '#ffbe4a');
 
