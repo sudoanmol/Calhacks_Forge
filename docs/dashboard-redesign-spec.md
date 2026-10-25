@@ -273,7 +273,7 @@ Scope footer: `Counts from stored events · real orders and live APIs` (or `· a
 
 For `coo`, `research`, `cfo`, `auditor` lead with a **decision card**: avatar and `COO · Accepted` (or Rejected / Counteroffered / Requested research / Pending / Sent back), then `Decision:` one line, `Reason:` the full stored reason, `Evidence:` (COO: the matched API and its tier; Research: the layer-3 gate table; Auditor: the verified counts and a link to the values table; CFO: buyers, cost per call, cap, reserved), `Next:` the next station by name, `Open CREAO run` button (link rule from §6.6), footnote `task #4217 · attempt 1 · 19 s`. Remove the Tasks tables and the Runs tables.
 
-For `apify`, `verify`, `delivered` keep the evidence tables (they are the Bright Data and Apify proof) but put the count badges and the dataset link first. `delivered` gets the QR code in step 7. `droid` shows the §6.8 status sentence and a button to the Engineering tab instead of the task and ticket tables. `treasurer` stays.
+For `apify`, `verify`, `delivered` keep the evidence tables (they are the Bright Data and Apify proof) but put the count badges and the dataset link first. `delivered` gets no QR code (step 7 was cut). `droid` shows the §6.8 status sentence and a button to the Engineering tab instead of the task and ticket tables. `treasurer` stays.
 
 ## 7. Feed sentence map
 
@@ -345,7 +345,7 @@ Humanize: replace `_` with spaces; keep API names and metric names verbatim. Quo
 
 ## 8. Visual tokens (`styles.css`)
 
-Keep the palette (`--bg #121110`, `--panel`, `--ember`, `--gold`, `--ok`, `--bad`, `--warn`). Add role accents for avatars: COO `#b896ff`, Research `#3fd0c0`, CFO `#f2b33d`, Auditor `#ff7cc0`, Droid `#a9b4c6`, Front Desk `#6d9bff`, Founder `#fff6e6`, Treasurer `#e9c35a`, Rules `#8d8780`. State colors stay the only saturated colors on the floor. Sponsor colors appear only in drawer headers, the org chart `runs on` chips and the catalog tier badges.
+Keep the palette (`--bg #121110`, `--panel`, `--ember`, `--gold`, `--ok`, `--bad`, `--warn`). Add role accents for avatars: COO `#b896ff`, Research `#3fd0c0`, CFO `#f2b33d`, Auditor `#ff7cc0`, Droid `#a9b4c6`, Front Desk `#6d9bff`, Founder `#fff6e6`, Treasurer `#e9c35a`, Rules `#8d8780`; added after step 2 for the §16.6 actors: Warehouse `#97d74f`, Bright Data `#5fb8e8`. State colors stay the only saturated colors on the floor. Sponsor colors appear only in drawer headers, the org chart `runs on` chips and the catalog tier badges.
 
 Type: Inter for everything; header numbers 18 px tabular; station names 28 px; captions 20 px; feed rows 13.5 px with 6 px vertical padding; section titles 11.5 px uppercase tracked (reuse `.picker-title`). Panel gap 14 px. No new animation except a 200 ms fade-in on new feed rows and the existing packet, pulse and stamp motions.
 
@@ -370,7 +370,7 @@ agent-browser wait --load networkidle
 agent-browser screenshot docs/proof/redesign/<step>-<view>.png
 ```
 
-Required screenshots, 1920×1080 unless stated: `office` (default, a real order selected), `office-drawer-coo`, `office-drawer-verify`, `needs-you` (if a pending approval exists; otherwise screenshot the empty state and say so), `feed-company` with `Show all events` on, `org-chart`, `catalog`, `catalog-retired` (toggle on), `engineering` (ticket #6, open-roles), `controls-modal`, and phone `phone-office` and `phone-feed` at 390×844. Interactions to exercise and note in `docs/progress.md`: pick another order with a chip, search for `#199`, toggle test traffic, open and close a drawer with Esc, expand a feed row, open the Controls modal and cancel.
+PNGs under `docs/proof/` are gitignored since `6ff6091`: keep taking them to the same paths and listing them in `docs/progress.md`; they stay on the founder's machine and the reviewer reads them there. Required screenshots, 1920×1080 unless stated: `office` (default, a real order selected), `office-drawer-coo`, `office-drawer-verify`, `needs-you` (if a pending approval exists; otherwise screenshot the empty state and say so), `feed-company` with `Show all events` on, `org-chart`, `catalog`, `catalog-retired` (toggle on), `engineering` (ticket #6, open-roles), `controls-modal`, and phone `phone-office` and `phone-feed` at 390×844. Interactions to exercise and note in `docs/progress.md`: pick another order with a chip, search for `#199`, toggle test traffic, open and close a drawer with Esc, expand a feed row, open the Controls modal and cancel.
 
 Live-update check (once, after step 2): with the founder identity, change the engineering cap from $20.00 to $20.01 and back in the Controls modal; the feed must show both `budget_cap_set` rows without a reload, and the header must not show the budget anymore. Restore the value. Do not run the compile integration tests (they claim live worker tasks) and do not create orders.
 
@@ -388,7 +388,7 @@ Each step ends with typecheck, build, the step's screenshots, a `docs/progress.m
 | 4 | §6.5 Needs-you rail, §6.12 decision cards in drawers, header decisions pair | 1 h | `feat(web): needs-you rail and decision cards` |
 | 5 | §6.8 Engineering recorded timeline, §6.7 Droid strip, §6.4 Droid copy and back-office pipe | 2 h | `feat(web): engineering timeline and droid strip` |
 | 6 | §6.4 floor text diet, avatars everywhere, §8 tokens, phone layout pass | 1 h | `feat(web): floor text diet and role avatars` |
-| 7 | QR code on the Delivered drawer and station (`qrcode`, dataset URL) | 0.5 h | `feat(web): dataset QR code` |
+| 7 | ~~QR code on the Delivered drawer and station~~ **Cut** by the founder after step 2: the dataset link in the feed, the Delivered drawer and the chat already carries the proof, and a QR moment adds a dependency for no new information. | | |
 
 Steps 1–4 are the CREAO pitch; do them first and in order. If time runs out, stop after a complete step; never leave a half-finished view on `main`.
 
