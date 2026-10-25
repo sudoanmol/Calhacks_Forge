@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useReducer, useTable } from 'spacetimedb/react';
 import { reducers, tables } from './module_bindings';
 import type { Config } from './module_bindings/types';
@@ -55,6 +55,13 @@ export function ControlsModal({ founder, onClose }: { founder: boolean; onClose:
   const setConfig = useReducer(reducers.setConfig);
   const budget = budgets.find((b) => b.name === 'engineering');
   const cfg = (key: string) => config.find((c) => c.key === key)?.value;
+  const closeRef = useRef<HTMLButtonElement>(null);
+  // Focus moves into the dialog on open and back to whatever opened it (the gear) on close.
+  useEffect(() => {
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeRef.current?.focus();
+    return () => opener?.focus();
+  }, []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
@@ -65,7 +72,7 @@ export function ControlsModal({ founder, onClose }: { founder: boolean; onClose:
     <section className="modal" role="dialog" aria-modal="true" aria-labelledby="controls-title" data-testid="controls-modal">
       <header>
         <h2 id="controls-title">Company rules · <span className="badge test">TEST MODE</span></h2>
-        <button className="close" onClick={onClose} aria-label="Close">✕</button>
+        <button ref={closeRef} className="close" onClick={onClose} aria-label="Close">✕</button>
       </header>
       {!founder && <p role="status" className="muted">Read-only. Connect with the founder identity to make changes.</p>}
       <Lever

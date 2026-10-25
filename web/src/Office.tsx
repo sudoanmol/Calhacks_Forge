@@ -24,7 +24,7 @@ export function useMedia(query: string) {
 }
 
 // Re-renders age labels; it never drives scene state or animation.
-function useNow(ms: number) {
+export function useNow(ms: number) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), ms);
@@ -43,8 +43,50 @@ function age(o: Order, now: number) {
 
 const inProgress = (o: Order) => !TERMINAL.has(o.status) && o.status !== 'quoted';
 
-export function OfficeTab({ scope, setShowTest }: { scope: Scope; setShowTest: (v: boolean) => void }) {
-  const [orders, ready] = useTable(tables.orders);
+export type Selection = {
+  visible: Order[];
+  selectedId?: bigint;
+  selected?: Order;
+  newer: number;
+  pick: (id: bigint) => void;
+  drawer: StationId | null;
+  setDrawer: (id: StationId | null) => void;
+};
+
+// One selected order drives the headline, floor, drawers and feed. A pick that leaves the visible scope
+// (for example a test order after Show test traffic is turned off) falls back to auto-follow.
+export function useOrderSelection(scope: Scope): Selection {
+  const [orders] = useTable(tables.orders);
+  const [picked, setPicked] = useState<bigint | null>(null);
+  const [seenMax, setSeenMax] = useState<bigint>(0n);
+  const [drawer, setDrawer] = useState<StationId | null>(null);
+  const visible = useMemo(() => [...orders].filter(scope.isVisible).sort(byIdDesc), [orders, scope]);
+  const auto = useMemo(() => {
+    const real = [...orders].filter(scope.isReal).sort(byIdDesc);
+    return (real.find(inProgress) ?? real[0] ?? visible[0])?.id;
+  }, [orders, scope, visible]);
+  const pickVisible = picked !== null && visible.some((o) => o.id === picked);
+  useEffect(() => {
+    if (picked !== null && !pickVisible) { setPicked(null); setDrawer(null); }
+  }, [picked, pickVisible]);
+  const selectedId = pickVisible ? picked! : auto;
+  return {
+    visible,
+    selectedId,
+    selected: orders.find((o) => o.id === selectedId),
+    newer: pickVisible ? visible.filter((o) => o.id > seenMax).length : 0,
+    pick: (id) => {
+      setPicked(id);
+      setSeenMax(visible.reduce((m, o) => (o.id > m ? o.id : m), 0n));
+      setDrawer(null);
+    },
+    drawer,
+    setDrawer,
+  };
+}
+
+export function OfficeTab({ scope, setShowTest, sel }: { scope: Scope; setShowTest: (v: boolean) => void; sel: Selection }) {
+  const [, ready] = useTable(tables.orders);
   const [events] = useTable(tables.event);
   const [customers] = useTable(tables.customer);
   const [apis] = useTable(tables.api);
@@ -64,25 +106,8 @@ export function OfficeTab({ scope, setShowTest }: { scope: Scope; setShowTest: (
 
   const phone = useMedia('(max-width: 800px)');
   const now = useNow(15_000);
-  const [picked, setPicked] = useState<bigint | null>(null);
-  const [seenMax, setSeenMax] = useState<bigint>(0n);
-  const [drawer, setDrawer] = useState<StationId | null>(null);
-
   const { canaryIds } = scope;
-  const visible = useMemo(() => [...orders].filter(scope.isVisible).sort(byIdDesc), [orders, scope]);
-  const auto = useMemo(() => {
-    const real = [...orders].filter(scope.isReal).sort(byIdDesc);
-    return (real.find(inProgress) ?? real[0] ?? visible[0])?.id;
-  }, [orders, scope, visible]);
-  const selectedId = picked ?? auto;
-  const selected = orders.find((o) => o.id === selectedId);
-  const newer = picked !== null ? visible.filter((o) => o.id > seenMax) : [];
-
-  const pick = (id: bigint) => {
-    setPicked(id);
-    setSeenMax(visible.reduce((m, o) => (o.id > m ? o.id : m), 0n));
-    setDrawer(null);
-  };
+  const { visible, selectedId, selected, newer, pick, drawer, setDrawer } = sel;
 
   const scene: { data: SceneData; scene: Scene } | undefined = useMemo(() => {
     if (!selected) return undefined;
@@ -124,12 +149,11 @@ export function OfficeTab({ scope, setShowTest }: { scope: Scope; setShowTest: (
       <Picker
         orders={visible} selectedId={selectedId} scope={scope} now={now}
         setShowTest={setShowTest} onPick={pick}
-        newer={newer.length} onNewest={() => visible[0] && pick(visible[0].id)}
+        newer={newer} onNewest={() => visible[0] && pick(visible[0].id)}
         apiName={(o) => (o.apiId !== undefined ? apis.find((a) => a.id === o.apiId)?.name : undefined)}
       />
       {scene ? (
         <>
-          {selected?.stripeSessionId.startsWith('demo-simulated:') && <p className="badge test">SIMULATED PAYMENT · TEST MODE · real extraction and verification</p>}
           {phone
             ? <Pipeline scene={scene.scene} onOpen={setDrawer} />
             : <FloorScene key={String(scene.data.order.id)} scene={scene.scene} data={scene.data} onOpen={setDrawer} selected={drawer} />}
