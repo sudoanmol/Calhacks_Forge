@@ -76,6 +76,25 @@ def test_stale_value_shows_fresh_value_and_cells_are_chat_safe():
     assert "$499 (now $479)" in out and "RTX / 4070 Super" in out
 
 
+def refund(status, amount_cents=100):
+    return {"order_id": 12, "challenge_id": 0, "amount_cents": amount_cents, "status": status}
+
+
+def test_refund_lines():
+    issued = format_order(order(status="rejected", decision_reason="Terms forbid it."), [], None, [refund("issued")])
+    assert "Refunded $1.00 (TEST MODE)." in issued
+    pending = format_order(order(status="failed", decision_reason="Apify failed."), [], None, [refund("pending_approval")])
+    assert "Refund of $1.00 is waiting for the founder's approval (TEST MODE)." in pending
+    declined = format_order(order(status="audit_rejected", decision_reason="Values mismatch."), [], None, [refund("rejected")])
+    assert "The founder declined the refund of $1.00 (TEST MODE)." in declined
+
+
+def test_counteroffer_says_what_to_do_next():
+    out = format_order(order(status="counteroffered", decision_reason="Too broad; top 25 pages."), [], None, [refund("issued")])
+    assert "your payment was refunded; ask for the smaller scope" in out
+    assert "Refunded $1.00 (TEST MODE)." in out
+
+
 def test_older_orders_are_listed_briefly():
     out = format_status([order(id=3, status="paid"), order(id=2, status="delivered"), order(id=1, status="rejected_at_desk")])
     assert out.startswith("**Order #3**") and "Earlier: #2 delivered · #1 rejected at desk" in out

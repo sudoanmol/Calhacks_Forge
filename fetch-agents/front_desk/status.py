@@ -23,7 +23,7 @@ PLAIN = {
     "paid": "paid, waiting for the COO to review it",
     "triaging": "with the COO for review",
     "accepted": "accepted by the COO, about to run",
-    "counteroffered": "counteroffered by the COO",
+    "counteroffered": "counteroffered by the COO: your payment was refunded; ask for the smaller scope and we'll quote it",
     "rejected": "rejected by the COO",
     "researching": "being checked by Research (terms, robots.txt, reachability)",
     "running": "collecting data from the source pages",
@@ -79,7 +79,8 @@ def _title(o: dict) -> str:
     return summary or o.get("request_text") or "your request"
 
 
-def format_order(o: dict, values: list[dict] | None = None, api: str | None = None) -> str:
+def format_order(o: dict, values: list[dict] | None = None, api: str | None = None,
+                 refunds: list[dict] | None = None) -> str:
     st = o["status"]
     head = f"**Order #{o['id']}**: {_cell(_title(o), 90)}" + (f" · API `{api}`" if api else "")
     parts = [head, f"Status: {PLAIN.get(st, st)}."]
@@ -89,6 +90,15 @@ def format_order(o: dict, values: list[dict] | None = None, api: str | None = No
         parts[-1] += f" Price ${o['price_cents'] / 100:.2f} (TEST MODE)."
     if st in REASON_STATUSES and o.get("decision_reason"):
         parts.append(f"Reason: {o['decision_reason']}")
+    by_status: dict[str, int] = {}
+    for r in refunds or []:
+        by_status[r["status"]] = by_status.get(r["status"], 0) + int(r["amount_cents"])
+    if by_status.get("issued"):
+        parts.append(f"Refunded ${by_status['issued'] / 100:.2f} (TEST MODE).")
+    if by_status.get("pending_approval"):
+        parts.append(f"Refund of ${by_status['pending_approval'] / 100:.2f} is waiting for the founder's approval (TEST MODE).")
+    if by_status.get("rejected"):
+        parts.append(f"The founder declined the refund of ${by_status['rejected'] / 100:.2f} (TEST MODE).")
     values = values or []
     if st in VALUE_STATUSES and values:
         parts.append(f"Values: {len(values)} ({_counts(values)}).")
@@ -99,11 +109,12 @@ def format_order(o: dict, values: list[dict] | None = None, api: str | None = No
     return "\n\n".join(parts)
 
 
-def format_status(orders: list[dict], latest_values: list[dict] | None = None, latest_api: str | None = None) -> str:
+def format_status(orders: list[dict], latest_values: list[dict] | None = None, latest_api: str | None = None,
+                  latest_refunds: list[dict] | None = None) -> str:
     """`orders` newest first; the newest one is shown in full, up to three older ones in one line each."""
     if not orders:
         return "You have no orders yet. Tell me which public site and which fields you want."
-    out = format_order(orders[0], latest_values, latest_api)
+    out = format_order(orders[0], latest_values, latest_api, latest_refunds)
     older = orders[1:4]
     if older:
         out += "\n\nEarlier: " + " · ".join(f"#{o['id']} {o['status'].replace('_', ' ')}" for o in older)

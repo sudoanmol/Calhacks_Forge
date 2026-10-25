@@ -88,7 +88,7 @@ def _status_text(sender: str) -> str:
     latest = orders[0]
     values = stdb.value_records(latest["id"])
     api = stdb.api_name(latest["api_id"]) if latest["api_id"] is not None else None
-    out = format_status(orders, values, api)
+    out = format_status(orders, values, api, stdb.refunds_for_order(latest["id"]))
     challenges = stdb.challenges_for_orders([o["id"] for o in orders])[:SHOWN_CHALLENGES]
     return "\n\n".join([out, *(_challenge_text(c) for c in challenges)])
 

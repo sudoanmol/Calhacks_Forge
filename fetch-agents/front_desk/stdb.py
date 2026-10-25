@@ -133,6 +133,10 @@ def refunds_for_challenge(challenge_id: int) -> list[dict]:
     return [r for r in _sql("SELECT * FROM refund") if int(r["challenge_id"]) == int(challenge_id)]
 
 
+def refunds_for_order(order_id: int) -> list[dict]:
+    return [r for r in _sql("SELECT * FROM refund") if int(r["order_id"]) == int(order_id)]
+
+
 def api_name(api_id: int) -> str | None:
     rows = _sql(f"SELECT * FROM api WHERE id = {int(api_id)}")
     return rows[0]["name"] if rows else None
