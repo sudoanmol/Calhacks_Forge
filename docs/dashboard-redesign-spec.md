@@ -139,7 +139,7 @@ Pending `approval` rows (status `pending`), newest first. Each card:
 
 - Title and body from the kind map below. Requested-by line from the matching `approval_requested` event (`actor`, `at`). Amount with `TEST MODE` when > 0. A one-line consequence.
 - `Approve` and `Reject` buttons call `decide_approval` (existing `useReducer(reducers.decideApproval)`). Disabled for non-founders with the text "Founder identity required". While pending: disabled with "Sending…". On error: the error text under the card (`role="status"`). After success the card disappears because the row leaves `pending`; the feed shows the founder's decision.
-- Empty state: `Nothing is waiting on the founder.` and, when step 4 is done, `N agent decisions so far today without you.`
+- Empty state: `Nothing is waiting on the founder.` and, when step 4 is done, `N agent decisions so far without you.` (the whole visible scope, not "today": judging happens the morning after the decisions)
 
 | kind | title | body | consequence |
 |---|---|---|---|

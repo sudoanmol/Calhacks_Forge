@@ -23,11 +23,6 @@ export function useDecisionCounts(scope: Scope, sinceMicros?: bigint) {
   }, [events, inScope, sinceMicros]);
 }
 
-const startOfTodayMicros = () => {
-  const d = new Date();
-  return BigInt(new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()) * 1000n;
-};
-
 const str = (v: unknown) => (v === undefined || v === null ? '' : typeof v === 'string' ? v : JSON.stringify(v));
 const num = (v: unknown) => (typeof v === 'number' ? v : typeof v === 'string' && /^\d+$/.test(v) ? Number(v) : undefined);
 
@@ -45,8 +40,7 @@ export function NeedsYou({ scope, founder }: { scope: Scope; founder: boolean })
   // ones outside the real scope carry the TEST TRAFFIC badge.
   const realScope = useMemo(() => ({ ...scope, showTest: false }), [scope]);
   const isRealEvent = useEventScope(realScope);
-  const today = useMemo(startOfTodayMicros, [events]);
-  const { decisions } = useDecisionCounts(scope, today);
+  const { decisions } = useDecisionCounts(scope);
 
   const pending = approvals.filter((a) => a.status === 'pending').sort(byIdDesc);
   const requestOf = (id: bigint) => events.find((e) => e.kind === 'approval_requested' && e.refType === 'approval' && e.refId === id);
@@ -121,7 +115,7 @@ export function NeedsYou({ scope, founder }: { scope: Scope; founder: boolean })
       {pending.length === 0 ? (
         <div className="needs-empty" data-testid="needs-empty">
           <p>Nothing is waiting on the founder.</p>
-          <p className="muted"><b className="num">{decisions}</b> agent decision{decisions === 1 ? '' : 's'} so far today without you.</p>
+          <p className="muted"><b className="num">{decisions}</b> agent decision{decisions === 1 ? '' : 's'} so far without you.</p>
         </div>
       ) : (
         pending.map((a) => {
