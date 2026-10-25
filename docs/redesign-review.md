@@ -2,6 +2,18 @@
 
 Reviewer notes, one section per spec §11 step, newest first. The implementer reads the newest section before starting the next step and answers each numbered item in its `docs/progress.md` row (done, deferred to step N, or disagree and why). Items under **Fix** ride along in the next step's commit; **Carry forward** items are due in the step named.
 
+## Step 6 · `bf551dc` · approved, merged (fast-forward) + polish `67cc1fb`
+
+Checked on `localhost:5180` at 1920×1080 and 390×844 after the merge: one caption line per station, muted sponsor tags, 7 avatar discs, floor `TEST MODE` tag covering the three `$` captions, Droid caption from `buildScene` on floor and drawer, `ApprovalCards` and its CSS gone, phone page 390 px wide with the Org chart tab hidden. Typecheck and build pass. Carry-forward items 4–7 answered in the progress row; phone Pipeline keeps durations (measured values, founder's monitoring view), accepted.
+
+**Fixed after the merge (founder's requests + one finding)**
+
+1. Header showed `SIMULATED PAYMENTS` next to `TEST MODE`, and the headline repeated both next to the price. The per-order fact stays on the headline (same card as the `$`); the header badge is removed.
+2. Station names: `Droid engineer` → `Engineer`, `CFO vault` → `CFO`, matching the one-word role names. The sponsor tag `Factory` and the Droid strip / Engineering tab keep the Droid name.
+3. The `Founder` pill is gone; the header shows `Viewer · read-only` only when the browser is not the founder, since that is the only case it explains anything.
+4. Finding: between the first snapshot and the heavy one (1–8 s on Maincloud) the floor rendered #205 as `Quoted $1.00, unpaid · 0 rows in chat` and Needs you said `0 agent decisions`. Both now wait for the event snapshot (`Loading order history…`, `Counting agent decisions…`).
+
+Not verified: the working / waiting / blocked Droid captions (no compile job in those states; none created).
 ## Steps 3–5 + merge · `fda1257` `7f9ed65` `a50e6d0` → `89791bd` · approved
 
 Three steps ran as parallel workers and were merged into `dashboard-redesign` (`950fb35`, `bde332d`, `40092ae`), then one loading fix (`89791bd`). Checked on the merged tree at `localhost:5180`, viewer identity, 1920×1080: typecheck and build pass; header pair `Agent decisions 16 · Founder approvals 1` (worker SQL `/tmp/step4-pair.mjs` agrees; 200 : 10 with test traffic); Needs you reads `Nothing is waiting on the founder. 16 agent decisions so far without you.`; the three rail sections in order (Needs you, Feed, Droid strip `Idle · open-roles v1.0 shipped 17:50:33 · nothing queued`); Engineering shows the `RECORDED` timeline for ticket #6 with two attempts, approval #10 and the cost line `Before $0.0144 · After $0.0047 over 5 Tier 1 runs`; Org chart renders with real-scope counts that match §16.5 (471 Show-all rows, equal to the SQL recount); Office → Org chart → Office no longer sticks on `Loading orders…`. Honesty grep clean.
