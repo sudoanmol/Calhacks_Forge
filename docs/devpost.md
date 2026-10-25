@@ -28,6 +28,32 @@ When an API proves demand or has quality problems, a reducer opens a compile tic
 
 The founder watches all of it on a live dashboard on a laptop and a phone: a forge floor with one station per employee, an org chart of handoffs, the catalog, and the recorded compile.
 
+## CREAO agents
+
+Remove the CREAO agents and FORGE stops working. Every paid order waits at `paid` until the COO decides, nothing is delivered until the Auditor accepts it, and compile tickets cannot get investment approval without the CFO.
+
+The agents hand work to each other through the shared task queue: the COO sends new sources to Research, Research reports back, the CFO funds compiles for Droid, and the Auditor sends rejected compiles back to Droid. Each line on the dashboard's org chart is one of these handoffs, counted from stored events.
+
+| Seat | Agent ID |
+|---|---|
+| COO | `81c6c2cc-98d6-4ea5-8fcf-942f8772bf20` |
+| Research | `bad9531d-a359-4af3-9913-fc9310fe4218` |
+| CFO | `63d131de-1b0c-4801-a58f-1698c894a672` |
+| Auditor | `6865c094-e20c-48c7-a969-d5e75c67dd06` |
+
+| Seat | What it decided | Run ID |
+|---|---|---|
+| COO | Order #202: accepted the existing `open-roles` API | `d808efca-0904-4c0c-bf2a-57934c77643b` |
+| Auditor | Order #202: accepted 21/21 verified values | `a10d1414-5b62-494e-bf29-df3e28885c76` |
+| Auditor | Challenge #14 on order #202: rejected, the saved page supports the value | `3c503efd-776f-48da-b3e8-fe611bb41b22` |
+| Research | Order #199: gate checks for a new Wikipedia source | `3c53bb8a-ca6a-4858-a208-a729f940d8ad` |
+| COO | Order #199: decided after reading Research's findings | `88e3561d-b521-4aad-86db-035c099c1c24` |
+| Auditor | Order #199: rejected a delivery missing a requested field | `d1a138fb-f4c1-42c2-bd89-bba9c3698135` |
+| CFO | Compile ticket #6: funded the `open-roles` compile | `57cb47f7-b02e-4d58-8fe1-29943d0937dc` |
+| Auditor | Compile ticket #6, attempt 1: rejected | `4e5f8425-ec46-4d3e-9960-e967e5a40987` |
+| Auditor | Compile ticket #6, attempt 2: accepted | `e0b6c53f-079d-4bf7-b419-17c7d6babdcc` |
+
+Public CFO run: https://agent.creao.ai/share/2361cbf6417714be089c498e9e96c580 (available until November 23, 2026; its comparison includes simulated compile-test fixtures).
 ## How we built it
 
 - **SpacetimeDB** is the only database. A TypeScript module on Maincloud holds APIs, orders, tasks, budgets, a double-entry ledger and an append-only event log. Reducers enforce every rule by the caller's role. Procedures are the only code that calls the outside world, and they never call out with a transaction open. HTTP routes receive CREAO and Apify callbacks with one-time tokens.
@@ -89,7 +115,7 @@ TypeScript, Node.js, Python, pnpm, uv, SpacetimeDB (Maincloud), CREAO, Factory D
 - [ ] Demo video link (required by Devpost).
 - [ ] Separate 3 to 5 minute Fetch.ai video link.
 - [ ] Redesign steps 3 to 6 (`docs/dashboard-redesign-spec.md` §11) are built and match the README's "How to see it" section: Org chart tab, Needs-you approval cards in the right rail, Droid strip, Engineering tab layout, phone layout. Remove or reword any part that did not ship.
-- [ ] CREAO share links for a COO, a Research and an Auditor run (no `run` row has a share URL yet). The CFO share link expires November 23, 2026.
+- [ ] CREAO share links for the COO, Research and Auditor runs listed under "CREAO agents" (run IDs are listed; no `run` row has a share URL yet). The CFO share link expires November 23, 2026.
 - [ ] Verify the committed Front Desk README/badges render on Agentverse; complete ASI:One submission registration.
 - [ ] `forge-extract` Actor link and Apify Store listing; verify the Best Use entry.
 - [ ] Student eligibility under the event rules; the original planning notes did not confirm it.
