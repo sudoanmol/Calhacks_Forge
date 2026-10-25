@@ -3,8 +3,7 @@
 // yc-directory Tier 0 Task, so the buyers trigger fires on that API only: set_config would re-run the triggers
 // for every API. The test then plays each seat through the real reducers. No Droid session, CREAO run or
 // `apify push` happens: creao_max_concurrency is 0 while fixtures exist, and the shipped Tier 1 version
-// names an Actor id that is labelled as not deployed. The test API keeps its buyers, so it cannot be retired;
-// its name and description mark it as a test fixture.
+// names an Actor id labelled as not deployed. The fixture is retired after the tests.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { call, sql, founderToken } from './client.mjs';
@@ -70,6 +69,8 @@ const deliver = (o) => call(auditor, 'audit_verdict', [o.id, 'ACCEPT', 'Compile 
 before(async () => {
   founder = founderToken();
   [canary, coo, auditor, desk, cfo, runner] = ['canary', 'coo', 'auditor', 'front_desk', 'cfo', 'droid_runner'].map(seat);
+  const queued = await sql(founder, "SELECT * FROM task WHERE kind = 'compile' AND status = 'queued'");
+  assert.equal(queued.length, 0, 'run compile tests in an isolated database; an existing compile task must not be claimed');
   assert.equal((await one("SELECT * FROM config WHERE key = 'compile_min_buyers'")).value, '2', 'the test assumes compile_min_buyers = 2');
   prevConcurrency = (await one("SELECT * FROM config WHERE key = 'creao_max_concurrency'")).value;
   prevCap = (await budget()).cap_cents;
@@ -93,9 +94,12 @@ after(async () => {
       const mine = fixtures.includes(opt(t.order_id)) || (jobX && opt(t.ticket_id) === jobX) || (jobY && opt(t.ticket_id) === jobY);
       if (t.status === 'queued' && mine) await call(founder, 'cancel_task', [t.id, 'compile test cleanup']);
     }
+    if (api && !(await one(`SELECT * FROM api_retired WHERE api_id = ${api.id}`))) {
+      ok(await call(founder, 'retire_api', [API, 'SIMULATED compile integration fixture; never deployed.']));
+    }
   } finally {
-    await call(founder, 'set_budget_cap', [prevCap]);
-    await call(founder, 'set_config', ['creao_max_concurrency', prevConcurrency ?? '2']);
+    if (prevCap !== undefined) await call(founder, 'set_budget_cap', [prevCap]);
+    if (prevConcurrency !== undefined) await call(founder, 'set_config', ['creao_max_concurrency', prevConcurrency]);
   }
 });
 
@@ -110,6 +114,7 @@ test('only the owning seat may call each compile reducer', async () => {
     fails(await call(tok, 'compile_failed', [1, 'x']), /may not do this/);
   }
   for (const tok of [cfo, runner, auditor]) fails(await call(tok, 'set_budget_cap', [1]), /may not do this/);
+  for (const tok of [cfo, runner, auditor, coo]) fails(await call(tok, 'close_compile', [1, 'x']), /may not do this/);
 });
 
 test('reaching compile_min_buyers opens a compile ticket and a CFO task on that API only', async () => {
@@ -305,4 +310,17 @@ test('Droid compile: failing tests are rejected, rework resumes the same session
   assert.deepEqual(bonuses.map((x) => [x.role, x.amount_cents]).sort(), [['cfo', 1], ['droid_runner', 2]]);
   assert.equal(await booksSum(), sum0, 'every ledger tx sums to zero');
   fails(await rec(), /not the lease owner|already has version/);
+});
+
+test('retiring a sold fixture preserves delivered orders, versions and books', async () => {
+  const sum = await booksSum();
+  const versions = await sql(founder, `SELECT * FROM api_version WHERE api_id = ${api.id}`);
+  const apiOrders = async () => (await sql(founder, 'SELECT * FROM orders')).filter((o) => opt(o.api_id) === api.id);
+  const before = await apiOrders();
+  assert.ok(before.some((o) => o.status === 'delivered'));
+  ok(await call(founder, 'retire_api', [API, 'SIMULATED compile fixture; never deployed.']));
+  assert.ok(await one(`SELECT * FROM api_retired WHERE api_id = ${api.id}`));
+  assert.deepEqual(await apiOrders(), before);
+  assert.deepEqual(await sql(founder, `SELECT * FROM api_version WHERE api_id = ${api.id}`), versions);
+  assert.equal(await booksSum(), sum);
 });

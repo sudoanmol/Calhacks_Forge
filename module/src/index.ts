@@ -2,6 +2,7 @@ import { schema, table, t, SenderError, Router, SyncResponse, type InferSchema, 
 import { ScheduleAt, TimeDuration, Timestamp, type Identity } from 'spacetimedb';
 import { base64, classify, compareChallenge, verifyValue, type Rung } from './text';
 import { parseParams, resolveSources, validateApiInputs } from './params';
+import { validateConfigValue } from './config';
 import { droppedFields, evaluateTriggers, parseFields, refitBudget, testsPassed, type RunCounts } from './compile';
 import { compareTexts, hostOf, looksLikeHtml, quotedOn, robotsUrlFor, robotsVerdict, splitUrl, textHash } from './research';
 
@@ -667,6 +668,7 @@ export const set_config = spacetimedb.reducer(
     requireRole(ctx, 'founder');
     const existing = ctx.db.config.key.find(key);
     if (!existing) throw new SenderError(`unknown config key ${key}`);
+    try { validateConfigValue(key, value); } catch (err) { throw new SenderError(err instanceof Error ? err.message : String(err)); }
     ctx.db.config.key.update({ ...existing, value, updatedAt: ctx.timestamp });
     logEvent(ctx, 'founder', 'config_set', 'config', 0n, { key, from: existing.value, to: value });
     if (COMPILE_TRIGGER_KEYS.includes(key)) checkCompileTriggers(ctx, undefined, true);
@@ -695,6 +697,10 @@ export const cancel_task = spacetimedb.reducer({ id: t.u64(), reason: t.string()
   if (row.status !== 'queued') throw new SenderError(`task ${id} is ${row.status}, only queued tasks can be cancelled`);
   if (!reason.trim()) throw new SenderError('reason required');
   ctx.db.task.id.update({ ...row, status: 'cancelled', output: JSON.stringify({ reason }), updatedAt: ctx.timestamp });
+  if (row.ticketId !== undefined && COMPILE_TASK_KINDS.includes(row.kind)) {
+    const job = ctx.db.compileJob.ticketId.find(row.ticketId);
+    if (job && JOB_ACTIVE.includes(job.status)) endJob(ctx, job, 'closed', actor, 'compile_closed', { reason });
+  }
   logEvent(ctx, actor, 'task_cancelled', 'task', id, { reason });
 });
 
@@ -1179,7 +1185,7 @@ export const update_api = spacetimedb.reducer(
   },
 );
 
-// Founder: retire an API nobody real has bought (only canary orders or none delivered).
+// Retirement stops new sales and preserves past orders, evidence, and accounting.
 export const retire_api = spacetimedb.reducer(
   { name: t.string(), reason: t.string() },
   (ctx, { name, reason }) => {
@@ -1188,12 +1194,7 @@ export const retire_api = spacetimedb.reducer(
     const a = ctx.db.api.name.find(name);
     if (!a) throw new SenderError(`no api ${name}`);
     if (ctx.db.apiRetired.apiId.find(a.id)) throw new SenderError(`api ${name} is already retired`);
-    // A delivered order refunded in full (an upheld challenge) no longer counts as a buyer.
-    const refunded = (orderId: bigint, price: number) => [...ctx.db.refund.orderId.filter(orderId)]
-      .filter((r) => r.status === 'issued').reduce((s, r) => s + r.amountCents, 0) >= price;
-    const buyers = [...ctx.db.orders.iter()].filter((o) => o.apiId === a.id && o.status === 'delivered' && !isCanary(ctx, o.id) && !refunded(o.id, o.priceCents));
-    if (buyers.length) throw new SenderError(`api ${name} has buyers; it cannot be retired`);
-    const open = [...ctx.db.orders.iter()].filter((o) => o.apiId === a.id && ['accepted', 'running', 'verifying'].includes(o.status));
+    const open = [...ctx.db.orders.iter()].filter((o) => o.apiId === a.id && ['accepted', 'running', 'verifying', 'auditing'].includes(o.status));
     if (open.length) throw new SenderError(`api ${name} has ${open.length} order(s) in flight`);
     ctx.db.apiRetired.insert({ apiId: a.id, name, reason, retiredAt: ctx.timestamp });
     for (const j of ctx.db.compileJob.apiId.filter(a.id)) {
@@ -2359,9 +2360,25 @@ function bookSpend(ctx: Ctx, job: Job): Job {
 // Ends a job: spend is booked when a compile attempt or a ship happened, otherwise the reservation is released.
 function endJob(ctx: Ctx, job: Job, status: string, actor: string, kind: string, payload: Record<string, unknown> = {}): Job {
   closeTicketTasks(ctx, job.ticketId, COMPILE_TASK_KINDS, 'cancelled', { reason: `compile ${status}` });
+  for (const approval of ctx.db.approval.iter()) {
+    const task = approval.refType === 'task' ? ctx.db.task.id.find(approval.refId) : undefined;
+    if (approval.status === 'pending' && ((approval.refType === 'ticket' && approval.refId === job.ticketId) || task?.ticketId === job.ticketId)) {
+      ctx.db.approval.id.update({ ...approval, status: 'rejected', decidedAt: ctx.timestamp });
+      logEvent(ctx, actor, 'approval_cancelled', 'approval', approval.id, { ticketId: job.ticketId.toString(), reason: `compile ${status}` });
+    }
+  }
   const settled = job.attempt > 0 || job.status === 'shipping' ? bookSpend(ctx, job) : releaseReservation(ctx, job);
   return setJob(ctx, settled, { status }, actor, kind, payload);
 }
+
+export const close_compile = spacetimedb.reducer({ ticketId: t.u64(), reason: t.string() }, (ctx, { ticketId, reason }) => {
+  requireRole(ctx, 'founder');
+  if (!reason.trim()) throw new SenderError('a reason is required');
+  const job = findJob(ctx, ticketId);
+  if (!JOB_ACTIVE.includes(job.status)) throw new SenderError(`ticket ${ticketId} is ${job.status}, not active`);
+  if (['compiling', 'shipping'].includes(job.status)) throw new SenderError(`ticket ${ticketId} has a worker in flight`);
+  endJob(ctx, job, 'closed', 'founder', 'compile_closed', { reason });
+});
 
 // Reserve the job's amount against the engineering budget: spent + reserved + amount must fit the cap,
 // unless the founder approved the overrun. Over the cap the job waits on a spend_over_cap approval.

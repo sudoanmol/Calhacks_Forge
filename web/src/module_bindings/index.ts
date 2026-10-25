@@ -40,6 +40,7 @@ import CancelTaskReducer from "./cancel_task_reducer";
 import CfoProposeReducer from "./cfo_propose_reducer";
 import ChallengeVerdictReducer from "./challenge_verdict_reducer";
 import ClaimTaskReducer from "./claim_task_reducer";
+import CloseCompileReducer from "./close_compile_reducer";
 import CompileFailedReducer from "./compile_failed_reducer";
 import CompileVerdictReducer from "./compile_verdict_reducer";
 import CompleteTaskReducer from "./complete_task_reducer";
@@ -474,6 +475,7 @@ const reducersSchema = __reducers(
   __reducerSchema("cfo_propose", CfoProposeReducer),
   __reducerSchema("challenge_verdict", ChallengeVerdictReducer),
   __reducerSchema("claim_task", ClaimTaskReducer),
+  __reducerSchema("close_compile", CloseCompileReducer),
   __reducerSchema("compile_failed", CompileFailedReducer),
   __reducerSchema("compile_verdict", CompileVerdictReducer),
   __reducerSchema("complete_task", CompleteTaskReducer),

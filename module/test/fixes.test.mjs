@@ -127,7 +127,7 @@ test('update_api is founder-only, keeps the schema and rejects host templates', 
   assert.equal(yc.page_cap, 1);
 });
 
-test('retire_api hides an unused API from acceptance; APIs with buyers or seats other than founder cannot retire', async () => {
+test('retire_api hides an API from acceptance; only the founder may retire', async () => {
   const name = `retire-${stamp}`;
   ok(await call(founder, 'create_api', [JSON.stringify({ name, description: 'retire test', sources: ['https://example.com'], outputSchema: { properties: { title: {} } }, volatility: 'stable' }), '', 'task']));
   assert.equal((await call(coo, 'retire_api', [name, 'x'])).ok, false);

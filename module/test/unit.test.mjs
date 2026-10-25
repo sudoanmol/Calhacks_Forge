@@ -87,3 +87,13 @@ test('challenge: a value with no trace on either page is missing, never invented
   const c = compareChallenge({ ok: true, text: YC }, { ok: true, text: YC }, rec);
   assert.deepEqual([c.saved.result, c.saved.value, c.fresh.result, c.correctedValue], ['missing', '', 'missing', '']);
 });
+import { validateConfigValue } from '../src/config.ts';
+
+test('config values reject malformed domains, fractions for counts and out-of-range rates', () => {
+  for (const [key, value] of [['blocked_domains', '["facebook.com"]'], ['page_cap', '25'], ['creao_max_concurrency', '0'], ['compile_min_verified_rate', '0.8'], ['price.llm_input_usd_per_mtok', '0.1']]) {
+    assert.doesNotThrow(() => validateConfigValue(key, value));
+  }
+  for (const [key, value] of [['blocked_domains', '["https://example.com/path"]'], ['blocked_domains', '{}'], ['page_cap', '0'], ['page_cap', '1.5'], ['compile_min_verified_rate', '2'], ['bonus_rate.cfo', '101'], ['refund_limit_cents', 'NaN'], ['markup_pct', '-1']]) {
+    assert.throws(() => validateConfigValue(key, value));
+  }
+});
