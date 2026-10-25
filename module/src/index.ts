@@ -2,6 +2,7 @@ import { schema, table, t, SenderError, Router, SyncResponse, type InferSchema, 
 import { ScheduleAt, TimeDuration, Timestamp, type Identity } from 'spacetimedb';
 import { base64, classify, compareChallenge, verifyValue, type Rung } from './text';
 import { parseParams, resolveSources, validateApiInputs } from './params';
+import { droppedFields, evaluateTriggers, parseFields, refitBudget, testsPassed, type RunCounts } from './compile';
 import { compareTexts, hostOf, looksLikeHtml, quotedOn, robotsUrlFor, robotsVerdict, splitUrl, textHash } from './research';
 
 const LEASE_MS = 10 * 60 * 1000;
@@ -19,6 +20,7 @@ const CONFIG_DEFAULTS: Record<string, string> = {
   compile_min_buyers: '2',
   compile_min_verified_rate: '0.8',
   compile_window_runs: '5',
+  compile_max_attempts: '3', // Auditor rejections a compile may get before the job fails
   markup_pct: '40',
   'bonus_rate.coo': '5',
   'bonus_rate.research': '5',
@@ -489,6 +491,35 @@ const recheckSchedule = table(
   },
 );
 
+// One row per compile ticket (flow C): the trigger, the CFO's decision, the engineering budget reservation,
+// the Droid session and its test results, through to the shipped Tier 1 version.
+const compileJob = table(
+  { name: 'compile_job', public: true },
+  {
+    ticketId: t.u64().primaryKey(),
+    apiId: t.u64().index('btree'),
+    trigger: t.string(), // verified_rate | buyers | challenge_upheld
+    triggerDetail: t.string(), // JSON: the numbers that met the trigger
+    // awaiting_cfo | awaiting_approval | queued | compiling | auditing | rework | ineligible | ship_pending | shipping
+    // | shipped | deferred | repriced | rejected | ship_rejected | failed | closed
+    status: t.string(),
+    decision: t.string(), // '' until the CFO decides: COMPILE | DEFER | REPRICE
+    amountCents: t.u32(), // COMPILE: the investment; REPRICE: the proposed price per call
+    rationale: t.string(),
+    overCapApproved: t.bool(),
+    reservedCents: t.u32(),
+    spentCents: t.u32(),
+    attempt: t.u32(), // compile attempts submitted to the Auditor
+    droidSessionId: t.string(),
+    testsPassed: t.bool(),
+    testResults: t.string(), // JSON from the droid-runner: tests, denied actions, diff
+    feedback: t.string(), // the Auditor's last reason
+    costBeforeMicros: t.u64(), // the API's cost per call when the ticket opened
+    versionId: t.option(t.u64()),
+    createdAt: t.timestamp(),
+    updatedAt: t.timestamp(),
+  },
+);
 // ---- Research seat (flow B): layer-3 gate fetches, reports and Tier 0 Task creation ----
 
 // One row per research_fetch call. The fetched text is private (research_page_text) because it can be
@@ -566,7 +597,7 @@ const spacetimedb = schema(
     config, staff, task, event, run, callbackToken, leaseSweepSchedule,
     customer, api, apiVersion, gateCheck, orders, ticket, valueRecord, evidence, challenge,
     approval, budget, bonus, ledger, books, apiRunSchedule, verifySchedule, dispatchSchedule,
-    canaryOrder, apiRetired, runCost, apiCost, costSettleSchedule, challengeCheck, refund, recheckSchedule,
+    canaryOrder, apiRetired, runCost, apiCost, costSettleSchedule, challengeCheck, refund, recheckSchedule, compileJob,
     researchPage, researchPageText, researchFindings, apifyTaskJob, apifyTaskSchedule,
   },
   // Set at publish time from the shell environment (spacetime publish reads declared names).
@@ -638,6 +669,7 @@ export const set_config = spacetimedb.reducer(
     if (!existing) throw new SenderError(`unknown config key ${key}`);
     ctx.db.config.key.update({ ...existing, value, updatedAt: ctx.timestamp });
     logEvent(ctx, 'founder', 'config_set', 'config', 0n, { key, from: existing.value, to: value });
+    if (COMPILE_TRIGGER_KEYS.includes(key)) checkCompileTriggers(ctx, undefined, true);
   },
 );
 
@@ -677,6 +709,7 @@ export const claim_task = spacetimedb.reducer({ kind: t.string() }, (ctx, { kind
     attempt: next.attempt + 1, updatedAt: ctx.timestamp,
   });
   logEvent(ctx, role, 'task_claimed', 'task', next.id, { kind, attempt: next.attempt + 1 });
+  onTaskClaimed(ctx, next);
 });
 
 export const complete_task = spacetimedb.reducer(
@@ -925,6 +958,7 @@ export const audit_verdict = spacetimedb.reducer(
     closeTasks(ctx, orderId, 'audit', { verdict, reason });
     if (verdict === 'REJECT') {
       setOrder(ctx, o, { status: 'audit_rejected', decisionReason: reason }, 'auditor', 'audit_rejected', { reason });
+      if (o.apiId !== undefined) checkCompileTriggers(ctx, o.apiId, false);
       return;
     }
     setOrder(ctx, o, { status: 'delivered', decisionReason: reason }, 'auditor', 'audit_accepted', { reason });
@@ -940,6 +974,7 @@ export const audit_verdict = spacetimedb.reducer(
       const priorBuyer = [...ctx.db.orders.iter()].some((x) => x.id !== o.id && x.apiId === o.apiId && x.customerId === o.customerId
         && x.status === 'delivered' && !isCanary(ctx, x.id));
       if (a && !priorBuyer) ctx.db.api.id.update({ ...a, buyerCount: a.buyerCount + 1 });
+      checkCompileTriggers(ctx, o.apiId, false);
     }
   },
 );
@@ -1065,11 +1100,13 @@ export const challenge_verdict = spacetimedb.reducer(
     // An extractor error on a Tier 0 API is a compile trigger; on Tier 1 it is a warranty fix (AGENTS.md §3).
     const a = ctx.db.api.id.find(v.apiId);
     const label = a && a.tier === 0 ? 'compile' : 'warranty';
-    let t = [...ctx.db.ticket.iter()].find((x) => x.apiId === v.apiId && x.label === label && x.status === 'open');
+    const ticketText = `challenge ${challengeId} upheld on order ${o.id} row ${v.row} ${v.metric} (${a?.name ?? 'api ' + v.apiId}): ${reason}`.slice(0, 2000);
+    let t = label === 'compile'
+      ? openCompileTicket(ctx, v.apiId, 'challenge_upheld', { challengeId: challengeId.toString(), orderId: o.id.toString(), row: v.row, metric: v.metric }, ticketText, o.id)
+      : [...ctx.db.ticket.iter()].find((x) => x.apiId === v.apiId && x.label === label && x.status === 'open');
     if (!t) {
       t = ctx.db.ticket.insert({
-        id: 0n, orderId: o.id, apiId: v.apiId, label, confidenceBp: 10_000, status: 'open', createdAt: ctx.timestamp,
-        text: `challenge ${challengeId} upheld on order ${o.id} row ${v.row} ${v.metric} (${a?.name ?? 'api ' + v.apiId}): ${reason}`.slice(0, 2000),
+        id: 0n, orderId: o.id, apiId: v.apiId, label, confidenceBp: 10_000, status: 'open', createdAt: ctx.timestamp, text: ticketText,
       });
       logEvent(ctx, 'rules', 'ticket_opened', 'ticket', t.id, { label, apiId: v.apiId.toString(), trigger: 'challenge_upheld', challengeId: challengeId.toString() });
     }
@@ -1091,6 +1128,13 @@ export const decide_approval = spacetimedb.reducer(
     const ap = ctx.db.approval.id.find(id);
     if (!ap) throw new SenderError(`no approval ${id}`);
     if (ap.status !== 'pending') throw new SenderError(`approval ${id} is ${ap.status}`);
+    if (ap.kind === 'spend_over_cap' || ap.kind === 'api_ship' || ap.kind === 'droid_action') {
+      ctx.db.approval.id.update({ ...ap, status: approve ? 'approved' : 'rejected', decidedAt: ctx.timestamp });
+      // A droid_action decision is read by the waiting droid-runner; the compile kinds move the job on.
+      if (ap.kind !== 'droid_action') decideCompileApproval(ctx, ap.kind, ap.refId, approve);
+      logEvent(ctx, 'founder', approve ? 'approval_approved' : 'approval_rejected', 'approval', id, { kind: ap.kind, refType: ap.refType, refId: ap.refId.toString(), amountCents: ap.amountCents });
+      return;
+    }
     if (ap.kind !== 'refund_over_limit') throw new SenderError(`approval kind ${ap.kind} has no handler yet`);
     const r = ctx.db.refund.id.find(ap.refId);
     if (!r || r.status !== 'pending_approval') throw new SenderError(`refund ${ap.refId} is not pending approval`);
@@ -1144,11 +1188,17 @@ export const retire_api = spacetimedb.reducer(
     const a = ctx.db.api.name.find(name);
     if (!a) throw new SenderError(`no api ${name}`);
     if (ctx.db.apiRetired.apiId.find(a.id)) throw new SenderError(`api ${name} is already retired`);
-    const buyers = [...ctx.db.orders.iter()].filter((o) => o.apiId === a.id && o.status === 'delivered' && !isCanary(ctx, o.id));
-    if (a.buyerCount > 0 || buyers.length) throw new SenderError(`api ${name} has buyers; it cannot be retired`);
+    // A delivered order refunded in full (an upheld challenge) no longer counts as a buyer.
+    const refunded = (orderId: bigint, price: number) => [...ctx.db.refund.orderId.filter(orderId)]
+      .filter((r) => r.status === 'issued').reduce((s, r) => s + r.amountCents, 0) >= price;
+    const buyers = [...ctx.db.orders.iter()].filter((o) => o.apiId === a.id && o.status === 'delivered' && !isCanary(ctx, o.id) && !refunded(o.id, o.priceCents));
+    if (buyers.length) throw new SenderError(`api ${name} has buyers; it cannot be retired`);
     const open = [...ctx.db.orders.iter()].filter((o) => o.apiId === a.id && ['accepted', 'running', 'verifying'].includes(o.status));
     if (open.length) throw new SenderError(`api ${name} has ${open.length} order(s) in flight`);
     ctx.db.apiRetired.insert({ apiId: a.id, name, reason, retiredAt: ctx.timestamp });
+    for (const j of ctx.db.compileJob.apiId.filter(a.id)) {
+      if (JOB_ACTIVE.includes(j.status)) endJob(ctx, j, 'closed', 'founder', 'compile_closed', { reason: `api retired: ${reason}` });
+    }
     logEvent(ctx, 'founder', 'api_retired', 'api', a.id, { name, reason });
   },
 );
@@ -1334,7 +1384,7 @@ const ROLE_APP_ENV = { coo: 'CREAO_APP_ID_COO', research: 'CREAO_APP_ID_RESEARCH
 const CREAO_ROLES = Object.keys(ROLE_APP_ENV);
 // Tasks of any other kind (test fixtures, worker-only kinds) and canary orders' tasks are never sent to a paid CREAO run;
 // the canary plays the COO itself.
-const CREAO_KINDS = ['coo_triage', 'research_gate', 'audit', 'audit_challenge'];
+const CREAO_KINDS = ['coo_triage', 'research_gate', 'audit', 'audit_challenge', 'cfo_compile', 'audit_compile'];
 const DISPATCH_EVERY_MICROS = 5_000_000n;
 
 function envOrThrow(env: IoCtx['env'], name: 'APIFY_TOKEN' | 'BRIGHTDATA_API_KEY' | 'BRIGHTDATA_UNLOCKER_ZONE' | 'BRIGHTDATA_SERP_ZONE'): string {
@@ -1483,8 +1533,11 @@ const APIFY_SETTLE_MS = 60_000;
 
 function refreshApiCost(tx: Ctx, apiId: bigint): bigint {
   const window = Math.max(1, cfgInt(tx, 'compile_window_runs'));
-  const recent = [...tx.db.runCost.apiId.filter(apiId)].filter((x) => x.finalized)
-    .sort((a, b) => (a.runId < b.runId ? 1 : -1)).slice(0, window);
+  const finalized = [...tx.db.runCost.apiId.filter(apiId)].filter((x) => x.finalized);
+  // Once the current version (e.g. a freshly compiled Tier 1) has runs, cost per call is measured on it alone.
+  const current = tx.db.api.id.find(apiId)?.currentVersionId;
+  const onCurrent = current === undefined ? [] : finalized.filter((x) => tx.db.orders.id.find(x.orderId)?.apiVersionId === current);
+  const recent = (onCurrent.length ? onCurrent : finalized).sort((a, b) => (a.runId < b.runId ? 1 : -1)).slice(0, window);
   if (!recent.length) return 0n;
   const avg = recent.reduce((s, x) => s + x.totalMicros, 0n) / BigInt(recent.length);
   const row = { apiId, costPerCallMicros: avg, runs: recent.length, updatedAt: tx.timestamp };
@@ -1783,6 +1836,8 @@ export const verify_values = spacetimedb.procedure(
       // A canary order stops here: no paid Auditor run, no delivery, no buyer.
       if (canary) logEvent(tx, 'rules', 'audit_skipped_canary', 'order', o.id, { counts });
       else queueTask(tx, 'audit', 'auditor', o.id, { orderId: o.id.toString(), counts });
+      // A canary run is a real run of the API, so it counts toward the verified-rate compile trigger.
+      if (canary && o.apiId !== undefined) checkCompileTriggers(tx, o.apiId, false);
     });
     return {};
   },
@@ -2203,6 +2258,445 @@ export const dispatch = spacetimedb.procedure(
       });
     }
     return {};
+  },
+);
+// ---- Compile (flow C, AGENTS.md §3 compile triggers, §6 C) ----
+// A compile ticket carries one compile_job from the trigger to the shipped Tier 1 version:
+// trigger -> CFO proposal -> budget reservation (over the cap: founder approval) -> Droid compile
+// -> Auditor verdict (reject: rework in the same Droid session) -> founder api_ship approval
+// -> ship (apify push by the worker) -> record_api_version.
+
+type Job = NonNullable<ReturnType<Ctx['db']['compileJob']['ticketId']['find']>>;
+type TaskRow = NonNullable<ReturnType<Ctx['db']['task']['id']['find']>>;
+
+const JOB_ACTIVE = ['awaiting_cfo', 'awaiting_approval', 'queued', 'compiling', 'auditing', 'rework', 'ineligible', 'ship_pending', 'shipping'];
+const TICKET_STATUS_OF: Record<string, string> = {
+  shipped: 'shipped', deferred: 'deferred', repriced: 'repriced', rejected: 'rejected', ship_rejected: 'rejected', failed: 'failed', closed: 'closed',
+};
+const COMPILE_TASK_KINDS = ['cfo_compile', 'compile', 'audit_compile', 'ship'];
+const COMPILE_TRIGGER_KEYS = ['compile_min_buyers', 'compile_min_verified_rate', 'compile_window_runs'];
+const CFO_DECISIONS = ['COMPILE', 'DEFER', 'REPRICE'];
+const MAX_COMPILE_CENTS = 100_000;
+const RESULTS_MAX = 30_000;
+const DROID_PAYLOAD_MAX = 16_000;
+
+function findJob(ctx: Ctx, ticketId: bigint): Job {
+  const j = ctx.db.compileJob.ticketId.find(ticketId);
+  if (!j) throw new SenderError(`no compile job for ticket ${ticketId}`);
+  return j;
+}
+
+const apiNameOf = (ctx: Ctx, apiId: bigint) => ctx.db.api.id.find(apiId)?.name ?? `api ${apiId}`;
+
+function engBudget(ctx: Ctx) {
+  const b = ctx.db.budget.name.find('engineering');
+  if (!b) throw new Error('no engineering budget row; run ensure_defaults');
+  return b;
+}
+
+// Every job change is an event; a job that reaches a terminal status closes its ticket.
+function setJob(ctx: Ctx, job: Job, patch: Partial<Job>, actor: string, kind: string, payload: Record<string, unknown> = {}): Job {
+  const next = { ...job, ...patch, updatedAt: ctx.timestamp };
+  ctx.db.compileJob.ticketId.update(next);
+  const closed = TICKET_STATUS_OF[next.status];
+  if (closed) {
+    const tk = ctx.db.ticket.id.find(job.ticketId);
+    if (tk && tk.status !== closed) ctx.db.ticket.id.update({ ...tk, status: closed });
+  }
+  logEvent(ctx, actor, kind, 'ticket', job.ticketId, { status: next.status, api: apiNameOf(ctx, job.apiId), ...payload });
+  return next;
+}
+
+function queueTicketTask(ctx: Ctx, kind: string, role: string, ticketId: bigint, orderId: bigint | undefined, input: unknown) {
+  const row = ctx.db.task.insert({
+    id: 0n, kind, role, status: 'queued', orderId, ticketId,
+    leaseOwner: undefined, leaseUntil: undefined, attempt: 0, input: JSON.stringify(input), output: '',
+    createdAt: ctx.timestamp, updatedAt: ctx.timestamp,
+  });
+  logEvent(ctx, 'rules', 'task_queued', 'task', row.id, { kind, role, ticketId: ticketId.toString(), orderId: orderId?.toString() ?? '' });
+  return row;
+}
+
+function closeTicketTasks(ctx: Ctx, ticketId: bigint, kinds: string[], status: 'done' | 'cancelled', output: unknown) {
+  for (const kind of kinds) {
+    for (const row of ctx.db.task.kind.filter(kind)) {
+      if (row.ticketId === ticketId && ['queued', 'claimed', 'dispatched'].includes(row.status)) {
+        ctx.db.task.id.update({ ...row, status, output: JSON.stringify(output), leaseUntil: undefined, updatedAt: ctx.timestamp });
+      }
+    }
+  }
+}
+
+function queueCompileTask(ctx: Ctx, job: Job) {
+  queueTicketTask(ctx, 'compile', 'droid_runner', job.ticketId, undefined, {
+    ticketId: job.ticketId.toString(), apiId: job.apiId.toString(), api: apiNameOf(ctx, job.apiId),
+    attempt: job.attempt + 1, droidSessionId: job.droidSessionId, feedback: job.feedback,
+  });
+}
+
+function releaseReservation(ctx: Ctx, job: Job): Job {
+  if (!job.reservedCents) return job;
+  const b = engBudget(ctx);
+  ctx.db.budget.name.update({ ...b, reservedCents: Math.max(0, b.reservedCents - job.reservedCents) });
+  const next = { ...job, reservedCents: 0 };
+  ctx.db.compileJob.ticketId.update(next);
+  return next;
+}
+
+// The CFO's investment is spent once Droid has worked on it (shipped or not); the ledger books it.
+function bookSpend(ctx: Ctx, job: Job): Job {
+  const amount = job.reservedCents;
+  if (!amount) return job;
+  const b = engBudget(ctx);
+  ctx.db.budget.name.update({ ...b, reservedCents: Math.max(0, b.reservedCents - amount), spentCents: b.spentCents + amount });
+  postTx(ctx, `engineering: compile ticket ${job.ticketId} (${apiNameOf(ctx, job.apiId)}) (TEST MODE)`, [['budget:engineering', BigInt(amount)], ['treasury', -BigInt(amount)]]);
+  const next = { ...job, reservedCents: 0, spentCents: job.spentCents + amount };
+  ctx.db.compileJob.ticketId.update(next);
+  logEvent(ctx, 'treasurer', 'engineering_spend_booked', 'ticket', job.ticketId, { amountCents: amount, api: apiNameOf(ctx, job.apiId) });
+  return next;
+}
+
+// Ends a job: spend is booked when a compile attempt or a ship happened, otherwise the reservation is released.
+function endJob(ctx: Ctx, job: Job, status: string, actor: string, kind: string, payload: Record<string, unknown> = {}): Job {
+  closeTicketTasks(ctx, job.ticketId, COMPILE_TASK_KINDS, 'cancelled', { reason: `compile ${status}` });
+  const settled = job.attempt > 0 || job.status === 'shipping' ? bookSpend(ctx, job) : releaseReservation(ctx, job);
+  return setJob(ctx, settled, { status }, actor, kind, payload);
+}
+
+// Reserve the job's amount against the engineering budget: spent + reserved + amount must fit the cap,
+// unless the founder approved the overrun. Over the cap the job waits on a spend_over_cap approval.
+function reserveBudget(ctx: Ctx, job: Job, actor: string): Job {
+  const b = engBudget(ctx);
+  const available = b.capCents - b.spentCents - b.reservedCents;
+  if (job.amountCents > available && !job.overCapApproved) {
+    const ap = ctx.db.approval.insert({
+      id: 0n, kind: 'spend_over_cap', refType: 'ticket', refId: job.ticketId, amountCents: job.amountCents,
+      detail: JSON.stringify({ api: apiNameOf(ctx, job.apiId), capCents: b.capCents, reservedCents: b.reservedCents, spentCents: b.spentCents, availableCents: available }),
+      status: 'pending', createdAt: ctx.timestamp, decidedAt: undefined,
+    });
+    logEvent(ctx, 'treasurer', 'approval_requested', 'approval', ap.id, { kind: ap.kind, amountCents: job.amountCents, ticketId: job.ticketId.toString() });
+    return setJob(ctx, job, { status: 'awaiting_approval' }, 'treasurer', 'compile_over_cap', { amountCents: job.amountCents, availableCents: available, approvalId: ap.id.toString() });
+  }
+  ctx.db.budget.name.update({ ...b, reservedCents: b.reservedCents + job.amountCents });
+  const next = setJob(ctx, job, { status: 'queued', reservedCents: job.amountCents }, actor, 'budget_reserved', {
+    amountCents: job.amountCents, capCents: b.capCents, reservedCents: b.reservedCents + job.amountCents, spentCents: b.spentCents, overCapApproved: job.overCapApproved,
+  });
+  queueCompileTask(ctx, next);
+  return next;
+}
+
+// Opens (or reuses) the API's compile ticket and hands it to the CFO. Only Tier 0 APIs compile.
+function openCompileTicket(ctx: Ctx, apiId: bigint, trigger: string, detail: Record<string, unknown>, text: string, orderId: bigint | undefined) {
+  const a = ctx.db.api.id.find(apiId);
+  if (!a || a.tier !== 0 || ctx.db.apiRetired.apiId.find(apiId)) return undefined;
+  let tk = [...ctx.db.ticket.iter()].find((x) => x.apiId === apiId && x.label === 'compile' && x.status === 'open');
+  if (tk && ctx.db.compileJob.ticketId.find(tk.id)) return tk;
+  if (!tk) {
+    tk = ctx.db.ticket.insert({
+      id: 0n, orderId, apiId, label: 'compile', text: text.slice(0, 2000), confidenceBp: 10_000, status: 'open', createdAt: ctx.timestamp,
+    });
+    logEvent(ctx, 'rules', 'ticket_opened', 'ticket', tk.id, { label: 'compile', apiId: apiId.toString(), api: a.name, trigger, ...detail });
+  }
+  ctx.db.compileJob.insert({
+    ticketId: tk.id, apiId, trigger, triggerDetail: JSON.stringify(detail), status: 'awaiting_cfo', decision: '', amountCents: 0, rationale: '',
+    overCapApproved: false, reservedCents: 0, spentCents: 0, attempt: 0, droidSessionId: '', testsPassed: false, testResults: '', feedback: '',
+    costBeforeMicros: ctx.db.apiCost.apiId.find(apiId)?.costPerCallMicros ?? 0n, versionId: undefined, createdAt: ctx.timestamp, updatedAt: ctx.timestamp,
+  });
+  queueTicketTask(ctx, 'cfo_compile', 'cfo', tk.id, orderId, { ticketId: tk.id.toString(), api: a.name, trigger, detail });
+  logEvent(ctx, 'rules', 'compile_triggered', 'ticket', tk.id, { api: a.name, trigger, ...detail });
+  return tk;
+}
+
+const RUN_DONE = ['auditing', 'delivered', 'audit_rejected'];
+
+// The API's last `window` verified runs, newest first, counted on the values as the customer sees them.
+function recentRuns(ctx: Ctx, apiId: bigint, window: number): RunCounts[] {
+  const out: RunCounts[] = [];
+  if (window < 1) return out;
+  const done = [...ctx.db.orders.iter()].filter((o) => o.apiId === apiId && RUN_DONE.includes(o.status)).sort((a, b) => (a.id < b.id ? 1 : -1));
+  for (const o of done) {
+    if (out.length >= window) break;
+    const vals = currentValues(ctx, o.id);
+    if (vals.length) out.push({ orderId: o.id, verified: vals.filter((v) => v.status === 'verified').length, total: vals.length });
+  }
+  return out;
+}
+
+// Opens compile tickets per AGENTS.md §3. After a terminal decision (deferred, failed, ...) the same API
+// is not re-ticketed until a compile threshold changes (force) or it gains buyers since that decision.
+function checkCompileTriggers(ctx: Ctx, apiId: bigint | undefined, force: boolean) {
+  const window = cfgInt(ctx, 'compile_window_runs');
+  const minBuyers = cfgInt(ctx, 'compile_min_buyers');
+  const minVerifiedRate = cfgNum(ctx, 'compile_min_verified_rate', 0);
+  const apis = apiId === undefined ? [...ctx.db.api.iter()] : [ctx.db.api.id.find(apiId)].filter((x): x is NonNullable<typeof x> => x != null);
+  for (const a of apis) {
+    if (a.tier !== 0 || ctx.db.apiRetired.apiId.find(a.id)) continue;
+    const hit = evaluateTriggers({ buyers: a.buyerCount, minBuyers, runs: recentRuns(ctx, a.id, window), window, minVerifiedRate });
+    if (!hit) continue;
+    const open = [...ctx.db.ticket.iter()].find((x) => x.apiId === a.id && x.label === 'compile' && x.status === 'open');
+    if (open && ctx.db.compileJob.ticketId.find(open.id)) continue;
+    if (!force && !open) {
+      const last = [...ctx.db.compileJob.apiId.filter(a.id)].sort((x, y) => (x.ticketId < y.ticketId ? 1 : -1))[0];
+      if (last && !JOB_ACTIVE.includes(last.status)) {
+        let prevBuyers = 0;
+        try { prevBuyers = Number((JSON.parse(last.triggerDetail) as { buyers?: number }).buyers ?? 0); } catch { /* no detail */ }
+        if (!(hit.trigger === 'buyers' && a.buyerCount > prevBuyers)) continue;
+      }
+    }
+    const d = hit.detail as { buyers: number; minBuyers: number; verifiedRate: number; minVerifiedRate: number; runs: number };
+    const text = hit.trigger === 'buyers'
+      ? `${a.name} reached ${d.buyers} distinct buyers (compile_min_buyers ${d.minBuyers})`
+      : `${a.name} verified ${Math.round(d.verifiedRate * 100)}% of values over its last ${d.runs} runs (compile_min_verified_rate ${d.minVerifiedRate})`;
+    openCompileTicket(ctx, a.id, hit.trigger, hit.detail, text, undefined);
+  }
+}
+
+// A claimed compile task means Droid is working on the job.
+function onTaskClaimed(ctx: Ctx, row: TaskRow) {
+  if (row.kind !== 'compile' || row.ticketId === undefined) return;
+  const job = ctx.db.compileJob.ticketId.find(row.ticketId);
+  if (job && ['queued', 'rework'].includes(job.status)) {
+    setJob(ctx, job, { status: 'compiling' }, 'droid_runner', 'compile_started', { taskId: row.id.toString(), attempt: job.attempt + 1 });
+  }
+}
+
+function leasedTask(ctx: Ctx, taskId: bigint, kinds: string[]): TaskRow {
+  const row = ctx.db.task.id.find(taskId);
+  if (!row) throw new SenderError(`no task ${taskId}`);
+  if (!kinds.includes(row.kind)) throw new SenderError(`task ${taskId} is a ${row.kind} task, not ${kinds.join(' or ')}`);
+  if (row.status !== 'claimed' || !row.leaseOwner || !row.leaseOwner.isEqual(ctx.sender)) throw new SenderError('not the lease owner');
+  if (row.leaseUntil && row.leaseUntil.microsSinceUnixEpoch < ctx.timestamp.microsSinceUnixEpoch) throw new SenderError('lease expired');
+  return row;
+}
+
+function jobOfTask(ctx: Ctx, row: TaskRow): Job {
+  if (row.ticketId === undefined) throw new SenderError(`task ${row.id} has no ticket`);
+  return findJob(ctx, row.ticketId);
+}
+
+function finishTask(ctx: Ctx, row: TaskRow, status: string, output: unknown) {
+  ctx.db.task.id.update({ ...row, status, output: JSON.stringify(output), leaseUntil: undefined, updatedAt: ctx.timestamp });
+}
+
+export const cfo_propose = spacetimedb.reducer(
+  { ticketId: t.u64(), decision: t.string(), amountCents: t.u32(), rationale: t.string() },
+  (ctx, { ticketId, decision, amountCents, rationale }) => {
+    requireRole(ctx, 'cfo');
+    if (!CFO_DECISIONS.includes(decision)) throw new SenderError(`decision must be one of ${CFO_DECISIONS.join(', ')}`);
+    if (!rationale.trim()) throw new SenderError('a rationale is required');
+    const job = findJob(ctx, ticketId);
+    if (job.status !== 'awaiting_cfo') throw new SenderError(`ticket ${ticketId} is ${job.status}; nothing to propose`);
+    if (decision === 'COMPILE' && (amountCents < 1 || amountCents > MAX_COMPILE_CENTS)) throw new SenderError(`a COMPILE amount must be 1-${MAX_COMPILE_CENTS} cents`);
+    closeTicketTasks(ctx, ticketId, ['cfo_compile'], 'done', { decision, amountCents, rationale });
+    const decided = { decision, amountCents: decision === 'DEFER' ? 0 : amountCents, rationale: rationale.slice(0, 4000) };
+    if (decision === 'COMPILE') {
+      reserveBudget(ctx, setJob(ctx, job, decided, 'cfo', 'cfo_proposed', { decision, amountCents, rationale: decided.rationale }), 'treasurer');
+    } else {
+      setJob(ctx, job, { ...decided, status: decision === 'DEFER' ? 'deferred' : 'repriced' }, 'cfo', 'cfo_proposed', { decision, amountCents: decided.amountCents, rationale: decided.rationale });
+    }
+  },
+);
+
+// Founder lever: the engineering budget cap. Queued compiles that no longer fit become ineligible
+// (their reservation is released and the compile task cancelled); ineligible ones that fit again are requeued.
+export const set_budget_cap = spacetimedb.reducer({ capCents: t.u32() }, (ctx, { capCents }) => {
+  requireRole(ctx, 'founder');
+  const b = engBudget(ctx);
+  ctx.db.budget.name.update({ ...b, capCents });
+  const { keep, ineligible } = refitBudget(capCents, b.spentCents, [...ctx.db.compileJob.iter()]);
+  const madeIneligible: string[] = [];
+  const eligibleAgain: string[] = [];
+  for (const id of ineligible) {
+    const j = findJob(ctx, id);
+    if (j.status !== 'queued') continue;
+    closeTicketTasks(ctx, id, ['compile'], 'cancelled', { reason: `budget cap lowered to ${capCents} cents` });
+    setJob(ctx, releaseReservation(ctx, j), { status: 'ineligible' }, 'treasurer', 'compile_ineligible', { capCents, amountCents: j.amountCents });
+    madeIneligible.push(id.toString());
+  }
+  for (const id of keep) {
+    const j = findJob(ctx, id);
+    if (j.status !== 'ineligible') continue;
+    const cur = engBudget(ctx);
+    ctx.db.budget.name.update({ ...cur, reservedCents: cur.reservedCents + j.amountCents });
+    queueCompileTask(ctx, setJob(ctx, j, { status: 'queued', reservedCents: j.amountCents }, 'treasurer', 'compile_eligible_again', { capCents, amountCents: j.amountCents }));
+    eligibleAgain.push(id.toString());
+  }
+  logEvent(ctx, 'founder', 'budget_cap_set', 'budget', 0n, { budget: 'engineering', from: b.capCents, to: capCents, ineligible: madeIneligible, eligibleAgain });
+});
+
+// Any worker seat: keep a long task's lease alive.
+export const renew_lease = spacetimedb.reducer({ taskId: t.u64() }, (ctx, { taskId }) => {
+  requireRole(ctx, ...ROLES.filter((r) => r !== 'founder'));
+  const row = ctx.db.task.id.find(taskId);
+  if (!row) throw new SenderError(`no task ${taskId}`);
+  if (row.status !== 'claimed' || !row.leaseOwner || !row.leaseOwner.isEqual(ctx.sender)) throw new SenderError('not the lease owner');
+  ctx.db.task.id.update({ ...row, leaseUntil: addMs(ctx.timestamp, LEASE_MS), updatedAt: ctx.timestamp });
+});
+
+// The droid-runner streams every Droid message and tool decision here (outcome in the payload:
+// auto-allowed | denied | founder-approved). The Engineering tab reads these events.
+export const log_droid_event = spacetimedb.reducer(
+  { taskId: t.u64(), kind: t.string(), payload: t.string() },
+  (ctx, { taskId, kind, payload }) => {
+    requireRole(ctx, 'droid_runner');
+    if (!/^[a-z][a-z_]{0,39}$/.test(kind)) throw new SenderError('kind must be 1-40 chars of a-z and _');
+    const row = leasedTask(ctx, taskId, ['compile', 'ship']);
+    let body: Record<string, unknown>;
+    try {
+      const parsed = JSON.parse(payload) as unknown;
+      body = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : { value: parsed };
+    } catch { body = { text: payload }; }
+    let out = JSON.stringify({ ticketId: row.ticketId?.toString() ?? '', taskKind: row.kind, ...body });
+    if (out.length > DROID_PAYLOAD_MAX) out = JSON.stringify({ ticketId: row.ticketId?.toString() ?? '', taskKind: row.kind, truncated: true, raw: out.slice(0, DROID_PAYLOAD_MAX) });
+    logEvent(ctx, 'droid', `droid_${kind}`, 'task', taskId, out);
+  },
+);
+
+// A command off the compile allowlist (and off the deny list) waits on a founder droid_action approval.
+// The worker polls the approval row it finds by requestId.
+export const request_droid_action = spacetimedb.reducer(
+  { taskId: t.u64(), requestId: t.string(), tool: t.string(), detail: t.string(), reason: t.string() },
+  (ctx, { taskId, requestId, tool, detail, reason }) => {
+    requireRole(ctx, 'droid_runner');
+    if (!/^[\w-]{8,64}$/.test(requestId)) throw new SenderError('requestId must be 8-64 chars of a-z, 0-9, _ or -');
+    const row = leasedTask(ctx, taskId, ['compile']);
+    const job = jobOfTask(ctx, row);
+    const ap = ctx.db.approval.insert({
+      id: 0n, kind: 'droid_action', refType: 'task', refId: taskId, amountCents: 0,
+      detail: JSON.stringify({ requestId, ticketId: job.ticketId.toString(), api: apiNameOf(ctx, job.apiId), tool: tool.slice(0, 100), detail: detail.slice(0, 2000), reason: reason.slice(0, 500) }),
+      status: 'pending', createdAt: ctx.timestamp, decidedAt: undefined,
+    });
+    logEvent(ctx, 'droid', 'approval_requested', 'approval', ap.id, { kind: ap.kind, taskId: taskId.toString(), ticketId: job.ticketId.toString(), tool, detail: detail.slice(0, 500) });
+  },
+);
+
+// The droid-runner's compile result: Droid session, the three version tests, denied actions and the diff.
+// The tests pass only when fixtures, contract and live all report 'pass'.
+export const submit_compile = spacetimedb.reducer(
+  { taskId: t.u64(), droidSessionId: t.string(), results: t.string() },
+  (ctx, { taskId, droidSessionId, results }) => {
+    requireRole(ctx, 'droid_runner');
+    const row = leasedTask(ctx, taskId, ['compile']);
+    const job = jobOfTask(ctx, row);
+    if (job.status !== 'compiling') throw new SenderError(`ticket ${job.ticketId} is ${job.status}, not compiling`);
+    if (!droidSessionId.trim()) throw new SenderError('droidSessionId is required');
+    if (job.droidSessionId && job.droidSessionId !== droidSessionId) throw new SenderError(`rework must resume session ${job.droidSessionId}`);
+    let parsed: unknown;
+    try { parsed = JSON.parse(results); } catch { throw new SenderError('results must be JSON'); }
+    const passed = testsPassed(parsed);
+    const attempt = job.attempt + 1;
+    const tests = (parsed as { tests?: Record<string, unknown> }).tests ?? {};
+    finishTask(ctx, row, 'done', { attempt, passed, droidSessionId });
+    const next = setJob(ctx, job, {
+      status: 'auditing', attempt, droidSessionId, testsPassed: passed, testResults: results.slice(0, RESULTS_MAX),
+    }, 'droid_runner', 'compile_submitted', { attempt, passed, droidSessionId, tests });
+    queueTicketTask(ctx, 'audit_compile', 'auditor', job.ticketId, undefined, { ticketId: job.ticketId.toString(), api: apiNameOf(ctx, job.apiId), attempt: next.attempt, passed });
+  },
+);
+
+// The droid-runner could not run the compile or the ship at all (not a test failure): the job fails.
+export const compile_failed = spacetimedb.reducer({ taskId: t.u64(), reason: t.string() }, (ctx, { taskId, reason }) => {
+  requireRole(ctx, 'droid_runner');
+  if (!reason.trim()) throw new SenderError('a reason is required');
+  const row = leasedTask(ctx, taskId, ['compile', 'ship']);
+  const job = jobOfTask(ctx, row);
+  finishTask(ctx, row, 'failed', { reason });
+  endJob(ctx, job, 'failed', 'droid_runner', 'compile_failed', { taskKind: row.kind, reason: reason.slice(0, 2000) });
+});
+
+// Auditor on a submitted compile. ACCEPT needs all three version tests to have passed and asks the
+// founder to approve the ship; REJECT sends the reason back to the same Droid session, up to compile_max_attempts.
+export const compile_verdict = spacetimedb.reducer(
+  { ticketId: t.u64(), verdict: t.string(), reason: t.string() },
+  (ctx, { ticketId, verdict, reason }) => {
+    requireRole(ctx, 'auditor');
+    if (verdict !== 'ACCEPT' && verdict !== 'REJECT') throw new SenderError('verdict must be ACCEPT or REJECT');
+    if (!reason.trim()) throw new SenderError('a reason is required');
+    const job = findJob(ctx, ticketId);
+    if (job.status !== 'auditing') throw new SenderError(`ticket ${ticketId} is ${job.status}, not auditing`);
+    if (verdict === 'ACCEPT' && !job.testsPassed) throw new SenderError('the version tests did not all pass; ACCEPT is not allowed');
+    closeTicketTasks(ctx, ticketId, ['audit_compile'], 'done', { verdict, reason });
+    const feedback = reason.slice(0, 4000);
+    if (verdict === 'ACCEPT') {
+      const next = setJob(ctx, job, { status: 'ship_pending', feedback }, 'auditor', 'compile_accepted', { attempt: job.attempt, reason: feedback });
+      const ap = ctx.db.approval.insert({
+        id: 0n, kind: 'api_ship', refType: 'ticket', refId: ticketId, amountCents: job.spentCents + job.reservedCents,
+        detail: JSON.stringify({
+          api: apiNameOf(ctx, job.apiId), attempt: next.attempt, droidSessionId: job.droidSessionId,
+          costBeforeMicros: job.costBeforeMicros.toString(), auditorReason: feedback,
+        }),
+        status: 'pending', createdAt: ctx.timestamp, decidedAt: undefined,
+      });
+      logEvent(ctx, 'auditor', 'approval_requested', 'approval', ap.id, { kind: ap.kind, ticketId: ticketId.toString(), api: apiNameOf(ctx, job.apiId) });
+      return;
+    }
+    const max = Math.max(1, cfgInt(ctx, 'compile_max_attempts'));
+    if (job.attempt >= max) {
+      endJob(ctx, { ...job, feedback }, 'failed', 'auditor', 'compile_rejected_final', { attempt: job.attempt, maxAttempts: max, reason: feedback });
+      return;
+    }
+    queueCompileTask(ctx, setJob(ctx, job, { status: 'rework', feedback }, 'auditor', 'compile_rejected', { attempt: job.attempt, maxAttempts: max, reason: feedback }));
+  },
+);
+
+function decideCompileApproval(ctx: Ctx, kind: string, ticketId: bigint, approve: boolean) {
+  const job = findJob(ctx, ticketId);
+  if (kind === 'spend_over_cap') {
+    if (job.status !== 'awaiting_approval') throw new SenderError(`ticket ${ticketId} is ${job.status}, not awaiting approval`);
+    if (approve) reserveBudget(ctx, setJob(ctx, job, { overCapApproved: true }, 'founder', 'spend_over_cap_approved', { amountCents: job.amountCents }), 'founder');
+    else setJob(ctx, job, { status: 'rejected' }, 'founder', 'spend_over_cap_rejected', { amountCents: job.amountCents });
+    return;
+  }
+  if (job.status !== 'ship_pending') throw new SenderError(`ticket ${ticketId} is ${job.status}, not waiting to ship`);
+  if (!approve) { endJob(ctx, job, 'ship_rejected', 'founder', 'api_ship_rejected'); return; }
+  const next = setJob(ctx, job, { status: 'shipping' }, 'founder', 'api_ship_approved', { droidSessionId: job.droidSessionId });
+  queueTicketTask(ctx, 'ship', 'droid_runner', ticketId, undefined, {
+    ticketId: ticketId.toString(), apiId: job.apiId.toString(), api: apiNameOf(ctx, job.apiId), droidSessionId: next.droidSessionId,
+  });
+}
+
+// The droid-runner after `apify push` of an approved ship. Versions are additive only: every field of the
+// current version must still be there. The API switches to the new Tier 1 version for the next order.
+export const record_api_version = spacetimedb.reducer(
+  {
+    taskId: t.u64(), version: t.string(), tier: t.u8(), engine: t.string(), apifyId: t.string(),
+    fields: t.string(), droidSessionId: t.string(), testsPassed: t.bool(),
+  },
+  (ctx, { taskId, version, tier, engine, apifyId, fields, droidSessionId, testsPassed: passed }) => {
+    requireRole(ctx, 'droid_runner');
+    const row = leasedTask(ctx, taskId, ['ship']);
+    const job = jobOfTask(ctx, row);
+    if (job.status !== 'shipping') throw new SenderError(`ticket ${job.ticketId} is ${job.status}, not shipping`);
+    if (tier !== 1 || engine !== 'actor') throw new SenderError('a compiled version is tier 1 with engine actor');
+    if (!apifyId.trim()) throw new SenderError('apifyId is required');
+    if (!/^\d+\.\d+$/.test(version)) throw new SenderError('version must look like 1.0');
+    if (!passed || !job.testsPassed) throw new SenderError('only a version whose tests passed can ship');
+    if (droidSessionId !== job.droidSessionId) throw new SenderError(`droidSessionId must be the audited session ${job.droidSessionId}`);
+    let next: string[];
+    try { next = parseFields(fields); } catch (err) { throw new SenderError((err as Error).message); }
+    const a = ctx.db.api.id.find(job.apiId);
+    if (!a) throw new Error(`api ${job.apiId} is missing`);
+    const prev = a.currentVersionId !== undefined ? ctx.db.apiVersion.id.find(a.currentVersionId) : undefined;
+    const dropped = droppedFields(prev ? parseFields(prev.fields) : [], next);
+    if (dropped.length) throw new SenderError(`contract: version ${version} drops field(s) ${dropped.join(', ')} of version ${prev?.version}`);
+    if ([...ctx.db.apiVersion.apiId.filter(a.id)].some((v) => v.version === version)) throw new SenderError(`${a.name} already has version ${version}`);
+    const v = ctx.db.apiVersion.insert({
+      id: 0n, apiId: a.id, version, tier, engine, apifyId, fields: JSON.stringify(next), droidSessionId, testsPassed: true, shippedAt: ctx.timestamp,
+    });
+    ctx.db.api.id.update({ ...a, tier, currentVersionId: v.id });
+    finishTask(ctx, row, 'done', { versionId: v.id.toString(), apifyId });
+    const spent = bookSpend(ctx, job);
+    const shipped = setJob(ctx, spent, { status: 'shipped', versionId: v.id }, 'droid_runner', 'api_version_shipped', {
+      version, tier, engine, apifyId, fields: next, previousVersion: prev?.version ?? '', previousTier: prev?.tier ?? 0,
+      costBeforeMicros: job.costBeforeMicros.toString(), buyers: a.buyerCount, droidSessionId, spentCents: spent.spentCents,
+    });
+    // Bonuses accrue only on accepted, shipped work.
+    for (const role of ['droid_runner', 'cfo']) {
+      const cents = Math.floor((shipped.spentCents * cfgInt(ctx, `bonus_rate.${role}`)) / 100);
+      if (cents <= 0) continue;
+      ctx.db.bonus.insert({ id: 0n, role, orderId: undefined, taskId, amountCents: cents, status: 'accrued', createdAt: ctx.timestamp });
+      postTx(ctx, `bonus ${role} compile ticket ${job.ticketId}`, [[`seat:${role}`, BigInt(cents)], ['treasury', -BigInt(cents)]]);
+    }
   },
 );
 // Founder: insert config keys and rows added after the database was first initialized.

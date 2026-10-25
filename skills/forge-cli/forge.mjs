@@ -21,8 +21,11 @@ const USAGE = `usage:
   forge search <orderId> <query...>              Research: Google results through the Bright Data SERP API
   forge gate-check <orderId> <robots|terms|reachability|volatility> <pass|fail|unclear> <citationUrl> <citationText...>
   forge report <orderId> '<findings JSON>'       Research: {summary, sources, fields, volatility, freshnessWindowMin, confidence}
-env: FORGE_DB_URL, FORGE_SEAT_TOKEN_<SEAT> (decide and create-api use COO; verdict and challenge-verdict use AUDITOR;
-     robots, research-fetch, search, gate-check and report use RESEARCH) or FORGE_SEAT_TOKEN`;
+  forge compile <ticketId>                       a compile ticket: trigger, API economics, budget, Droid's tests and diff
+  forge cfo-propose <ticketId> <COMPILE|DEFER|REPRICE> <amountCents> <rationale...>
+  forge compile-verdict <ticketId> <ACCEPT|REJECT> <reason...>
+env: FORGE_DB_URL, FORGE_SEAT_TOKEN_<SEAT> (decide and create-api use COO; verdict, challenge-verdict and compile-verdict use AUDITOR;
+     robots, research-fetch, search, gate-check and report use RESEARCH; cfo-propose uses CFO) or FORGE_SEAT_TOKEN`;
 
 class CliError extends Error {}
 
@@ -206,7 +209,63 @@ async function challenge(challengeId) {
   };
 }
 
+// A compile ticket as the CFO and the Auditor see it. Money is TEST MODE.
+async function compile(ticketId) {
+  const [job] = await sql(`SELECT * FROM compile_job WHERE ticket_id = ${ticketId}`);
+  if (!job) throw new CliError(`no compile job for ticket ${ticketId}`);
+  const [[tk], [api], [cost], [budget], config, versions, approvals] = await Promise.all([
+    sql(`SELECT * FROM ticket WHERE id = ${ticketId}`),
+    sql(`SELECT * FROM api WHERE id = ${job.apiId}`),
+    sql(`SELECT * FROM api_cost WHERE api_id = ${job.apiId}`),
+    sql("SELECT * FROM budget WHERE name = 'engineering'"),
+    sql('SELECT * FROM config'),
+    sql(`SELECT * FROM api_version WHERE api_id = ${job.apiId}`),
+    sql(`SELECT * FROM approval WHERE ref_id = ${ticketId}`),
+  ]);
+  const cfg = Object.fromEntries(config.filter((c) => /^(compile_|markup_pct$|bonus_rate\.(cfo|droid_runner)$)/.test(c.key)).map((c) => [c.key, c.value]));
+  const results = parseJson(job.testResults, null);
+  return {
+    testMode: true,
+    ticket: tk && { id: tk.id, status: tk.status, text: tk.text, createdAt: tk.createdAt },
+    job: {
+      status: job.status, trigger: job.trigger, triggerDetail: parseJson(job.triggerDetail, {}),
+      decision: job.decision || null, amountCents: job.amountCents, rationale: job.rationale || null, overCapApproved: job.overCapApproved,
+      reservedCents: job.reservedCents, spentCents: job.spentCents, attempt: job.attempt, droidSessionId: job.droidSessionId || null,
+      testsPassed: job.testsPassed, auditorFeedback: job.feedback || null, costBeforeMicroUsd: job.costBeforeMicros, updatedAt: job.updatedAt,
+    },
+    api: api && {
+      name: api.name, description: api.description, tier: api.tier, volatility: api.volatility, buyers: api.buyerCount,
+      verifiedRate: api.verifiedRateBp / 10_000, costPerCallMicroUsd: cost ? cost.costPerCallMicros : null, measuredRuns: cost ? cost.runs : 0,
+      versions: versions.sort((a, b) => a.id - b.id).map((v) => ({ version: v.version, tier: v.tier, engine: v.engine, fields: parseJson(v.fields, []), current: v.id === api.currentVersionId })),
+    },
+    budget: budget && { capCents: budget.capCents, reservedCents: budget.reservedCents, spentCents: budget.spentCents, availableCents: budget.capCents - budget.reservedCents - budget.spentCents },
+    config: cfg,
+    approvals: approvals.filter((a) => ['spend_over_cap', 'api_ship'].includes(a.kind)).map(({ id: aid, kind, status, amountCents }) => ({ id: aid, kind, status, amountCents })),
+    droid: results && {
+      passed: results.passed ?? null,
+      tests: Object.fromEntries(Object.entries(results.tests ?? {}).map(([k, r]) => [k, { status: r.status, pass: r.pass, fail: r.fail, skipped: r.skipped, live: r.live, output: r.output }])),
+      files: results.files ?? [], denied: results.denied ?? [], approved: results.approved ?? [], turns: results.turns ?? [], diff: results.diff ?? '',
+    },
+  };
+}
+
 const NEXT = {
+  cfo_compile: {
+    role: 'cfo',
+    steps: [
+      'Run `forge compile <ticketId>`: read job.trigger and triggerDetail, api (buyers, verifiedRate, costPerCallMicroUsd, measuredRuns), budget and config.markup_pct.',
+      'Weigh the build cost against the saving: a Tier 1 Actor runs without LLM tokens, so cost per call falls; more buyers pay it back sooner. A low verified rate is a quality reason to compile.',
+      'Decide exactly once with `forge cfo-propose <ticketId> <COMPILE|DEFER|REPRICE> <amountCents> "<rationale citing buyers, cost per call, verified rate and the budget>"`. COMPILE needs an amount (1-100000 cents, TEST MODE); over the available budget it waits on the founder.',
+    ],
+  },
+  audit_compile: {
+    role: 'auditor',
+    steps: [
+      'Run `forge compile <ticketId>` and read droid.tests (fixtures, contract, live: status and output), droid.files, droid.denied and droid.diff.',
+      'ACCEPT only if all three tests passed, the diff changes only the extractor and no value is hardcoded or computed. Otherwise REJECT with what Droid must fix: the reason goes back to the same Droid session.',
+      'Rule exactly once with `forge compile-verdict <ticketId> <ACCEPT|REJECT> "<reason citing the test results>"`.',
+    ],
+  },
   coo_triage: {
     role: 'coo',
     steps: [
@@ -310,14 +369,19 @@ function task(raw) {
   if (!next) throw new CliError(`unknown task kind ${JSON.stringify(t.kind)}`);
   const orderId = String(t.orderId ?? t.input?.orderId ?? '');
   const challengeId = String(t.input?.challengeId ?? '');
-  const fill = (s) => [['<orderId>', orderId], ['<challengeId>', challengeId]].reduce((acc, [k, v]) => (v ? acc.replaceAll(k, v) : acc), s);
+  const ticketId = String(t.input?.ticketId ?? '');
+  const fill = (s) => [['<orderId>', orderId], ['<challengeId>', challengeId], ['<ticketId>', ticketId]].reduce((acc, [k, v]) => (v ? acc.replaceAll(k, v) : acc), s);
   const steps = t.kind === 'coo_triage' && t.input?.researchReportId ? AFTER_RESEARCH : next.steps;
   return {
-    kind: t.kind, taskId: t.taskId ?? null, orderId: orderId || null, ...(challengeId ? { challengeId } : {}), role: next.role, input: t.input ?? {},
+    kind: t.kind, taskId: t.taskId ?? null, orderId: orderId || null, ...(challengeId ? { challengeId } : {}), ...(ticketId ? { ticketId } : {}), role: next.role, input: t.input ?? {},
     next: steps.map(fill),
     rule: t.kind === 'research_gate'
       ? 'Act only through forge commands. Research never accepts or rejects an order; a run that ends without forge report fails the task.'
-      : 'Act only through forge commands. A run that ends without a decide/verdict/challenge-verdict call fails the task.',
+      : t.kind === 'cfo_compile'
+        ? 'Act only through forge commands. A run that ends without forge cfo-propose fails the task.'
+        : t.kind === 'audit_compile'
+          ? 'Act only through forge commands. A run that ends without forge compile-verdict fails the task.'
+          : 'Act only through forge commands. A run that ends without a decide/verdict/challenge-verdict call fails the task.',
   };
 }
 
@@ -394,6 +458,24 @@ async function main(argv) {
       await call('research', 'research_report', report(orderId, json.join(' ')));
       const o = await order(orderId);
       return { ok: true, orderId, order: o.order, report: o.research.reports.at(-1) };
+    }
+    case 'compile': return compile(id(a[0], 'ticketId'));
+    case 'cfo-propose': {
+      const [tid, decision, amount, ...rationale] = a;
+      if (!decision || amount === undefined) throw new CliError('usage: forge cfo-propose <ticketId> <COMPILE|DEFER|REPRICE> <amountCents> <rationale...>');
+      const ticketId = id(tid, 'ticketId');
+      const amountCents = id(amount, 'amountCents');
+      await call('cfo', 'cfo_propose', [ticketId, decision, amountCents, rationale.join(' ')]);
+      const c = await compile(ticketId);
+      return { ok: true, ticketId, decision, amountCents, job: c.job, budget: c.budget, approvals: c.approvals };
+    }
+    case 'compile-verdict': {
+      const [tid, verdict, ...reason] = a;
+      if (!verdict) throw new CliError('usage: forge compile-verdict <ticketId> <ACCEPT|REJECT> <reason...>');
+      const ticketId = id(tid, 'ticketId');
+      await call('auditor', 'compile_verdict', [ticketId, verdict, reason.join(' ')]);
+      const c = await compile(ticketId);
+      return { ok: true, ticketId, verdict, job: c.job, approvals: c.approvals };
     }
     case undefined: case 'help': case '--help': case '-h':
       return { usage: USAGE };

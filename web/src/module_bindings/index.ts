@@ -37,8 +37,11 @@ import {
 import AuditVerdictReducer from "./audit_verdict_reducer";
 import BackfillCanaryOrdersReducer from "./backfill_canary_orders_reducer";
 import CancelTaskReducer from "./cancel_task_reducer";
+import CfoProposeReducer from "./cfo_propose_reducer";
 import ChallengeVerdictReducer from "./challenge_verdict_reducer";
 import ClaimTaskReducer from "./claim_task_reducer";
+import CompileFailedReducer from "./compile_failed_reducer";
+import CompileVerdictReducer from "./compile_verdict_reducer";
 import CompleteTaskReducer from "./complete_task_reducer";
 import CooDecideReducer from "./coo_decide_reducer";
 import CreateApiReducer from "./create_api_reducer";
@@ -46,15 +49,21 @@ import CreateOrderReducer from "./create_order_reducer";
 import DecideApprovalReducer from "./decide_approval_reducer";
 import EnqueueTaskReducer from "./enqueue_task_reducer";
 import EnsureDefaultsReducer from "./ensure_defaults_reducer";
+import LogDroidEventReducer from "./log_droid_event_reducer";
 import OpenChallengeReducer from "./open_challenge_reducer";
+import RecordApiVersionReducer from "./record_api_version_reducer";
 import RecordGateCheckReducer from "./record_gate_check_reducer";
 import RecordPaymentReducer from "./record_payment_reducer";
 import RejectAtDeskReducer from "./reject_at_desk_reducer";
+import RenewLeaseReducer from "./renew_lease_reducer";
+import RequestDroidActionReducer from "./request_droid_action_reducer";
 import ResearchReportReducer from "./research_report_reducer";
 import RetireApiReducer from "./retire_api_reducer";
+import SetBudgetCapReducer from "./set_budget_cap_reducer";
 import SetConfigReducer from "./set_config_reducer";
 import SetOrderParamsReducer from "./set_order_params_reducer";
 import SetStaffReducer from "./set_staff_reducer";
+import SubmitCompileReducer from "./submit_compile_reducer";
 import UpdateApiReducer from "./update_api_reducer";
 
 // Import all procedure arg schemas
@@ -78,6 +87,7 @@ import BudgetRow from "./budget_table";
 import CanaryOrderRow from "./canary_order_table";
 import ChallengeRow from "./challenge_table";
 import ChallengeCheckRow from "./challenge_check_table";
+import CompileJobRow from "./compile_job_table";
 import ConfigRow from "./config_table";
 import CustomerRow from "./customer_table";
 import EventRow from "./event_table";
@@ -240,6 +250,20 @@ const tablesSchema = __schema({
       { name: 'challenge_check_challenge_id_key', constraint: 'unique', columns: ['challengeId'] },
     ],
   }, ChallengeCheckRow),
+  compileJob: __table({
+    name: 'compile_job',
+    indexes: [
+      { accessor: 'apiId', name: 'compile_job_api_id_idx_btree', algorithm: 'btree', columns: [
+        'apiId',
+      ] },
+      { accessor: 'ticketId', name: 'compile_job_ticket_id_idx_btree', algorithm: 'btree', columns: [
+        'ticketId',
+      ] },
+    ],
+    constraints: [
+      { name: 'compile_job_ticket_id_key', constraint: 'unique', columns: ['ticketId'] },
+    ],
+  }, CompileJobRow),
   config: __table({
     name: 'config',
     indexes: [
@@ -447,8 +471,11 @@ const reducersSchema = __reducers(
   __reducerSchema("audit_verdict", AuditVerdictReducer),
   __reducerSchema("backfill_canary_orders", BackfillCanaryOrdersReducer),
   __reducerSchema("cancel_task", CancelTaskReducer),
+  __reducerSchema("cfo_propose", CfoProposeReducer),
   __reducerSchema("challenge_verdict", ChallengeVerdictReducer),
   __reducerSchema("claim_task", ClaimTaskReducer),
+  __reducerSchema("compile_failed", CompileFailedReducer),
+  __reducerSchema("compile_verdict", CompileVerdictReducer),
   __reducerSchema("complete_task", CompleteTaskReducer),
   __reducerSchema("coo_decide", CooDecideReducer),
   __reducerSchema("create_api", CreateApiReducer),
@@ -456,15 +483,21 @@ const reducersSchema = __reducers(
   __reducerSchema("decide_approval", DecideApprovalReducer),
   __reducerSchema("enqueue_task", EnqueueTaskReducer),
   __reducerSchema("ensure_defaults", EnsureDefaultsReducer),
+  __reducerSchema("log_droid_event", LogDroidEventReducer),
   __reducerSchema("open_challenge", OpenChallengeReducer),
+  __reducerSchema("record_api_version", RecordApiVersionReducer),
   __reducerSchema("record_gate_check", RecordGateCheckReducer),
   __reducerSchema("record_payment", RecordPaymentReducer),
   __reducerSchema("reject_at_desk", RejectAtDeskReducer),
+  __reducerSchema("renew_lease", RenewLeaseReducer),
+  __reducerSchema("request_droid_action", RequestDroidActionReducer),
   __reducerSchema("research_report", ResearchReportReducer),
   __reducerSchema("retire_api", RetireApiReducer),
+  __reducerSchema("set_budget_cap", SetBudgetCapReducer),
   __reducerSchema("set_config", SetConfigReducer),
   __reducerSchema("set_order_params", SetOrderParamsReducer),
   __reducerSchema("set_staff", SetStaffReducer),
+  __reducerSchema("submit_compile", SubmitCompileReducer),
   __reducerSchema("update_api", UpdateApiReducer),
 );
 

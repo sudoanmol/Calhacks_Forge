@@ -1,6 +1,6 @@
 ---
 name: forge-cli
-description: Read FORGE orders, customer challenges and the API catalog, run Research's admission-gate fetches through Bright Data, and record FORGE staff decisions (COO decide and create-api, Research gate checks and report, Auditor verdict and challenge verdict) through SpacetimeDB reducers. Use on every FORGE agent run that receives a `task` input.
+description: Read FORGE orders, customer challenges and the API catalog, run Research's admission-gate fetches through Bright Data, and record FORGE staff decisions (COO decide and create-api, Research gate checks and report, CFO compile proposals, Auditor verdict, challenge verdict and compile verdict) through SpacetimeDB reducers. Use on every FORGE agent run that receives a `task` input.
 ---
 
 # forge-cli
@@ -35,13 +35,16 @@ FORGE is a company that sells APIs over public web data. You are one of its staf
 | `forge research-fetch <orderId> <url> [--find <text>]... [--max <chars>]` | Research only. A page through the Bright Data Web Unlocker: `ok`, `reason`, `text` (first 4000 chars by default), `found` passages around each `--find`, and `compare` when the same URL was fetched before (secondsApart, changedLines, numbersChanged, suggested) |
 | `forge gate-check <orderId> <robots\|terms\|reachability\|volatility> <pass\|fail\|unclear> <citationUrl> <citationText...>` | Research only. citationUrl must be a URL you fetched for the order; a pass/fail citation is copied verbatim from that page; volatility needs two fetches at least 120 s apart |
 | `forge report <orderId> '<findings JSON>'` | Research only, once, after all four checks: `{summary, sources, fields, volatility, freshnessWindowMin, confidence}`. Hands the order back to the COO |
+| `forge compile <ticketId>` | A compile ticket: `job` (status, trigger and `triggerDetail`, decision, amount, attempt, Auditor feedback), `api` (tier, buyers, verified rate, cost per call in micro-USD, measured runs, versions and fields), the engineering `budget` (cap, reserved, spent, available; cents), compile `config`, `approvals`, and `droid`: the three version tests (fixtures, contract, live) with status and output, changed files, denied and founder-approved commands, the diff |
+| `forge cfo-propose <ticketId> <COMPILE\|DEFER\|REPRICE> <amountCents> <rationale...>` | CFO only, once per ticket. COMPILE invests `amountCents` (1-100000, TEST MODE) from the engineering budget; over the available budget it waits on the founder. DEFER and REPRICE close the ticket (pass 0) |
+| `forge compile-verdict <ticketId> <ACCEPT\|REJECT> <reason...>` | Auditor only. ACCEPT is refused unless all three tests passed and asks the founder to approve the ship; REJECT sends the reason back to the same Droid session |
 
 Quote the reason as one shell argument: `forge decide 8 REJECT - "Fares only exist after a search form; they cannot be re-fetched to verify."`
 
 ## Rules
 
 1. Act only through `forge`. Do not call the database or any FORGE URL directly, and do not browse the web yourself: Research fetches through `forge robots`, `forge search` and `forge research-fetch`, which log every request as evidence.
-2. Make exactly one decision per run (`decide`, `verdict`, `challenge-verdict`, or for Research `report`). A run that ends without one fails the task. If the command fails, read the error, fix the arguments, and retry once; if it still fails, stop and report the error text.
+2. Make exactly one decision per run (`decide`, `verdict`, `challenge-verdict`, `compile-verdict`, `cfo-propose`, or for Research `report`). A run that ends without one fails the task. If the command fails, read the error, fix the arguments, and retry once; if it still fails, stop and report the error text.
 3. Every reason is specific and cites what you read: the API name, the gate check, the value counts, or the quoted terms clause and its URL.
 4. Never invent, guess or "fix" a value. Values come only from `forge order`. A value without a verified status is not a fact.
 5. Public data only: no logins, no paywalls, no personal data (names, emails, phones, profiles). Counts of people are fine; lists of people are not.

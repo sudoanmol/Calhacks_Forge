@@ -267,3 +267,63 @@ test('research flow through the CLI on a canary order: robots, search, fetch wit
     await forge(seat('coo'), 'decide', oid, 'REJECT', '-', 'CLI test cleanup: the terms check is unclear.');
   }
 });
+
+test('task prints the compile steps for cfo_compile and audit_compile tasks', async () => {
+  const cfo = await forge(seat('cfo'), 'task', JSON.stringify({ kind: 'cfo_compile', taskId: '11', orderId: '', input: { ticketId: '4', api: 'gpu-listings', trigger: 'buyers' } }));
+  assert.equal(cfo.code, 0, JSON.stringify(cfo.err));
+  assert.equal(cfo.out.role, 'cfo');
+  assert.equal(cfo.out.ticketId, '4');
+  assert.ok(cfo.out.next.some((s) => s.includes('forge compile 4')));
+  assert.ok(cfo.out.next.some((s) => s.includes('forge cfo-propose 4')));
+  assert.match(cfo.out.rule, /cfo-propose/);
+  const aud = await forge(seat('auditor'), 'task', JSON.stringify({ kind: 'audit_compile', taskId: '12', orderId: '', input: { ticketId: '4', attempt: 1, passed: false } }));
+  assert.equal(aud.out.role, 'auditor');
+  assert.ok(aud.out.next.some((s) => s.includes('forge compile-verdict 4')));
+  assert.match(aud.out.rule, /compile-verdict/);
+});
+
+test('compile <ticketId> reads a shipped compile: job, API versions, budget and Droid results', async () => {
+  const rows = await sqlRows(seat('cfo'), "SELECT ticket_id FROM compile_job WHERE status = 'shipped'");
+  assert.ok(rows.length, 'a shipped compile job exists (module/test/compile.test.mjs makes one)');
+  const ticketId = Math.max(...rows.map((r) => r[0]));
+  const r = await forge(seat('cfo'), 'compile', String(ticketId));
+  assert.equal(r.code, 0, JSON.stringify(r.err));
+  assert.equal(r.out.testMode, true);
+  assert.equal(r.out.ticket.status, 'shipped');
+  assert.equal(r.out.job.status, 'shipped');
+  assert.equal(r.out.job.decision, 'COMPILE');
+  assert.equal(r.out.job.testsPassed, true);
+  assert.ok(r.out.job.attempt >= 1);
+  assert.equal(r.out.api.tier, 1);
+  assert.deepEqual(r.out.api.versions.map((v) => [v.version, v.tier, v.current]), [['0.1', 0, false], ['1.0', 1, true]]);
+  assert.equal(typeof r.out.budget.availableCents, 'number');
+  assert.equal(r.out.config.compile_min_buyers, '2');
+  assert.deepEqual(Object.keys(r.out.droid.tests).sort(), ['contract', 'fixtures', 'live']);
+  assert.ok(r.out.droid.tests.live.status === 'pass');
+  assert.ok(r.out.approvals.some((a) => a.kind === 'api_ship' && a.status === 'approved'));
+  const missing = await forge(seat('cfo'), 'compile', '999999999');
+  assert.equal(missing.code, 1);
+  assert.match(missing.err.error, /no compile job for ticket 999999999/);
+});
+
+test('cfo-propose and compile-verdict: usage, seat variables and reducer errors', async () => {
+  const rows = await sqlRows(seat('cfo'), "SELECT ticket_id FROM compile_job WHERE status = 'shipped'");
+  const ticketId = String(Math.max(...rows.map((r) => r[0])));
+  for (const args of [['cfo-propose', ticketId, 'COMPILE'], ['compile-verdict', ticketId]]) {
+    const r = await forge(seat('cfo'), ...args);
+    assert.equal(r.code, 1);
+    assert.match(r.err.error, /usage: forge/);
+  }
+  const negative = await forge(seat('cfo'), 'cfo-propose', ticketId, 'COMPILE', '-5', 'x');
+  assert.match(negative.err.error, /amountCents must be a positive integer/);
+  const invalid = await runCli({ FORGE_SEAT_TOKEN_CFO: seat('cfo') }, 'cfo-propose', ticketId, 'BUILD', '10', 'because');
+  assert.match(invalid.err.error, /cfo_propose failed \(530\): decision must be one of COMPILE, DEFER, REPRICE/);
+  const shipped = await runCli({ FORGE_SEAT_TOKEN_CFO: seat('cfo') }, 'cfo-propose', ticketId, 'DEFER', '0', 'CLI test.');
+  assert.match(shipped.err.error, /is shipped; nothing to propose/);
+  const noCfo = await runCli({ FORGE_SEAT_TOKEN_AUDITOR: seat('auditor') }, 'cfo-propose', ticketId, 'DEFER', '0', 'CLI test.');
+  assert.match(noCfo.err.error, /FORGE_SEAT_TOKEN_CFO is not set/);
+  const wrongSeat = await forge(seat('coo'), 'compile-verdict', ticketId, 'ACCEPT', 'x');
+  assert.match(wrongSeat.err.error, /role coo may not do this/);
+  const notAuditing = await runCli({ FORGE_SEAT_TOKEN_AUDITOR: seat('auditor') }, 'compile-verdict', ticketId, 'REJECT', 'CLI test.');
+  assert.match(notAuditing.err.error, /compile_verdict failed \(530\): ticket \d+ is shipped, not auditing/);
+});

@@ -181,6 +181,30 @@ export const ChallengeCheck = __t.object("ChallengeCheck", {
 });
 export type ChallengeCheck = __Infer<typeof ChallengeCheck>;
 
+export const CompileJob = __t.object("CompileJob", {
+  ticketId: __t.u64(),
+  apiId: __t.u64(),
+  trigger: __t.string(),
+  triggerDetail: __t.string(),
+  status: __t.string(),
+  decision: __t.string(),
+  amountCents: __t.u32(),
+  rationale: __t.string(),
+  overCapApproved: __t.bool(),
+  reservedCents: __t.u32(),
+  spentCents: __t.u32(),
+  attempt: __t.u32(),
+  droidSessionId: __t.string(),
+  testsPassed: __t.bool(),
+  testResults: __t.string(),
+  feedback: __t.string(),
+  costBeforeMicros: __t.u64(),
+  versionId: __t.option(__t.u64()),
+  createdAt: __t.timestamp(),
+  updatedAt: __t.timestamp(),
+});
+export type CompileJob = __Infer<typeof CompileJob>;
+
 export const Config = __t.object("Config", {
   key: __t.string(),
   value: __t.string(),
