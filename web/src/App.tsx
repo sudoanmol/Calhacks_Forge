@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useSpacetimeDB, useTable } from 'spacetimedb/react';
 import { tables } from './module_bindings';
-import { OfficeTab, useOrderSelection } from './Office';
+import { OfficeTab, useMedia, useOrderSelection } from './Office';
 import { ApisTab } from './Apis';
-import { ApprovalCards, ControlsModal } from './Controls';
+import { ControlsModal } from './Controls';
 import { EngineeringTab } from './Engineering';
 import { Header } from './Header';
 import { OrderHero } from './OrderHero';
 import { Feed } from './Feed';
+import { NeedsYou } from './NeedsYou';
 import { useScope } from './scope';
 import type { StationId } from './scene';
 
@@ -25,13 +26,15 @@ export function App() {
   const identity = connection.identity;
   const founder = connection.isActive && identity !== undefined && staff.some((s) => s.role === 'founder' && s.identity.isEqual(identity));
   const openStation = (id: StationId) => { setTab('Office'); sel.setDrawer(id); };
+  // The phone stacks Needs you above the order headline; the desktop keeps it at the top of the rail.
+  const phone = useMedia('(max-width: 800px)');
   return (
     <div className="app">
       <Header scope={scope} founder={founder} onControls={() => setControls(true)} />
+      {phone && <NeedsYou scope={scope} founder={founder} />}
       {tab === 'Office' && sel.selected && <OrderHero order={sel.selected} scope={scope} />}
       <main>
         <section className="panel mainpanel">
-          <ApprovalCards founder={founder} />
           <nav className="tabs" role="tablist">
             {TABS.map((t) => (
               <button key={t} role="tab" aria-selected={t === tab} className={t === tab ? 'on' : ''} onClick={() => setTab(t)} data-testid={`tab-${t}`}>{t}</button>
@@ -42,6 +45,7 @@ export function App() {
             : tab === 'Catalog' ? <ApisTab scope={scope} onEngineering={() => setTab('Engineering')} /> : <EngineeringTab founder={founder} />}
         </section>
         <aside className="rail">
+          {!phone && <NeedsYou scope={scope} founder={founder} />}
           <Feed order={sel.selected} scope={scope} onOpen={openStation} />
         </aside>
       </main>
