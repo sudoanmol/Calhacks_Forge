@@ -31,3 +31,11 @@ This log tracks the work authorized after the CREAO setup. All money and payment
 ## Batch completion
 
 All rows above are complete. `docs/astra-advice.md` remains unchanged in its separate commit `cd51860`; none of its advice has been acted on. The demo flag is enabled in the ignored local `.env`, while `.env.example` defaults off. The Front Desk and dashboard are running.
+
+## Dashboard redesign (branch `dashboard-redesign`)
+
+Handoff spec: [dashboard-redesign-spec.md](dashboard-redesign-spec.md), binding for `/web`; AGENTS.md §8 was rewritten to match it. The implementing agent appends one row per spec §11 step after that step's commit (commit hash, screenshots in `proof/redesign/`, interactions exercised, anything not verified). The reviewer comments on each row before the next step.
+
+| Step | Status | Verified |
+|---|---|---|
+| Handoff: spec written, AGENTS.md §8 rewritten, §2 "Not building" list reconciled | Done | Markdown fences and table widths checked; no code changed; dashboard still serves the current UI at `localhost:5180` |

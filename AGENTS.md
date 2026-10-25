@@ -63,7 +63,7 @@ customer: "row 4 is wrong" ─▶ challenge ─▶ recheck vs saved page ─▶ 
     - **Backend** (module reducers/procedures/routes, workers, Actors, CLI, agents): test directly against the real API, e.g. call reducers and run SQL through the SpacetimeDB HTTP API on the deployed database, run the Actor and read its dataset, hit the route with curl. Unit tests cover the pure logic; they don't replace the live API check.
     - **Frontend** (`/web`): verify in a real browser with the `agent-browser` skill: load the page, interact, check what renders, and take a screenshot. Type checks alone don't count.
 
-**Not building:** anything behind a login or paywall, personal data, data that only appears after a multi-step form (flight or booking searches), crawls past the page cap, the Lights On ProofPage HTML and its `/p` route, Rush Hour, presence cursors, an animated money ticker (the header stats strip replaces it), human-decision counter, pause switch, Slack, Gmail, Moss, fact-checker for hire, Droid trust levels, scheduled monitoring/subscriptions.
+**Not building:** anything behind a login or paywall, personal data, data that only appears after a multi-step form (flight or booking searches), crawls past the page cap, the Lights On ProofPage HTML and its `/p` route, Rush Hour, presence cursors, an animated money ticker (the header stats strip replaces it), a live human-decision ticker (the `agent decisions : founder approvals` pair in §8 is a count over stored events, not a ticker), pause switch, Slack, Gmail, Moss, fact-checker for hire, Droid trust levels, scheduled monitoring/subscriptions.
 
 ---
 
@@ -530,46 +530,61 @@ x402 pay-per-call access to a named API. Nothing else.
 
 ## 8. Dashboard spec (`/web`)
 
-Everything renders from subscriptions; nothing animates without a state change. Every animation is driven by an `event` row, so replay speed drives the animation too.
+Everything renders from subscriptions; nothing animates without a state change. Every animation is driven by an `event` row. This section is the contract. The component-level detail (copy, the event→sentence map, org-chart edge counts, verification protocol, order of work) is in [`docs/dashboard-redesign-spec.md`](docs/dashboard-redesign-spec.md), which is binding for `/web` and must stay consistent with this section. Where either differs from §2, §2 wins.
+
+### What the screen must answer
+
+A judge looks at the dashboard for about 15 seconds. In that time, without reading JSON, it must answer: what did the customer ask for, which employee owns it now, what did each employee decide and why, is the founder needed, and why is engineering happening. The CREAO track's "win if" is an org chart of agents that hand work to each other, so the handoffs are shown and counted, not implied.
+
+Three levels of detail, always:
+
+| Level | Content | Where |
+|---|---|---|
+| At a glance | request, owner, outcome, founder action needed | header, order headline, forge floor, Needs-you rail |
+| One click | decision, reason, evidence, next employee | feed sentence, station drawer, org-chart node card |
+| Proof | CREAO run link, quotes, Bright Data attempts, diff, tests, raw event JSON | expanders inside drawers and feed rows |
 
 ### Desktop layout
 
 ```
-┌──────────────────────────── Header: stats strip (TEST MODE) ────────────────────────────┐
-│ revenue · engineering budget (cap/reserved/spent) · verified % · open orders · cost/call │
-│ connection status · founder identity · LIVE/REPLAY indicator                            │
-├──────────────────────────────────────────────┬──────────────────────────────────────────┤
-│ Main panel (60%)                             │ Events (live, always)                    │
-│ tabs: Office (default) · APIs · Books ·      │ structured log, newest first;            │
-│       Controls                               │ click a row to expand the full request,  │
-│                                              │ response, reducer call and run links     │
-│ Office = the org chart as a forge floor      ├──────────────────────────────────────────┤
-│ (see below)                                  │ Engineering (live, always)               │
-│                                              │ "Droid is sleeping" until a task is      │
-│ [approval cards pop over this panel]         │ claimed; then "Droid is awake" + plan,   │
-│                                              │ badged tool calls, tests, verdict        │
-├──────────────────────────────────────────────┤                                          │
-│ Replay bar: REPLAY badge · recorded-at time  │                                          │
-│ · play/pause · 0.5× 1× 4× · scrubber         │                                          │
-└──────────────────────────────────────────────┴──────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ FORGE · a one-person company   TEST MODE                                                                           Founder  ● LIVE  ⚙ │
+│ revenue · verified % · cost / call · APIs for sale · agent decisions N : founder approvals M                                          │
+│ Order headline: #id · api for params  [status in words]  k/n verified  $price TEST MODE (· SIMULATED PAYMENT)  elapsed  customer      │
+├────────────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────────────┤
+│ Orders  ● n running · n unpaid quotes   [#205][#202][#199]…  search    │ NEEDS YOU                                                    │
+│ ☐ Show test traffic                                                    │ pending approvals as plain-language cards, Approve / Reject  │
+│                                                                        │ empty state: "Nothing is waiting on the founder."            │
+│ Main panel (70%)                                                       ├──────────────────────────────────────────────────────────────┤
+│ tabs: Office (default) · Org chart · Catalog · Engineering             │ FEED   This order | Company                                  │
+│                                                                        │ one sentence per event: time, avatar, actor, sentence, link, │
+│ Office = the selected order on the forge floor (see below);            │ ▸ raw JSON expander · plumbing folded · failures always shown│
+│ station drawers open over it                                           ├──────────────────────────────────────────────────────────────┤
+│                                                                        │ DROID  one sentence from the newest compile job       Open → │
+└────────────────────────────────────────────────────────────────────────┴──────────────────────────────────────────────────────────────┘
 ```
 
-- **Header** shows numbers only, all labeled TEST MODE. Events appear only in the Events panel, never in two places.
-- **The main panel switches between LIVE and REPLAY.** The Events panel, Engineering panel and header always stay live. So a recorded compile can replay in the main panel while the judge's live order keeps moving on the right.
-- **Replay** is a client-side projection of stored events, with the original timestamps and a large **REPLAY** badge. It calls no reducers or procedures, so it never re-triggers payments or deploys.
-- **When Droid wakes,** the Engineering panel expands (the org chart shrinks) so the diff is readable on a projector. Or the diff opens in a drawer over the main panel.
-- **Approvals** (ship, spend over cap, `droid_action`, refund over limit) appear as cards over the main panel, with Approve / Reject. These are reducer calls under the founder identity.
+- **Header** shows numbers only: revenue, verified %, cost per call, APIs for sale, and the pair `agent decisions N : founder approvals M`, all counted over stored rows in the visible scope (a rework counts twice; the tooltip says so). Money is labeled TEST MODE. On the right: a connection dot, `LIVE`, a Founder or Viewer chip and the gear that opens Controls. Nothing else: no treasury, no budget triple, no open-orders count, no database name, no identity hash, no "connected" text. Events render as feed sentences, never as header tickers.
+- **Visible scope.** Default views show real orders only: the customer's `asiSender` starts with `agent1q` (ASI:One users and the buyer agent) and the order is not a canary. `Show test traffic` (off by default) reveals the rest, each row badged `TEST TRAFFIC`. Retired APIs hide behind `Show retired`. Header numbers, feed, org-chart counts and catalog follow the scope. Display filters only; nothing is deleted, and the raw payload stays reachable in the expanders.
+- **Right rail** (30%) is live, always, in fixed order: Needs you, the feed, the Droid strip. The feed is scoped to the selected order by default and company-wide on a toggle. Every row is a sentence from a kind→template map with the actor's avatar, a run or dataset link where one exists, and a `▸` expander with the raw payload. Plumbing rows (task bookkeeping, run costs, Droid messages) fold behind one "Show N more" row; failures always show. A kind with no template renders through a fallback and is never dropped.
+- **Approvals** (ship, spend over cap, `droid_action`, refund over limit) are cards in the Needs-you rail: a plain-language title, who asked and when, the amount with TEST MODE, one line of consequence, Approve / Reject. The buttons call `decide_approval` under the founder identity; other identities see them disabled with "Founder identity required". Empty state: "Nothing is waiting on the founder."
+- **Labels.** Live data carries `LIVE`. A finished compile job carries `RECORDED` with its own timestamps. A client-side replay, if one is ever built, carries `REPLAY`, keeps the original timestamps and calls no reducers or procedures. Simulated payments carry `SIMULATED PAYMENT`. The words "sleeping", "projected" and "guaranteed" appear nowhere.
+- **Run links.** A CREAO decision links to its `run` row: `shareUrl` when set, else the thread URL labeled as needing an account login, else the text "no run link recorded". Never a dead button.
+- **Replay bar** (scrubber, speeds) is out of scope (§12 item 7). The compile centerpiece is the Engineering tab's recorded timeline of the real `open-roles` compile (ticket #6). §9 still describes a replay bar and a `gpu-listings` compile; read it with this section until the founder updates it.
 
 | Main-panel tab | Shows | Founder actions |
 |---|---|---|
-| Office | The org chart as a forge floor: one station per role, packets moving between stations per event, current task and lease on each station | none |
-| APIs | The catalog: tier (bronze Tier 0 / gold Tier 1), versions, fields, verified rate, buyers, cost per call, compile tickets, recent runs and datasets | none |
-| Books | Revenue, vendor costs (Bright Data, Apify, LLM), cost per call per API, engineering budget, bonuses (accrued/paid/clawed back), refunds, books-check status | none |
-| Controls | The founder levers below, each showing its current value and its last effect | Change any lever |
+| Office | The selected order on the forge floor: one station per role, packets moving per event, one caption per station. The order picker sits above it (newest real orders as chips, search, `Show test traffic`) and the order headline above the tabs. A station drawer leads with the employee's decision card: decision, reason verbatim, evidence, next station, CREAO run link. Evidence tables stay for the Apify, Verify and Delivered stations | none |
+| Org chart | The track's "win if" screen. Founder at the top; Front Desk and COO; Research, Auditor and CFO; Droid and the Apify warehouse; Treasurer and Rules as a reducer footer. Each node: avatar, one-line responsibility, `runs on` sponsor chip, live status from `task` rows, decisions count. Each edge: a label and a count from stored events (paid orders handed over, research requested, builds funded, publish approvals requested…). Clicking a node opens a card with its last three decisions; clicking an edge filters the company feed | none |
+| Catalog | Live APIs as cards: tier (bronze Tier 0 / gold Tier 1), version and engine, verified rate, buyers, cost per call (measured, TEST MODE), volatility, sources, fields, latest dataset, engineering status. Retired APIs behind `Show retired (N)` | none |
+| Engineering | One compile job at a time as a recorded timeline: trigger → CFO decision → budget → each attempt (session created or resumed, prompt, tool calls badged auto-allowed / denied / founder-approved / needs-approval, files changed, each test) → Auditor verdict → founder approval → ship → cost per call before and after, measured only. `RECORDED` for finished jobs, `LIVE` otherwise. Separate steps stay separate: a passed test, an Auditor acceptance, a founder approval and a ship are four events | `Close compile` |
+| Controls (gear modal) | The founder levers below. Four primary: budget cap, `compile_min_buyers`, `creao_max_concurrency`, `refund_limit`, each with its current value and one effect sentence. The rest under `Advanced` | Change any lever |
+
+There is no Books tab: revenue and cost per call live in the header and the catalog, and the Treasurer station drawer keeps the cost summary.
 
 ### Founder controls
 
-Every lever is a founder-only reducer call and has a real effect in reducer logic. A lever that only moves a number is not allowed.
+Every lever is a founder-only reducer call and has a real effect in reducer logic. A lever that only moves a number is not allowed. The Controls modal surfaces the first four as primary levers and the rest under `Advanced`.
 
 | Lever | Effect |
 |---|---|
@@ -601,12 +616,16 @@ Playful and game-like, themed on the product's own name: **a forge floor**, draw
 | Apify | The warehouse shelf of APIs (bronze Tier 0, gold Tier 1) |
 | Buyer agent | An outside customer arriving at the counter |
 
-Built with React + SVG + Framer Motion; no game engine. The skin is required: it is how the demo explains the company at a glance.
+Built with React + SVG + Framer Motion; no game engine. The skin is required: it is how the demo explains the company at a glance. It also has to read on a projector, so:
+
+- Per station: the name, one caption line (at most 26 characters; the full text lives in the drawer), a state badge with a glyph (✓ ✕ ! ●) and the stamp. No durations, no second caption, no legend row.
+- Sponsor tags on the floor are muted monochrome text. Sponsor colors appear only in drawer headers, the org chart's `runs on` chips and the catalog's tier badges. State colors are the only saturated colors on the floor.
+- Every role has an avatar: a 22 px disc with two-letter initials in the role's accent color. The same component renders on the floor, in feed rows, in drawers and in the org chart; it is the thread that connects the four screens.
+- The back office (CFO, Droid, Treasurer) sits on its own platform labeled `BACK OFFICE · improves the catalog, not this order`, with a dashed `ships new versions` pipe from Droid to the warehouse that lights on a ship. Idle back-office stations dim.
 
 ### Phone layout (second device)
 
-Stacked: the stats header, then approval cards, then the Events feed. No org chart.
-
+Stacked: the header (four numbers, wrapping), Needs you, the order headline, the Pipeline list in place of the floor, then the feed. No floor and no org chart; the catalog is a vertical list; drawers are bottom sheets. Both devices run the same build against the same subscriptions.
 ---
 
 ## 9. Demo script (3 minutes + 2 minutes Q&A)
