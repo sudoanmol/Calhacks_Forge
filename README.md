@@ -1,241 +1,306 @@
 # FORGE
 
-A one-person company staffed by AI agents that sells APIs over public web data. Built at Cal Hacks 13.0, October 24 to 25, 2026.
+Ask for a public-data API in ASI:One. FORGE checks whether the request is allowed, extracts the data, and verifies each value against its source. When an API earns repeat demand, its agents can turn the generic extractor into a dedicated program that avoids LLM extraction costs.
 
-Ask FORGE for any public-data API in ASI:One. It decides whether the request is allowed, builds the API, proves every value against the source, and gets cheaper every time the API is sold.
+FORGE is a one-person company staffed by AI agents, built at Cal Hacks 13.0. Customers buy reusable APIs through chat. Agents handle admission, research, fulfillment, investment, and quality checks. The founder controls budgets and approves consequential actions from a live dashboard.
 
-All money in this project is **TEST MODE**. No real money moves. Payments are Stripe test checkout or testnet FET. One demo switch records a payment as **SIMULATED PAYMENT** instead, and it is labeled that way in chat, on the dashboard and in the ledger.
+[Open the dashboard](https://forge-calhacks.vercel.app) · [Find the Front Desk on Agentverse](https://agentverse.ai/agents/details/agent1qwxszhvaegkq6lsu8n0aks5sqz0l4h63janfx0xgrgcnvxgkl6n6uafetjq/profile) · [Maintenance guide](AGENTS.md)
 
-## Judge tour (60 seconds)
+![FORGE dashboard showing the agent workflow, verified delivery, and challenge review for an open-roles order](docs/images/dashboard.png)
 
-[Open the live read-only dashboard](https://forge-calhacks.vercel.app). It subscribes to Maincloud; visitors cannot approve founder actions.
-
-1. [Find the Front Desk on Agentverse](https://agentverse.ai/agents/details/agent1qwxszhvaegkq6lsu8n0aks5sqz0l4h63janfx0xgrgcnvxgkl6n6uafetjq/profile) and ask for open roles in ASI:One.
-2. Inspect the [four CREAO seats and public CFO decision](docs/creao/deployment.md), then the [real customer delivery and challenge](docs/proof/asi-challenge-202.json).
-3. Read the [compile trace, founder approval and measured savings](docs/compile-proof.md). The founder fixed the shared test; Droid resumed with the same extractor.
-4. Open the [recorded buyer purchase](fetch-agents/buyer/logs/20261025T005417Z.json) and [Apify Actor](https://console.apify.com/actors/RdQhIe6Jj6mE2qT4L).
-5. Follow the [demo and recovery runbook](docs/demo.md). Public dashboard hosting, share links for the other CREAO seats, shared ASI:One chat and videos remain in the [release handoff](docs/unified-final-audit-tasks.md).
-
-Refunds credit FORGE's TEST MODE ledger. Stripe test payments and testnet FET transfers are not reversed. Header revenue includes in-flight payments minus ledger refunds; any simulated share is explicitly labeled.
+Captured from the deployed dashboard on October 25, 2026. The selected order is a completed run with its history labeled REPLAY; the dashboard connection is LIVE. All money is TEST MODE, and the header identifies simulated payments separately.
 
 ## What FORGE sells
 
-FORGE sells **APIs**: named, re-runnable endpoints such as `open-roles`, `yc-directory` and `gpu-listings`. Each API has a description, input parameters, sources, an output JSON Schema, a volatility (`stable` or `volatile`), a freshness window and a page cap.
+An API is a named, re-runnable specification with input parameters, sources, an output JSON Schema, a page cap, and a freshness policy. Buyers can run the same API again without commissioning another build.
 
-- **Tier 0 (generic).** An Apify Task of the `forge-extract` Actor with the API's saved input. An LLM reads each saved page and returns each value with a verbatim excerpt. It can be created in minutes and costs more per call.
-- **Tier 1 (compiled).** A dedicated Apify Actor that Factory Droid generated from `actors/template`. Deterministic extraction, no LLM, same name and output schema as the Tier 0 version it replaces.
-- **Quote anchor.** In both tiers, the excerpt must appear verbatim in the saved page text and the value must appear verbatim in the excerpt. Otherwise the value is `unverifiable` and is never delivered as a fact. Bright Data then re-fetches each source independently and marks each value `verified`, `stale`, `mismatch` or `unverifiable`.
+| API | Data | Engine |
+| --- | --- | --- |
+| `open-roles` | Public job listings with title, team, and location | Tier 1 deterministic Actor |
+| `yc-directory` | Public company directory data | Tier 0 generic extraction Task |
+| `gpu-listings` | Public retailer listings with price, stock, and links | Tier 0 generic extraction Task |
 
-Every request passes the **admission gate** before any money is spent:
+Tier 0 uses an Apify Task with saved inputs for the shared `forge-extract` Actor. Claude reads each saved page and returns values with verbatim excerpts. This lets FORGE serve an admitted request without writing a dedicated extractor first.
 
-- **Personal data.** A deterministic field detector rejects names, emails, phones and profiles at the Front Desk. Counts are fine; lists of people are not.
-- **Blocked domains.** Login-only domains in `config.blocked_domains` are rejected at the Front Desk with the reason.
-- **Page cap.** A scope above `config.page_cap` gets a counteroffer for the top N pages.
-- **robots.txt and terms.** Research checks robots.txt in code and quotes the terms-of-service clause with its URL. An unclear clause means reject.
-- **Reachable and measured.** The data must be on a page reachable by URL or search, without a form flow. Volatility is measured with two fetches at least 120 seconds apart, not guessed.
+Tier 1 uses a dedicated Apify Actor compiled by Factory Droid from `actors/template`. It extracts through selectors or the source's JSON, without an LLM. The API keeps its name and output schema. Compilation is an investment decision based on demand, quality, and cost, rather than a build for every customer.
 
-## How to see it
+Every value carries its source URL, excerpt, snapshot key and hash, observation and verification timestamps, API version, extraction method, and status. Results arrive in chat as a short table or summary with an Apify dataset or JSON export link.
 
-There are two surfaces.
+## How the agents work
 
-Review, status, catalog carousel and challenge form cards are implemented and tested through the protocol models. Phone rendering remains a founder release check.
+```mermaid
+flowchart TD
+    subgraph fulfillment["Order fulfillment"]
+        customer["ASI:One customer or independent buyer"] --> desk["Front Desk: intent and admission checks"]
+        desk -->|Pass| payment["Quote and TEST MODE payment"]
+        desk -->|Fail or exceed scope| response["Rejection or counteroffer in chat"]
+        payment --> queue["SpacetimeDB order and task queue"]
+        queue --> coo{"COO decision"}
+        coo -->|Research needed| research["Research: cited gate checks and measured volatility"]
+        research --> coo
+        coo -->|Reject or counteroffer| response
+        coo -->|Accept| apify["Apify Task or Actor: save pages, extract, check anchors"]
+        apify --> verify["Bright Data: independent source fetch"]
+        verify --> audit{"Auditor verdict with reason"}
+        audit -->|Reject| rejected["Rejected deliverable; eligible TEST MODE refund"]
+        audit -->|Accept| treasurer["Treasurer: costs and accepted-work bonuses"]
+        treasurer --> delivery["Front Desk: status, verified results, dataset link"]
+    end
 
-1. **ASI:One chat.** This is the whole customer journey: request, gate decision, quote, payment, `status`, delivery and challenge. The customer talks to the Front Desk agent (`forge-front-desk`). There is no customer website. ASI:One does not show messages an agent sends later on its own (tested October 24, see AGENTS.md §14), so the customer sends `status` to read progress and the delivered table.
-2. **Founder dashboard (`/web`).** It renders only from SpacetimeDB subscriptions and runs on a laptop and a phone at once.
-   - **Header:** revenue, verified %, cost per call, APIs for sale, and `agent decisions N : founder approvals M`, all counted from stored rows. Money is labeled TEST MODE.
-   - **Order headline:** for example `#205 · open-roles for lattice · Delivered · 21/21 verified · $1.00 TEST MODE SIMULATED PAYMENT` (from `docs/progress.md`, step 2).
-   - **Office:** the selected order on the forge floor, one station per role. A station drawer shows the employee's decision, the reason verbatim, the evidence and the CREAO run link.
-   - **Org chart:** founder, Front Desk, COO, Research, Auditor, CFO, Droid, the Apify Warehouse, and the Treasurer and Rules footer. Each edge is labeled with a count of handoffs taken from stored events.
-   - **Catalog:** the live APIs as cards with tier, version, verified rate, buyers, measured cost per call and volatility.
-   - **Engineering:** the recorded `open-roles` compile (ticket #6) as a timeline labeled RECORDED: trigger, CFO decision, budget, each Droid attempt with badged tool calls and tests, Auditor verdicts, founder approval and ship.
-   - **Controls (gear):** the founder levers. The budget cap, `compile_min_buyers`, `creao_max_concurrency` and `refund_limit` are primary; the rest are under Advanced. Each lever is a founder-only reducer that changes behavior.
-   - **Right rail:** Needs you (approval cards), a feed with one sentence per event and a raw JSON expander, and a Droid strip.
+    subgraph compilation["API compilation"]
+        trigger["Demand or quality trigger"] --> cfo{"CFO investment decision"}
+        cfo -->|Defer| deferred["Keep current engine"]
+        cfo -->|Compile| budget["Budget reservation; founder approval if over cap"]
+        budget --> droid["Droid: compile deterministic extractor"]
+        droid --> tests["Fixture, contract, and live tests"]
+        tests --> review{"Auditor compile review"}
+        review -->|Reject| droid
+        review -->|Accept| founder["Founder ship approval"]
+        founder --> ship["Worker publishes version for every buyer"]
+    end
 
-The dashboard is a forge floor drawn in React, SVG and Framer Motion. The design reasoning is in [docs/dashboard-redesign-spec.md](docs/dashboard-redesign-spec.md) §1 to §5.
+    subgraph challenges["Customer challenge"]
+        challenge["Front Desk: check ownership and open challenge"] --> recheck["Check saved page and fetch current source"]
+        recheck --> ruling{"Auditor ruling"}
+        ruling -->|Rejected| quotes["Return saved quote, fresh result, and timestamps"]
+        ruling -->|Upheld| correction["Correct or withdraw value; TEST MODE refund and bonus clawback"]
+        correction --> repair["Tier 0 compile ticket or Tier 1 warranty ticket"]
+    end
 
-## Proof
+    treasurer -.->|Configured trigger met| trigger
+    delivery -->|Customer disputes a value| challenge
+```
 
-Each row below is a recorded real run. `audit-dataset-206.png` and `release-*.png` show the live Maincloud dashboard; the other curated `audit-*.png` screenshots show local SIMULATED QA. Other screenshots stay on the founder's machine (`.gitignore`); the JSON records are committed.
+### Responsibilities and authority
 
-| What | Record | What it shows |
-|---|---|---|
-| Order #202, ASI:One, Stripe test checkout | [docs/proof/asi-challenge-202.json](docs/proof/asi-challenge-202.json) | Paid through real Stripe test checkout, delivered 21 verified values from the Tier 1 Actor in ASI:One |
-| Order #206, Safari ASI:One, SIMULATED PAYMENT | [docs/proof/asi-chat-followup-206.json](docs/proof/asi-chat-followup-206.json) | 21 verified values delivered. Signed dataset export opened anonymously with 21 records; repairing the link left values, books and refunds unchanged |
-| Challenge #14 on order #202 | [docs/proof/asi-challenge-202.json](docs/proof/asi-challenge-202.json) | The customer challenged row 0 `team`. `recheck` read the saved page and a fresh Bright Data fetch in 1000 ms total (saved 161 ms, fresh 838 ms). Both quotes matched. The Auditor rejected the challenge with a reason citing the saved department structure |
-| Order #199, new request through Research | [docs/proof/research-live-199.json](docs/proof/research-live-199.json) | A Wikipedia source passed the gate (two fetches 122 s apart, cited robots and terms). The COO created an Apify Task. The Auditor rejected the result because one of the two requested fields was missing. The API was retired. This is an honest failure, not a delivery |
-| Order #205, SIMULATED PAYMENT | [docs/proof/demo-payment-205.json](docs/proof/demo-payment-205.json) | Payment skipped by `FORGE_DEMO_PAY=true` and labeled SIMULATED PAYMENT. Intent, COO, Apify run, Bright Data verification and Auditor were real: 21 verified values, ledger balanced |
-| Compile ticket #6, `open-roles` | [docs/compile-proof.md](docs/compile-proof.md) | CFO invested 500 cents (TEST MODE). Droid attempt 1 failed the live test, the Auditor sent it back, the resumed Droid session passed attempt 2, the founder approved ship approval #10, and Actor `RdQhIe6Jj6mE2qT4L` v1.0 shipped as API version 20 |
-| Droid traces for ticket #6 | `workers/droid-runner/logs/open-roles-2026-10-25T00-41-33-360Z.{jsonl,diff}` and `open-roles-2026-10-25T00-45-16-606Z.{jsonl,diff}` | Both attempts: every streamed message, tool call and diff |
-| Tier 1 canary | [workers/canary/results/2026-10-25T00-51-06-238Z.json](workers/canary/results/2026-10-25T00-51-06-238Z.json) | Tier 1 runs on Lattice and Discord after the ship |
-| Buyer agent, before the compile | [fetch-agents/buyer/logs/20261024T222758Z.json](fetch-agents/buyer/logs/20261024T222758Z.json) | Order #131: found FORGE on Agentverse, paid 1 testnet FET through the Payment Protocol, received 21 verified values in 100.4 s |
-| Buyer agent, after the compile | [fetch-agents/buyer/logs/20261025T005417Z.json](fetch-agents/buyer/logs/20261025T005417Z.json) | Order #196: paid 1 testnet FET, received 21 verified values from Tier 1 version 20 in 103.9 s, with no new build |
-| Buyer agent, first attempt | [fetch-agents/buyer/logs/20261024T221151Z.json](fetch-agents/buyer/logs/20261024T221151Z.json) | Order #104: the Front Desk offered only Stripe, the buyer pays only in FET, so it rejected the payment and the order stayed unpaid. FET was added to the Front Desk after this run |
-| CREAO agents and the CFO run | [docs/creao/deployment.md](docs/creao/deployment.md) | Four saved agents and the public CFO share link |
-| Two devices | [docs/progress.md](docs/progress.md) | A physical phone showed a budget cap change from $20.00 to $21.00 TEST MODE without a refresh |
+| Role | Runtime | Responsibility |
+| --- | --- | --- |
+| Front Desk | Fetch uAgent and ASI-1 | Parse requests, run deterministic checks, quote, take test payment, report status, deliver results, and open challenges |
+| Buyer | Separate Fetch uAgent | Discover FORGE on Agentverse and purchase an API with its own identity and testnet wallet |
+| COO | CREAO saved agent | Accept, counteroffer, request research, or reject with a reason |
+| Research | CREAO saved agent and Bright Data | Record admission findings, citations, reachability, and measured volatility |
+| CFO | CREAO saved agent | Propose compilation, defer investment, or recommend repricing using unit economics |
+| Auditor | CREAO saved agent | Accept or reject deliverables, challenges, and compile attempts using recorded checks |
+| Treasurer and rules | SpacetimeDB reducers | Enforce money movements, budgets, bonuses, refunds, and compile triggers |
+| Engineer | Factory Droid SDK and `droid-runner` | Compile deterministic extractors and revise rejected attempts in the same engineering session |
+| Founder | Dashboard under the founder identity | Set controls and approve gated spending, shipping, Droid actions, and refunds |
 
-## Sponsors
+CREAO agents use the dependency-free [FORGE CLI](skills/forge-cli/SKILL.md) with separate seat tokens. Only the dispatcher starts CREAO runs. Agents cannot start other agents or grant themselves authority. Each CREAO dispatch starts a new thread; Droid resumes its engineering session for rework on the same API.
+
+### Admission before fulfillment
+
+Checks run in cost order. Deterministic Front Desk checks precede paid research or extraction.
+
+| Check | Rule | Outcome on failure |
+| --- | --- | --- |
+| Requested fields | Public data only. Reject personal names, emails, phone numbers, and profiles. Aggregate counts are allowed. | Immediate rejection with a reason |
+| Source domain | Reject domains on `config.blocked_domains`, including login-only sources | Immediate rejection |
+| Scope | Stay within `config.page_cap` | Counteroffer for a bounded number of pages |
+| robots.txt | Check whether the requested paths allow collection | Record a gate finding for the COO |
+| Terms | Cite the automated-collection clause and its URL | Reject prohibited or unclear terms |
+| Reachability | Data must be accessible by URL or search, without a login, paywall, or multi-step form | Reject unsupported sources |
+| Volatility | Compare two fetches at least 120 seconds apart | Set the freshness policy from the observed result |
+
+An existing admitted API can proceed to fulfillment. For a new request, the COO requests Research, reads the stored findings, and decides whether to create a Tier 0 API, counteroffer, or reject. Research supplies findings; the COO makes the commercial decision.
+
+### Verification and delivery
+
+1. The Actor saves the source page and its hash. The excerpt must occur verbatim in that page text, and the value must occur verbatim in the excerpt. A failed anchor becomes `unverifiable`.
+2. A separate Bright Data fetch checks the source independently. Stable APIs require an exact excerpt and value match. Volatile APIs also enforce their freshness window; a changed anchored value becomes `stale` with the fresh value attached.
+3. Every retrieval attempt records its method, country, HTTP status, duration, and result. Exhausted retrieval becomes `unverifiable`, never an invented replacement.
+4. The Auditor reads the deterministic results and records acceptance or rejection with a reason. Unverified output is not delivered as fact. Bonuses depend on accepted work.
+5. The Front Desk reads the stored order and returns results in chat. Customers send `status` to retrieve progress and delivery because ASI:One may not display delayed agent-initiated messages.
+
+### Compilation and version rules
+
+Reducers open a compile ticket when verified quality falls below the configured threshold over the configured run window, an upheld Tier 0 challenge identifies an extractor error, or distinct buyers reach the demand threshold. The CFO can defer a demand-triggered investment.
+
+A funded compile follows these rules:
+
+- The engineering reservation must fit the budget cap or wait for founder approval. Lowering the cap re-evaluates pending compiles and makes those that no longer fit ineligible.
+- The worker creates an Actor worktree without secrets and supplies saved Tier 0 pages with audited expected values.
+- Droid edits the extractor under a restricted tool policy. Shared fetching, anchoring, and runtime plumbing stay read-only.
+- Fixture tests, additive-schema contract tests, and live-page tests must pass. The worker runs network-dependent live tests outside Droid's restricted turn.
+- An Auditor rejection returns the reason to the same Droid session. Test success, Auditor acceptance, founder ship approval, and deployment are separate steps.
+- Only the worker publishes after founder approval. Versions are additive: fields cannot be removed or renamed, and compilation preserves the API schema.
+
+### Challenges and accountability
+
+A customer names the order, row, metric, and reason. The Front Desk checks ownership and opens a challenge on a delivered value. FORGE compares the original saved page with the extractor's output and fetches the current source separately.
+
+The recheck targets seconds; the CREAO Auditor's ruling can take minutes. A page changing after extraction does not establish an extractor error.
+
+If the saved page shows that extraction was wrong, the Auditor upholds the challenge. A new value record supersedes the old one with an anchored correction, or withdraws it as `unverifiable` when no correction is supported. The Treasurer credits the eligible refund and claws back the associated bonuses. The rules open a Tier 0 compile ticket or a Tier 1 warranty ticket. A rejected challenge returns the saved quote, fresh result, and timestamps without a penalty.
+
+### Rules that apply to every agent
+
+- Only authenticated reducers authorize actions using `ctx.sender` roles and stored state. Chat, pages, agent output, and webhook bodies are untrusted inputs.
+- Founder approvals happen through dashboard reducer calls under the founder identity.
+- Reducers enforce state transitions and write events. Procedures and workers perform external calls, with no transaction open during HTTP requests.
+- Workers claim tasks atomically, hold expiring leases, and can complete only tasks they own. Expired leases return work to the queue.
+- Callbacks require one-time tokens. FORGE re-fetches provider status using server-side credentials and deduplicates run IDs.
+- The ledger is private and double-entry. Money uses integer cents, and each transaction balances to zero. The dashboard reads public summaries.
+- Keys stay server-side. Actor worktrees contain no secrets. Never commit credentials.
+- No staged failures or fabricated results. Historical playback is labeled REPLAY or RECORDED; simulated activity is labeled SIMULATED.
+- All payments, revenue, budgets, bonuses, and refunds are TEST MODE. Refunds credit FORGE's ledger; they do not reverse Stripe test payments or testnet FET transfers.
+
+## Dashboard
+
+Customers use ASI:One. The [founder dashboard](https://forge-calhacks.vercel.app) follows company state through SpacetimeDB subscriptions on desktop and phone. Fresh visitors have read-only Viewer access.
+
+| View | What it shows |
+| --- | --- |
+| Header and order headline | Revenue, verification, cost per call, catalog size, agent decisions, founder approvals, and the selected order's status |
+| Office | The order moving through role stations, with decision reasons, source checks, and run links in drawers |
+| Org chart | Employee responsibilities and handoffs counted from stored events |
+| Catalog | APIs, tier, version, buyers, sources, fields, measured costs, and datasets |
+| Engineering | Compile triggers, CFO decisions, budget reservations, Droid calls and diffs, tests, Auditor reviews, approvals, and ships |
+| Needs you and feed | Approval cards, readable events, raw event expanders, and current engineering status |
+| Controls | Founder-only budget, compile thresholds, concurrency, refund limit, admission settings, and other stored policy levers |
+
+The dashboard uses React, SVG, and Framer Motion. Its behavior is specified in [the dashboard contract](docs/dashboard-redesign-spec.md).
+
+## Stack
+
+| Layer | Technologies | Purpose |
+| --- | --- | --- |
+| Company backend | TypeScript, SpacetimeDB 2.13, Maincloud | Shared state, authorization, reducers, procedures, schedules, callbacks, and live subscriptions |
+| Dashboard | React, Vite, TypeScript, SVG, Framer Motion, generated SpacetimeDB bindings | Live founder operations and approval controls; static frontend hosted on Vercel |
+| Customer and buyer agents | Python 3.12, uv, uAgents, Agentverse, ASI:One, ASI-1 | Chat, discovery, intent parsing, and agent-to-agent purchases |
+| Decisions | CREAO saved agents, API Trigger, Secrets, FORGE CLI | Admission, research, investment, and auditing |
+| API execution | Node.js, Apify SDK, Actors, Tasks, datasets, key-value stores | Reusable engines, structured results, and saved source snapshots |
+| Generic extraction | Anthropic Messages API and Claude Haiku tool output | Values and source excerpts for Tier 0 |
+| Retrieval | Bright Data Web Unlocker, SERP API, configurable Browser API | Discovery, source retrieval, verification, and rechecks |
+| Engineering | Factory Droid TypeScript SDK, Droid CLI, Git worktrees | Restricted compilation, streamed execution, and same-session repair |
+| Test payments | Fetch Payment Protocol, Stripe test checkout, testnet FET | Human and autonomous purchases, all TEST MODE |
+| Build and checks | pnpm workspaces, TypeScript, Node test runner, pytest, canary worker | Builds, policy tests, integration checks, and live API checks |
+
+## Sponsors and technology integrations
 
 ### CREAO
 
-**What it does here.** Four saved CREAO agents are the company's judgment: the COO (accept, counteroffer, request research, reject), Research (the layer-3 admission gate with citations), the CFO (compile, defer or reprice on unit economics) and the Auditor (accepts or rejects each deliverable, challenge and compile). They act only through `skills/forge-cli`, a zero-dependency CLI whose commands map to the reducers for each seat. Agents never start other agents; only the `dispatch` procedure starts runs. Each CREAO dispatch starts a new thread; Droid resumes its own engineering session.
+CREAO runs the COO, Research, CFO, and Auditor as saved agents. FORGE uses API Trigger to start runs, receives completion through webhooks or polling, and stores seat credentials in CREAO Secrets. The agents use the sandbox's FORGE CLI to read company state and call role-specific reducers.
 
-**What breaks without it.** Nobody admits, prices, invests or audits. Orders stop at `paid`.
+This gives the company explicit decision makers with written reasons and inspectable runs. Without those decisions, paid orders cannot move through admission and audit, and compile tickets cannot receive investment approval.
 
-**Where to see it.**
+| Seat | Agent ID |
+| --- | --- |
+| COO | [`81c6c2cc-98d6-4ea5-8fcf-942f8772bf20`](https://agent.creao.ai/apps/81c6c2cc-98d6-4ea5-8fcf-942f8772bf20) |
+| Research | [`bad9531d-a359-4af3-9913-fc9310fe4218`](https://agent.creao.ai/apps/bad9531d-a359-4af3-9913-fc9310fe4218) |
+| CFO | [`63d131de-1b0c-4801-a58f-1698c894a672`](https://agent.creao.ai/apps/63d131de-1b0c-4801-a58f-1698c894a672) |
+| Auditor | [`6865c094-e20c-48c7-a969-d5e75c67dd06`](https://agent.creao.ai/apps/6865c094-e20c-48c7-a969-d5e75c67dd06) |
 
-| Seat | Agent ID | Version |
-|---|---|---|
-| COO | [`81c6c2cc-98d6-4ea5-8fcf-942f8772bf20`](https://agent.creao.ai/apps/81c6c2cc-98d6-4ea5-8fcf-942f8772bf20) | 1.1.0 |
-| Research | [`bad9531d-a359-4af3-9913-fc9310fe4218`](https://agent.creao.ai/apps/bad9531d-a359-4af3-9913-fc9310fe4218) | 1.1.0 |
-| CFO | [`63d131de-1b0c-4801-a58f-1698c894a672`](https://agent.creao.ai/apps/63d131de-1b0c-4801-a58f-1698c894a672) | 1.0.0 |
-| Auditor | [`6865c094-e20c-48c7-a969-d5e75c67dd06`](https://agent.creao.ai/apps/6865c094-e20c-48c7-a969-d5e75c67dd06) | 1.1.0 |
+[Saved prompts and setup](docs/creao/README.md) · [Deployment notes](docs/creao/deployment.md) · [Public CFO run](https://agent.creao.ai/share/2361cbf6417714be089c498e9e96c580), available until November 23, 2026. The run's comparison includes simulated compile-test fixtures, as documented in the deployment notes.
 
-Source: [docs/creao/deployment.md](docs/creao/deployment.md). Prompts: [docs/creao/](docs/creao/). CLI: [skills/forge-cli/SKILL.md](skills/forge-cli/SKILL.md).
-
-- **CFO compile decision:** [public CFO run](https://agent.creao.ai/share/2361cbf6417714be089c498e9e96c580) on compile ticket #6. The CFO called `cfo_propose(COMPILE, 500, rationale)`. Expires November 23, 2026. The memo compares costs against two retired `cmp-test` fixtures, which were simulated compile-test outputs; see the note in `docs/creao/deployment.md`.
-- **Research and a reject:** order #199. Research cited `https://en.wikipedia.org/robots.txt` and the Wikimedia Terms of Use; the Auditor rejected the result for a missing field ([record](docs/proof/research-live-199.json)).
-- **Auditor reject, then accept:** ticket #6, attempt 1 rejected, attempt 2 accepted ([docs/compile-proof.md](docs/compile-proof.md)).
-- **Challenge ruling:** challenge #14, rejected by the Auditor with a reason ([record](docs/proof/asi-challenge-202.json)).
-Historical decisions to link, matched by the two source audits. Re-check run → task → order before making a share public.
-
-| Seat | Decision | Order/ticket | Run | Public proof |
-|---|---|---|---|---|
-| COO | ACCEPT | order #202 | #81 | Founder share pending; [order record](docs/proof/asi-challenge-202.json) |
-| Research | Cited gate report | order #199 | #77 | Founder share pending; [research record](docs/proof/research-live-199.json) |
-| CFO | COMPILE, 500 cents TEST MODE | ticket #6 | Recorded in deployment notes | [Public CFO run](https://agent.creao.ai/share/2361cbf6417714be089c498e9e96c580) |
-| Auditor | REJECT, missing field | order #199 | #80 | Founder share pending; [rejection record](docs/proof/research-live-199.json) |
-
-- TODO(founder): share links for a COO run, a Research run and an Auditor run. The `run` table holds 39 CREAO runs and none has a share URL yet (read-only SQL on `forge`, October 25).
-- TODO(founder): a share link for a cited REJECT on a request that fails the terms check, if one exists.
+Official references: [Cal Hacks guide](https://community.creao.ai/CalHacks2026), [technical guide](https://community.creao.ai/CalHacks2026/tech), and [saved agents](https://docs.creao.ai/features/agents).
 
 ### Factory Droid SDK
 
-**What it does here.** Droid is the runtime engineer. When a compile trigger fires, `workers/droid-runner` claims the task, copies `actors/template` to `actors/<api>` in a worktree with no secrets, writes fixtures from the API's saved Tier 0 pages and audited values, and runs a locked Droid session that implements only `extract(page)`. Tests run (fixtures, contract, live). The Auditor accepts or rejects; a rejection resumes the same Droid session with the reason. Only after the founder approves the ship does the worker, never Droid, run `apify push` and record the version.
+`workers/droid-runner` uses the TypeScript SDK to create or resume engineering sessions, stream messages and tool calls, and apply permission decisions. Droid writes deterministic extractors from saved-page fixtures. Its output goes through tests, Auditor review, and founder ship approval before deployment.
 
-**What breaks without it.** No Tier 1 Actors, no warranty fixes, and cost per call never falls.
+This makes engineering part of the running product. Demand and quality rules can create a cheaper extraction engine without the founder writing each one manually.
 
-**Where to see it.** The Engineering tab (RECORDED timeline of ticket #6), [docs/compile-proof.md](docs/compile-proof.md), the Droid logs and diffs in `workers/droid-runner/logs/open-roles-2026-10-25T00-4*`, and the controls in [workers/droid-runner/src/lockdown.ts](workers/droid-runner/src/lockdown.ts) and [workers/droid-runner/src/policy.ts](workers/droid-runner/src/policy.ts).
+| Compile action | Policy |
+| --- | --- |
+| Read files and edit extractor source inside the Actor | Allowed within the session's tool restrictions |
+| Run allowlisted fixture and contract tests | Allowed |
+| Write outside the Actor or change shared runtime plumbing | Denied |
+| Access secrets, use network commands, deploy, or rewrite Git history | Denied |
+| Run another plain command | Requires a founder `droid_action` approval |
+| Publish a version | Worker-only action after founder `api_ship` approval |
 
-The ticket #6 trace: open-roles reached 2 distinct buyers (`compile_min_buyers` 2) → CFO proposed 500 cents TEST MODE → budget reserved → Droid session `34acdbcb-c5b1-495c-b52d-7d01458a6db7` → attempt 1 failed the live test (Discord's 46 rows compared with a Lattice fixture's 7 rows) → Auditor rejected → the founder corrected the shared test in commit `c6ac400` to compare row counts only for matching URLs → same session resumed → attempt 2 passed fixtures 1/1, contract 2/2, live 2/2 → Auditor accepted → founder approved ship approval #10 → ship task 4189 deployed Actor `RdQhIe6Jj6mE2qT4L` v1.0 → API version 20. Droid changed only `src/extract.js` and `src/jsonspan.js` (approval #10 detail).
+Sessions use Low autonomy and `direct_only` execution. The [policy](workers/droid-runner/src/policy.ts) and [lockdown](workers/droid-runner/src/lockdown.ts) record the restrictions; Engineering displays their outcomes.
 
-**Control table** (compile sessions, `decideCompile` in `policy.ts`):
-
-| Trigger | Allowed tools | Denied tools | Needs approval | Where it's visible |
-|---|---|---|---|---|
-| A `compile` ticket from `check_compile_triggers`: verified rate below `compile_min_verified_rate` over `compile_window_runs`, an upheld challenge caused by an extractor error, or `compile_min_buyers` distinct buyers. The CFO must propose COMPILE and `reserve_budget` must fit the cap | Read, LS, Glob, Grep, TodoWrite. Create, Edit and ApplyPatch only on files under the Actor's `src/` that are not template plumbing. `run_command` only for `pnpm test`, `pnpm run test:fixtures`, `pnpm run test:contract` and `node --test …` | Every other host tool (MCP, web, Task, Script, Execute) is disabled at session creation. Writes outside the Actor, outside `src/`, or to `src/lib/`, `src/main.js`, `src/run.js`, `src/fetchers.js`. Commands with shell operators, absolute or parent paths, `test:live`, `curl`, `wget`, `ssh`, `scp`, `nc`, `apify push/login/secrets`, `git push/reset/rebase/remote`, `sudo`, `.env`, `npm`, `yarn` | Any other plain command becomes an `approval(droid_action)` card for the founder. The ship itself is an `approval(api_ship)` | Engineering tab badges each tool call auto-allowed, denied, founder-approved or needs-approval. Every streamed message is logged through `log_droid_event` |
-
-Other controls: autonomy Low, `toolExecutionMode: 'direct_only'` forced at session init (patched in `lockdown.ts`, because SDK 0.10 does not forward it), and resumed sessions must keep the original worktree path.
-
-Denied actions on record: approvals #4 and #8 are `droid_action` requests for `ls src` ("not on the compile allowlist") that the founder rejected. Both came from `cmp-test` compile-test APIs (tickets 3 and 5), not from ticket #6. The ticket #6 Auditor reason records 0 denied actions (read-only SQL on `approval`).
+Official reference: [Droid TypeScript SDK](https://docs.factory.com/sdk/typescript).
 
 ### SpacetimeDB
 
-**What it does here.** The only database. One TypeScript module on Maincloud (database `forge`) holds APIs, orders, tasks, budgets, the ledger and an append-only event log. Reducers enforce every rule using `ctx.sender` roles from the `staff` table. Procedures are the only code that calls the outside world. The dashboard is a live subscription on two devices.
+SpacetimeDB is the company's only database. The TypeScript module on Maincloud stores APIs, orders, tasks, budgets, accounting, decisions, and persistent event history. Reducers enforce identity roles, atomic claims, budgets, approvals, and state transitions. Procedures and HTTP handlers connect the stored workflow to external providers.
 
-**What breaks without it.** No shared state, no rules, no live dashboard and no recorded compile timeline.
+Generated TypeScript bindings connect the dashboard through subscriptions, so a payment, challenge, or founder decision updates every connected device. The persistent `event` table supports history and replay; it is an ordinary stored table, distinct from SpacetimeDB's transient event-table feature.
 
-**Where to see it.** Two devices updating together ([docs/progress.md](docs/progress.md)); the budget cap lowered from 2000 to 40 cents TEST MODE made ticket 6 ineligible and released its reservation, and restoring it requeued the ticket (recorded in live reducer events, [docs/progress.md](docs/progress.md)); the double-claim test in `module/test/api.test.mjs` ("two workers race, exactly one wins").
-
-Exported from [module/src/index.ts](module/src/index.ts):
+The exported backend operations are listed below for integration reference.
 
 - **Reducers:** `audit_verdict`, `backfill_canary_orders`, `cancel_task`, `cfo_propose`, `challenge_verdict`, `claim_task`, `close_compile`, `compile_failed`, `compile_verdict`, `complete_task`, `coo_decide`, `create_api`, `create_order`, `decide_approval`, `enqueue_task`, `ensure_defaults`, `lease_sweep` (scheduled), `log_droid_event`, `open_challenge`, `record_api_version`, `record_gate_check`, `record_payment`, `refund_order`, `set_run_share_url`, `reject_at_desk`, `renew_lease`, `request_droid_action`, `research_report`, `retire_api`, `set_budget_cap`, `set_config`, `set_order_params`, `set_staff`, `submit_compile`, `update_api`.
 - **Procedures:** `admission_precheck` (scheduled), `apify_poll`, `create_apify_task` (scheduled), `creao_poll`, `creao_start`, `dispatch` (scheduled), `http_smoke`, `recheck` (scheduled), `research_fetch`, `settle_run_cost` (scheduled), `start_api_run` (scheduled), `verify_probe`, `verify_values` (scheduled).
 - **HTTP routes:** `POST /ping`, `POST /creao-callback`, `POST /apify-callback`. Callbacks need a one-time token, never trust the body, and re-fetch the run with FORGE's key.
 - **Lifecycle:** `init`.
 
+Official references: [SpacetimeDB at Cal Hacks](https://spacetimedb.com/blog/spacetime-at-calhacks), [reducers](https://spacetimedb.com/docs/functions/reducers/), and [event-table semantics](https://spacetimedb.com/docs/tables/event-tables/).
+
 ### Fetch.ai
 
 ![tag:innovationlab](https://img.shields.io/badge/innovationlab-3D8BD3)
 ![tag:hackathon](https://img.shields.io/badge/hackathon-5F43F1)
 
-**What it does here.** The Front Desk is a uAgent with the Chat Protocol and the Payment Protocol (seller). It parses intent with ASI-1, runs the layer-2 gate checks, quotes, takes payment (Stripe test checkout or testnet FET), answers `status` and opens challenges. The buyer agent is a separate uAgent with its own seed and testnet wallet. It searches Agentverse, finds the Front Desk, asks for a named API, pays through the Payment Protocol as the buyer and reads the delivered dataset. It holds no FORGE keys and gets no shortcuts.
+The Front Desk is a Python uAgent registered on Agentverse and reachable in ASI:One through the Chat Protocol. ASI-1 parses customer intent. The Payment Protocol handles Stripe test checkout or testnet FET before the Front Desk records payment and hands the order to the company.
 
-**What breaks without it.** No customers and no agent-to-agent sales.
-
-**Where to see it.**
+The buyer is a separate uAgent with its own identity, seed, and wallet. It searches Agentverse, selects FORGE, asks for a named API, and pays as an independent customer. It has no staff role or FORGE service keys. Fetch supplies both the customer interface and the agent-to-agent market for reusable APIs.
 
 | Agent | Name | Address |
-|---|---|---|
+| --- | --- | --- |
 | Front Desk | `forge-front-desk` | `agent1qwxszhvaegkq6lsu8n0aks5sqz0l4h63janfx0xgrgcnvxgkl6n6uafetjq` |
 | Buyer | `forge-buyer` | `agent1q2jj8g77x9dgyp0va9vxtzjeeajth02rv3pqhm9taf3gg6qd7uwcw4h4tr0` |
 
-Addresses from `fetch-agents/buyer/discovery.py` and the buyer logs. The buyer picked `forge-front-desk` at rank 6 for the query "FORGE public data APIs" because it is active, speaks AgentChatProtocol, sells through AgentPaymentProtocol and mentions "forge" (buyer logs).
+[Front Desk profile](https://agentverse.ai/agents/details/agent1qwxszhvaegkq6lsu8n0aks5sqz0l4h63janfx0xgrgcnvxgkl6n6uafetjq/profile) · [Front Desk documentation](fetch-agents/front_desk/README.md)
 
-Buyer purchase log:
-
-| Log | Order | Payment | Result |
-|---|---|---|---|
-| `20261024T221151Z.json` | #104 `gpu-listings` | Rejected: only Stripe was offered | Unpaid quote, 16.3 s |
-| `20261024T222758Z.json` | #131 `open-roles` (Tier 0) | 1 testnet FET, `stable-testnet` (chain `dorado-1`), tx `92CB62A56D1BC9B23CC87DAEED20C69D9FC3677AE4B825A540455405CABF2E10` | 21 values, 21 verified, 100.4 s |
-| `20261025T005417Z.json` | #196 `open-roles` (Tier 1 v1.0) | 1 testnet FET, tx `BE762C0EA997E60AA814515211E959A6057B266D9864C6C174E84745A5FBB9C7` | 21 values, 21 verified, 103.9 s |
-
-- [Front Desk profile](https://agentverse.ai/agents/details/agent1qwxszhvaegkq6lsu8n0aks5sqz0l4h63janfx0xgrgcnvxgkl6n6uafetjq/profile). Badges and agent README are committed. Founder verification of its rendered profile and ASI:One submission registration remains open.
-- TODO(founder): the separate 3 to 5 minute Fetch video link.
+Official references: [Cal Hacks hackpack](https://www.fetch.ai/events/hackathons/calhacks-13-0/hackpack), [ASI:One](https://asi1.ai/), and [ASI-compatible uAgents](https://innovationlab.fetch.ai/resources/docs/examples/chat-protocol/asi-compatible-uagents).
 
 ### Apify
 
-**What it does here.** The product shelf (the Warehouse). `forge-extract` ("FORGE Verified Extract") is the Tier 0 engine: it fetches each page through Bright Data, saves the page text to the key-value store with its hash, asks Claude Haiku (`claude-haiku-5-5`) for `{field, value, excerpt}`, runs the quote anchor and pushes one dataset item per value. Each Tier 0 API is an Apify Task of `forge-extract`. Each Tier 1 API is its own Actor with versions.
+Apify hosts the reusable extraction engines. `forge-extract` is the generic Actor, and each Tier 0 API is a Task with its own saved configuration. Dedicated Tier 1 Actors have their own versions. Runs return structured datasets, while key-value stores retain source pages and hashes for verification and challenges.
 
-**What breaks without it.** Nothing to sell or reuse.
+The SDK, Tasks API, Actor run API, callbacks, and CLI let FORGE create an API, execute it repeatedly, read results, and ship approved versions. Shared Tasks avoid a new build for each request; datasets and saved pages make delivery and later checks possible.
 
-**Where to see it.**
+| API | Engine | Apify ID |
+| --- | --- | --- |
+| `yc-directory` | Tier 0 Task | `OQN55sQeSFrmf3FW0` |
+| `gpu-listings` | Tier 0 Task | `Q7CSHONOKeWjvo3kz` |
+| `open-roles` | Original Tier 0 Task | `kwMQrSsk3Of8CDvhk` |
+| `open-roles` | Tier 1 Actor, v1.0 | [`RdQhIe6Jj6mE2qT4L`](https://console.apify.com/actors/RdQhIe6Jj6mE2qT4L) |
 
-| API | Tier | Engine | Apify ID |
-|---|---|---|---|
-| `yc-directory` | 0 | Task, v0.1 | `OQN55sQeSFrmf3FW0` |
-| `gpu-listings` | 0 | Task, v0.1 | `Q7CSHONOKeWjvo3kz` |
-| `open-roles` | 0, superseded by v1.0 | Task, v0.1 | `kwMQrSsk3Of8CDvhk` |
-| `open-roles` | 1 | Actor `forge-open-roles`, v1.0 (API version 20) | `RdQhIe6Jj6mE2qT4L` |
-
-Source: read-only SQL on `api_version`, October 25. A second buyer reused `open-roles` with no new build (order #196). Order #199 shows the COO creating a new Task (`8Bo2SrE6aUQv1xbTs`) for a researched request.
-
-- TODO(founder): the `forge-extract` Actor link and Store listing (pay-per-event pricing is a founder task, AGENTS.md §7).
-- Target track: Apify Best Use.
+Official references: [Actors](https://docs.apify.com/platform/actors) and [Actor Tasks](https://docs.apify.com/platform/actors/running/tasks).
 
 ### Bright Data
 
-**What it does here.** Every page FORGE reads or verifies comes through Bright Data.
+Bright Data retrieves the public pages used for extraction and independently re-fetches them for verification. The second fetch lets FORGE check an extractor's output against the source rather than accepting the extractor's own claim.
 
-| Product | Used for |
-|---|---|
-| Web Unlocker (`forge_unlocker`) | Actor retrieval, the gate's reachability and volatility fetches, independent verification in `verify_values`, and challenge `recheck` |
-| SERP API (`forge_serp`) | Research discovery (`forge search`) |
-| Browser API | Implemented as the second rung of the ladder in `actors/*/src/fetchers.js`; no live run has used it (see below) |
+| Product | FORGE use |
+| --- | --- |
+| Web Unlocker, `forge_unlocker` | Actor retrieval, admission reachability and volatility checks, independent verification, and challenge rechecks |
+| SERP API, `forge_serp` | Research discovery through `forge search` |
+| Browser API | Configurable fallback for JavaScript-rendered pages; requires `BRIGHTDATA_BROWSER_WSS` and remains an unexercised live integration |
 
-The fallback ladder (`actors/forge-extract/src/lib/ladder.js`): Web Unlocker from `us` → Browser API if the page is a JS shell → one retry from `gb` on a block or timeout → `unverifiable` with the reason. A compliance block in the `x-brd-error` header ends the ladder at once. Every attempt is logged with method, country, status and time.
+The retrieval ladder starts with Web Unlocker in the US. A JavaScript shell can use Browser API when configured. A block or timeout can retry once from another country; exhausted attempts become `unverifiable`. Compliance blocks stop immediately without browser or country retries. Each attempt records its status, timing, country, and reason.
 
-**What breaks without it.** No live data, no verification and no challenge recheck.
+Official references: [Web Unlocker](https://docs.brightdata.com/products/web-unlocker/introduction), [SERP API](https://docs.brightdata.com/products/serp-api/introduction), and [Browser API](https://docs.brightdata.com/products/scraping-browser/introduction).
 
-**Where to see it.**
+### Microsoft: Built for the Real World
 
-- The `evidence` table: 130 attempts, 118 Web Unlocker and 12 SERP, 0 Browser API (read-only SQL, October 25). It includes a SERP attempt from `us` with status 0 followed by a retry from `gb` with status 200.
-- An honest `unverifiable`: `https://boards.greenhouse.io/stripe` returned HTTP 200 with 0 characters of text through the Web Unlocker, the Browser API rung was not configured, so the page was marked `unverifiable` ([docs/proof/gate0-fetch-2026-10-24T16-27-57-662Z.json](docs/proof/gate0-fetch-2026-10-24T16-27-57-662Z.json)). Bright Data blocks Greenhouse HTML boards under its compliance policy without KYC; the public JSON API `boards-api.greenhouse.io` is allowed, so `open-roles` uses it (AGENTS.md §7 and §14, measured October 24).
-- Challenge #14: saved page and fresh Bright Data fetch compared in 1000 ms ([record](docs/proof/asi-challenge-202.json)).
-- Value statuses over all 1274 `value_record` rows: 1258 verified, 13 unverifiable, 2 mismatch, 1 stale (read-only SQL, October 25; includes test traffic).
+FORGE targets Microsoft's Built for the Real World track with an agent company for developers who need reusable public-data APIs. It handles the complete customer journey in ASI:One: request, admission, test payment, verified delivery, and a challenge when a value looks wrong.
 
-## Measured numbers
+The product puts responsible operation into the workflow. Source quotes and saved snapshots make results inspectable. Identity-based roles, budget limits, founder approvals, and TEST MODE accounting constrain what agents can do. Reusable APIs and deterministic compilation provide a path to lower operating costs as demand grows.
 
-Every number here has a source. Money is TEST MODE.
+The track fit is the working customer workflow and its controls. The [post-hackathon plan](docs/after-hackathon.md) identifies remaining production work, including measured pricing, broader live integration checks, and full agent canaries in CI.
 
-| Number | Source |
-|---|---|
-| `forge-extract` with Claude Haiku: 296 of 302 values verified on an independent Bright Data re-fetch (98.0%); open-roles 184/190, yc-directory 5/5, gpu-listings 107/107 | [docs/proof/gate0-extract-2026-10-24T16-44-36-467Z.json](docs/proof/gate0-extract-2026-10-24T16-44-36-467Z.json) |
-| A later run: 299 of 305 (98.0%); gpu-listings 110/110 | [docs/proof/gate0-extract-2026-10-24T17-48-08-959Z.json](docs/proof/gate0-extract-2026-10-24T17-48-08-959Z.json) |
-| `open-roles` cost per call on Lattice: $0.005772 TEST MODE at Tier 0 (order 174), $0.004237 TEST MODE at Tier 1 (order 193), 26.6% less. One pair of measured runs, not a general guarantee | [docs/compile-proof.md](docs/compile-proof.md) |
-| Tier 1 LLM cost: 0 micro-USD on both Tier 1 runs (Tier 0 Lattice: 1801 micro-USD) | [docs/compile-proof.md](docs/compile-proof.md) |
-| Tier 1 `open-roles` on Discord: 138/138 values verified, $0.004861 TEST MODE per call (order 192) | [docs/compile-proof.md](docs/compile-proof.md) |
-| Both Tier 1 canaries reached auditing in 17 s | [docs/compile-proof.md](docs/compile-proof.md) |
-| Challenge #14 recheck: 1000 ms total | [docs/proof/asi-challenge-202.json](docs/proof/asi-challenge-202.json) |
-| Order #199 volatility check: two fetches 122 s apart | [docs/progress.md](docs/progress.md) |
-| Buyer agent deliveries: 21/21 verified in 100.4 s (Tier 0) and 103.9 s (Tier 1) | buyer logs above |
-| Database: 18 APIs created, 3 for sale; 205 orders, 9 from real ASI:One users or the buyer agent | read-only SQL on `forge`; real-order filter in [docs/progress.md](docs/progress.md) |
-| Recorded dashboard header before the refund follow-up, real-order scope: revenue $5.00 TEST MODE, verified 100% (85/85) | [docs/progress.md](docs/progress.md), step 1 |
+Official references: [Microsoft track listing](https://cal-hacks-13-0.devpost.com/) and [Cal Hacks hacker guide with track criteria](https://docs.google.com/document/d/1RQrueC9wm5u8uxtWSC2gadIchp05hVayhGUrIjxT9dE/edit?tab=t.0).
 
-## Run it
+## Run it locally
 
 Requirements: Node 22 or later with pnpm 11, Python 3.12 with uv, the `spacetime` CLI, and the `droid` CLI on the host that runs `droid-runner`.
 
-Copy `.env.example` to `.env` and fill in test keys made for this project. Never commit `.env`. Keys by name: `SPACETIME_HOST`, `SPACETIME_DB`, `SPACETIME_TOKEN_FRONT_DESK`, `SPACETIME_TOKEN_DROID_RUNNER`, `SPACETIME_TOKEN_CANARY`, `BRIGHTDATA_API_KEY`, `BRIGHTDATA_UNLOCKER_ZONE`, `BRIGHTDATA_SERP_ZONE`, `BRIGHTDATA_BROWSER_WSS`, `APIFY_TOKEN`, `APIFY_USERNAME`, `CREAO_API_KEY`, `CREAO_APP_ID_COO`, `CREAO_APP_ID_RESEARCH`, `CREAO_APP_ID_CFO`, `CREAO_APP_ID_AUDITOR`, `FACTORY_API_KEY`, `ASI1_API_KEY`, `ASI1_MODEL`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `FRONT_DESK_SEED`, `BUYER_AGENT_SEED`, `AGENTVERSE_API_KEY`, `FORGE_DEMO_PAY`, `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`.
+Copy [`.env.example`](.env.example) to `.env` and fill in test keys made for this project. Never commit `.env`.
+
+| Configuration | Variables |
+| --- | --- |
+| Database and worker identities | `SPACETIME_HOST`, `SPACETIME_DB`, `SPACETIME_TOKEN_FRONT_DESK`, `SPACETIME_TOKEN_DROID_RUNNER`, `SPACETIME_TOKEN_CANARY` |
+| Retrieval | `BRIGHTDATA_API_KEY`, `BRIGHTDATA_UNLOCKER_ZONE`, `BRIGHTDATA_SERP_ZONE`, `BRIGHTDATA_BROWSER_WSS` |
+| Actor execution | `APIFY_TOKEN`, `APIFY_USERNAME` |
+| CREAO seats | `CREAO_API_KEY`, `CREAO_APP_ID_COO`, `CREAO_APP_ID_RESEARCH`, `CREAO_APP_ID_CFO`, `CREAO_APP_ID_AUDITOR` |
+| Engineering | `FACTORY_API_KEY` |
+| Models | `ASI1_API_KEY`, `ASI1_MODEL`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` |
+| Fetch identities and discovery | `FRONT_DESK_SEED`, `BUYER_AGENT_SEED`, `AGENTVERSE_API_KEY` |
+| Test payments | `FORGE_DEMO_PAY`, `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY` |
 
 ```sh
 pnpm install
@@ -267,40 +332,31 @@ uv run --env-file ../.env python -m buyer.agent "I'd like to buy open-roles for 
 
 Module env values are declared in the schema and supplied at publish time (`KEY=… spacetime publish`). A reset with `--delete-data=always` wipes them. `FORGE_DEMO_PAY=true` turns on the labeled SIMULATED PAYMENT shortcut; `.env.example` leaves it off ([docs/demo.md](docs/demo.md)).
 
+Backend changes require direct checks against real reducers, routes, Actors, or agent APIs. Unit tests cover pure logic but do not replace those integration checks. Frontend changes require a real browser interaction and screenshot. Tier 1 versions require fixture, contract, and live-page tests. Run catalog canaries before and after merges, and commit each major feature only after its checks pass.
+
 ## Failure recovery
 
-The dispatch schedule checks old CREAO runs for missed webhooks. An undecided task gets one additional run; a second undecided run fails it and refunds eligible paid orders. Runs time out after 15 minutes. Start failures retry at least 30 seconds apart and stop after five minutes. Customer-order tasks take priority over compile reviews. Founder rescue refuses work still in flight. A delivered order needs a rejected challenge refund before a refund can be requested again.
+The dispatcher checks old CREAO runs for missed webhooks. An undecided task gets one additional run; a second undecided run fails it and refunds eligible paid orders. Runs time out after 15 minutes. Start failures retry at least 30 seconds apart and stop after five minutes. Customer-order tasks take priority over compile reviews.
 
-These changes were deployed to Maincloud from source commit `8bb3ef4`; [release evidence](docs/proof/maincloud-release-20261025.json) confirms the no-reset publish preserved orders and books. Front Desk is running and the refreshed laptop dashboard is LIVE. A complete ASI:One smoke test remains a release check.
+Founder rescue refuses work still in flight. A refund for a delivered order must follow the challenge path. If a challenge refund was declined, the founder can request it again without changing the ruling. All refunds remain TEST MODE ledger credits.
 
-## Not built
+Use the [recovery runbook](docs/demo.md#recover-a-stalled-order) for operational steps. Before a production publish, confirm that no work is in flight, build and test, publish without deleting data, and verify that orders and accounting are preserved.
 
-These were cut (AGENTS.md §12) or are not finished:
+## Repository layout
 
-- Coinbase x402 pay-per-call.
-- The CFO's scheduled daily report.
-- The `coverage`, `format` and `enhancement` ticket labels.
-- Browser API runs. The rung is in the ladder code, but no live fetch has used it (0 Browser API rows in `evidence`).
-- Company-wide Time Machine. The per-order replay bar is built and labeled REPLAY; Engineering shows ticket #6 with RECORDED timestamps.
-- A Books tab. Revenue and cost per call are in the header and the catalog.
-- A dataset QR code.
-- Proactive status messages in ASI:One. ASI:One did not display a follow-up the agent sent 69 s after the quote (AGENTS.md §14), so customers send `status`.
-
-## Repo layout
-
-| Path | What |
-|---|---|
-| `module/` | SpacetimeDB module (TypeScript): tables, reducers, procedures, routes |
-| `web/` | Founder dashboard (Vite, React, generated SpacetimeDB bindings) |
-| `workers/droid-runner/` | Claims compile tasks and drives a locked Droid session |
-| `workers/canary/` | Scripted end-to-end order on each seeded API |
-| `fetch-agents/front_desk/` | Front Desk uAgent (Python, uv) |
+| Path | Contents |
+| --- | --- |
+| `module/` | SpacetimeDB tables, reducers, procedures, schedules, and routes |
+| `web/` | Founder dashboard and generated database bindings |
+| `workers/droid-runner/` | Task claims, restricted Droid sessions, tests, and approved ships |
+| `workers/canary/` | Catalog seeding and end-to-end API checks |
+| `fetch-agents/front_desk/` | Customer-facing uAgent |
 | `fetch-agents/buyer/` | Independent buyer uAgent |
 | `actors/forge-extract/` | Tier 0 generic Actor |
-| `actors/template/` | Tier 1 template; only `extract(page)` is empty |
-| `actors/open-roles/` | Compiled Tier 1 Actor, shipped as v1.0 |
-| `actors/gpu-listings/` | Output of an earlier Droid compile run; not shipped, `gpu-listings` is sold as Tier 0 |
-| `skills/forge-cli/` | Zero-dependency CLI and SKILL.md for the CREAO agents |
-| `docs/` | Build contract inputs, CREAO prompts, proof records, compile proof, demo walkthrough |
+| `actors/template/` | Shared Tier 1 runtime and empty extractor template |
+| `actors/open-roles/` | Shipped deterministic extractor |
+| `actors/gpu-listings/` | Earlier compile output; catalog sales still use Tier 0 |
+| `skills/forge-cli/` | Dependency-free CLI and CREAO skill instructions |
+| `docs/` | Product references, agent prompts, specifications, operations, and historical records |
 
-The build contract is [AGENTS.md](AGENTS.md).
+[AGENTS.md](AGENTS.md) defines the maintenance rules. New ideas belong in [after-hackathon.md](docs/after-hackathon.md). Sponsor references are linked in each integration section above. Event track criteria are in the [Cal Hacks hacker guide](https://docs.google.com/document/d/1RQrueC9wm5u8uxtWSC2gadIchp05hVayhGUrIjxT9dE/edit?tab=t.0).

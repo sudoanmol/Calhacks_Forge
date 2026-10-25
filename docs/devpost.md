@@ -92,7 +92,7 @@ TypeScript, Node.js, Python, pnpm, uv, SpacetimeDB (Maincloud), CREAO, Factory D
 - [ ] CREAO share links for a COO, a Research and an Auditor run (no `run` row has a share URL yet). The CFO share link expires November 23, 2026.
 - [ ] Verify the committed Front Desk README/badges render on Agentverse; complete ASI:One submission registration.
 - [ ] `forge-extract` Actor link and Apify Store listing; verify the Best Use entry.
-- [ ] Student eligibility (AGENTS.md §14 says it is not confirmed).
+- [ ] Student eligibility under the event rules; the original planning notes did not confirm it.
 - [x] Curated local QA screenshots are committed and linked from the unified audit task.
 - [ ] Capture and upload real ASI:One customer journey screenshots for the Devpost gallery. Local QA screenshots are labeled as such.
 - [x] `docs/after-hackathon.md` entries for "What's next".

@@ -23,7 +23,7 @@ Catalog carousel and challenge form are implemented with bounded payloads, sende
 
 ## Founder actions
 
-The hackathon audit §0 explicitly reserves Maincloud publishing, repository visibility/push, hosting, public CREAO shares, ASI:One registration and videos for the founder. All changes and commands will be prepared first. Refund approvals continue exclusively through the dashboard founder identity, per AGENTS.md §2.7. No audit checkbox counts as a live proof without a recorded check.
+The hackathon audit §0 explicitly reserves Maincloud publishing, repository visibility/push, hosting, public CREAO shares, ASI:One registration and videos for the founder. All changes and commands will be prepared first. Refund approvals continue exclusively through the dashboard founder identity, per the [founder approval rules](../AGENTS.md#authority-secrets-and-money). No audit checkbox counts as a live proof without a recorded check.
 
 
 ## Verification on this branch
@@ -63,7 +63,7 @@ These images show SIMULATED QA on a local scratch database, not real customer or
 
 ## Founder release tasks
 
-The user subsequently authorized deployment, Front Desk restart and dashboard reload. Those steps are complete below; other account and submission tasks remain open. AGENTS.md §2.7 still requires founder approvals through the dashboard identity.
+The user subsequently authorized deployment, Front Desk restart and dashboard reload. Those steps are complete below; other account and submission tasks remain open. The [founder approval rules](../AGENTS.md#authority-secrets-and-money) still require dashboard approval under the founder identity.
 
 1. Check current Maincloud state and vendor balances. The original audits' order counts, run counts, prices and snapshot ages are historical.
 2. DONE: published source commit `8bb3ef4` to Maincloud `forge` on October 25 at approximately 02:35 PDT, without a reset. The migration plan was empty. All 205 orders and the orders/books/refund/API/version/config rows were unchanged; books sum stayed zero. The schema remains 40 tables, with reducers increasing from 34 to 36. [Release evidence](proof/maincloud-release-20261025.json).

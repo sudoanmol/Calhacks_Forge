@@ -2,11 +2,11 @@
 
 **Branch:** `dashboard-redesign`. **Implementer:** the agent assigned to this spec. **Reviewer:** the agent that wrote it (reviews each step's commit, screenshots and `docs/progress.md` entry). **Scope:** `/web` only.
 
-This spec is binding for the dashboard. [AGENTS.md](../AGENTS.md) §8 was rewritten to match it; where this document and [astra-advice.md](astra-advice.md) differ, this document wins. Where this document and AGENTS.md §2 (rules) differ, §2 wins.
+Use this spec for dashboard behavior and design constraints, subject to the [maintenance rules](../AGENTS.md#non-negotiable-rules) and the current user task. The branch assignments, implementation sequence, and review handoffs below are historical. Replay controls have since shipped and must be preserved. This spec supersedes the earlier [dashboard advice](astra-advice.md).
 
 ## 0. Read first
 
-1. AGENTS.md §1–§3 (what the company is), §2 (rules), §5 (tables), §8 (dashboard contract), §9 (demo script).
+1. [Product and workflows](../README.md#how-the-agents-work), [maintenance rules](../AGENTS.md#non-negotiable-rules), and the current module schema and generated bindings.
 2. `web/src/App.tsx`, `Office.tsx`, `scene.ts`, `Floor.tsx`, `Drawer.tsx`, `Detail.tsx`, `Events.tsx`, `Engineering.tsx`, `Controls.tsx`, `Apis.tsx`, `styles.css`. About 90 KB total. `scene.ts` is the pure projection from rows to station states; keep it pure.
 3. The live database is `forge` on Maincloud. The dashboard dev server is usually running at `http://localhost:5180` (`pnpm -C web dev`). Read-only SQL for exploring data: `curl -s -X POST https://maincloud.spacetimedb.com/v1/database/forge/sql -H 'Content-Type: text/plain' --data "SELECT kind, payload FROM event"`. Column names come back snake_case.
 4. Headcount:1, the LA Hacks 2026 winner of the same CREAO track, for the density target only: https://devpost.com/software/headcount-1 (six screenshots). We borrow its three-level information density, its avatar identity, its org chart with counted handoffs, and its honesty labels. We do not borrow its pixel town, its replay-only demo, or its in-world clock.
@@ -27,7 +27,7 @@ Three levels of detail, always:
 
 ## 2. Rules that bind this work
 
-From AGENTS.md §2, restated for the UI:
+From the [maintenance rules](../AGENTS.md#non-negotiable-rules), restated for the UI:
 
 - Never fake anything. Every number, sentence and state renders from stored rows. No invented reasoning, no "success" inferred from activity, no staged failures.
 - Labels: money is **TEST MODE** everywhere it appears. Simulated payments are **SIMULATED PAYMENT**. Recorded history is **RECORDED** with its own timestamps. A client-side replay, if built, is **REPLAY**. Scripted traffic is **TEST TRAFFIC**.
@@ -46,7 +46,7 @@ From AGENTS.md §2, restated for the UI:
 
 **Add:** order headline, order-scoped feed with sentences, Needs-you rail with plain-language approval cards, Org chart view with counted handoffs, Engineering recorded timeline, Controls modal, role avatars, decision cards in drawers, dataset QR code (last).
 
-**Out of scope:** a floor replay with scrubber (AGENTS.md §12 item 7: a plain recorded list is enough), founder messaging to agents, a Books tab, sound, new animations beyond the existing packet and pulses, any backend change.
+**Out of scope for the original redesign:** founder messaging to agents, a Books tab, sound, new animations beyond the existing packet and pulses, any backend change.
 
 ## 4. Terms and scoping rules
 
@@ -426,7 +426,7 @@ For the reviewer, after each step: the commit hash, the screenshots, the `docs/p
 
 Append here as you go. Known at handoff:
 
-1. AGENTS.md §9 says the replay centerpiece is the `gpu-listings` compile; the real compile is `open-roles` (ticket #6). The founder should update §9. The Engineering timeline of ticket #6 is that centerpiece.
+1. Resolved: the recorded compile is `open-roles`, ticket #6. Preserve its Engineering timeline; the old `gpu-listings` demo plan is historical.
 2. The `agent1q` rule for real orders is a convention, not a stored flag. If the Front Desk ever registers a customer with another prefix, the filter must be revisited. A stored `source` on `customer` would be the additive fix after the hackathon.
 3. `Agent decisions : Founder approvals` counts events, not unique decisions; a rework counts twice (rejected then accepted). State this in the tooltip.
 4. **Scoping `approval_*` events** (found Oct 24 19:15 PT while computing the §6.11 counts). These events are `refType=approval`, so the §4 rule treats them as company-level and the real-order view would count all 10 approvals, 7 of which belong to retired `cmp-test-*` compiles or test-order refunds. Scope them through the payload instead: `ticketId` → the ticket's API is not retired (covers `api_ship`, `spend_over_cap`, `droid_action`); `refundId` → the refund's order is real (needs `tables.refund`). With that rule the real-order header pair is **16 : 1** (16 agent decisions; 1 founder approval, #10, the open-roles ship) and all-traffic is **200 : 10**. State the scope in the tooltip as §6.1 says.

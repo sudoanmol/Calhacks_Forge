@@ -4,7 +4,7 @@ Binding for the worker that implements it. `AGENTS.md` wins where they conflict.
 
 ## 0. Read first
 
-- `AGENTS.md` §2 (rules 1–3, 6–8, 11, 13, 15, 16), §3 "Addition 2", §5 (Treasurer reducers, `refund`, `approval(refund_over_limit)`), §10.
+- [Maintenance rules](../AGENTS.md#non-negotiable-rules), [verification requirements](../AGENTS.md#verification), and [challenge behavior](../README.md#challenges-and-accountability). Read current Treasurer and refund operation signatures from the module.
 - `module/src/index.ts`: `record_payment` (~L881), `coo_decide` (~L933), `audit_verdict` (~L963), the challenge refund block in `challenge_verdict` (~L1085–1105), `decide_approval` for `refund_over_limit` (~L1153), `failOrder` (~L1411) and its callers (`start_api_run` ~L1437–1476, `ingest` ~L1637, `create_apify_task` ~L2283), the admission catch block (~L2090), `setOrder`, `postTx`, `logEvent`, `cfgInt`.
 - `module/test/challenge.test.mjs` (tests 145 and 181 exercise the refund path; copy their shape), `module/test/client.mjs`, `module/test/orders.test.mjs`.
 - `fetch-agents/front_desk/status.py`, `fetch-agents/front_desk/stdb.py` (`refunds_for_challenge`), `fetch-agents/tests/test_status.py`.

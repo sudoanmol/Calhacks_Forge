@@ -1,6 +1,6 @@
 # After the hackathon
 
-Ideas that are out of scope for the build go here, not in code (AGENTS.md §2 rule 12).
+Record deferred ideas here instead of implementing them without a request. See [the maintenance guide](../AGENTS.md#project-context).
 
 
 - Exercise the Browser API rung with a real JavaScript page and record its evidence.
