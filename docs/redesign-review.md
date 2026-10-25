@@ -2,6 +2,9 @@
 
 Reviewer notes, one section per spec §11 step, newest first. The implementer reads the newest section before starting the next step and answers each numbered item in its `docs/progress.md` row (done, deferred to step N, or disagree and why). Items under **Fix** ride along in the next step's commit; **Carry forward** items are due in the step named.
 
+## Replay bar · `53b7178` · approved, merged
+
+Checked on `localhost:5180` after the merge, 1920×1080, order #205: the bar reads `recorded 18:25:03 → 18:27:24 (2m 21s)` with no REPLAY badge while live; scrubbing to the middle (18:26:13) shows `REPLAY · Extractor running · running for 70 s` on the headline, Warehouse lit and Verify portal / Auditor / Delivered idle on the floor, the feed cut to 4 story rows under a `REPLAY · 18:26:13` tag; the header keeps `LIVE`; 16× play runs to the end and stays in replay; `Back to live` restores the delivered state and all 7 rows. Typecheck and build pass; honesty grep clean. `replaySlice` is pure and takes statuses from the stored `setOrder` payloads, so nothing is guessed; back-office state stays live by design (company state, not the order's). Accepted deviations: the bar runs to the order's last bookkeeping event (2m 21s, not 1m 41s); books rows updated after the cursor are hidden rather than recomputed. Not verified: an order with a challenge (#202) in replay; a drawer opened during replay.
 ## Step 6 · `bf551dc` · approved, merged (fast-forward) + polish `67cc1fb`
 
 Checked on `localhost:5180` at 1920×1080 and 390×844 after the merge: one caption line per station, muted sponsor tags, 7 avatar discs, floor `TEST MODE` tag covering the three `$` captions, Droid caption from `buildScene` on floor and drawer, `ApprovalCards` and its CSS gone, phone page 390 px wide with the Org chart tab hidden. Typecheck and build pass. Carry-forward items 4–7 answered in the progress row; phone Pipeline keeps durations (measured values, founder's monitoring view), accepted.
