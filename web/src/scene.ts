@@ -1,6 +1,6 @@
 import type { Timestamp } from 'spacetimedb';
 import type {
-  Api, ApiVersion, Approval, Bonus, Books, Budget, Challenge, Customer, Event, Evidence, GateCheck, Orders, Run, RunCost, Task, Ticket, ValueRecord,
+  Api, ApiVersion, Approval, Bonus, Books, Budget, Challenge, CompileJob, Customer, Event, Evidence, GateCheck, Orders, Run, RunCost, Task, Ticket, ValueRecord,
 } from './module_bindings/types';
 import { micros, payloadObj, usd } from './format';
 
@@ -276,4 +276,34 @@ function lastLit(st: Record<StationId, StationView>): FlowId {
   let last: FlowId = 'customer';
   for (const id of FLOW) if (st[id].state !== 'idle' && st[id].state !== 'skipped') last = id;
   return last;
+}
+
+const BUILDING = new Set(['compiling', 'auditing', 'rework']);
+const WAITING_FOUNDER = new Set(['awaiting_approval', 'ship_pending']);
+const DAY_MICROS = 86_400_000_000n;
+
+// The Droid station reads the compile jobs of live APIs, not task rows: a job's status says whether Droid is building,
+// blocked on the founder or on the cap, or has nothing queued.
+export function droidStationView(jobs: readonly CompileJob[], apiName: (apiId: bigint) => string | undefined, retired: ReadonlySet<bigint>): StationView {
+  const live = jobs.filter((j) => !retired.has(j.apiId)).sort((a, b) => (a.ticketId > b.ticketId ? -1 : 1));
+  const name = (j: CompileJob) => apiName(j.apiId) ?? `API ${j.apiId}`;
+  const building = live.find((j) => BUILDING.has(j.status) || j.status === 'shipping');
+  if (building) {
+    if (building.status === 'shipping') return { id: 'droid', state: 'working', caption: `Publishing ${name(building)}`, detail: `Publishing ${name(building)} to Apify`, start: building.updatedAt };
+    const n = building.status === 'rework' ? building.attempt + 1 : building.attempt;
+    const caption = `Building ${name(building)} · attempt ${n}`;
+    return { id: 'droid', state: 'working', caption, detail: `${caption} (compile ticket #${building.ticketId}, ${building.status.replace(/_/g, ' ')})`, start: building.updatedAt };
+  }
+  const founder = live.find((j) => WAITING_FOUNDER.has(j.status));
+  if (founder) return { id: 'droid', state: 'waiting', caption: 'Waiting for founder approval', detail: `Compile ticket #${founder.ticketId} for ${name(founder)}: ${founder.status === 'ship_pending' ? 'publish' : 'spend over the cap'} approval pending` };
+  const blocked = live.find((j) => j.status === 'ineligible');
+  if (blocked) return { id: 'droid', state: 'waiting', caption: 'Blocked: over the engineering cap', detail: `Compile ticket #${blocked.ticketId} for ${name(blocked)} no longer fits the engineering cap` };
+  const queued = live.filter((j) => j.status === 'queued');
+  if (queued.length) return { id: 'droid', state: 'waiting', caption: `${queued.length} build${queued.length === 1 ? '' : 's'} queued`, detail: queued.map((j) => `#${j.ticketId} ${name(j)}`).join(', ') };
+  return { id: 'droid', state: 'idle', caption: 'No engineering queued' };
+}
+
+// The Droid → Warehouse pipe lights while a compiled version is being published and for a day after it ships.
+export function shipPipeLit(jobs: readonly CompileJob[], retired: ReadonlySet<bigint>, nowMicros: bigint): boolean {
+  return jobs.some((j) => !retired.has(j.apiId) && (j.status === 'shipping' || (j.status === 'shipped' && nowMicros - micros(j.updatedAt) < DAY_MICROS)));
 }
