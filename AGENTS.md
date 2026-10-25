@@ -1,6 +1,4 @@
-# AGENTS.md (v2, two-tier general APIs): FORGE build contract
-
-> **Draft alternative to `AGENTS.md` (v1, fixed company-intel domain).** If v2 is adopted, it replaces `AGENTS.md` and v1 is deleted. Reasoning: `docs/generalized-plan.html` and `docs/sponsor-impact.html`.
+# AGENTS.md: FORGE build contract
 
 Every coding agent working in this repo reads this file before writing code. If it conflicts with anything else, this file wins.
 
