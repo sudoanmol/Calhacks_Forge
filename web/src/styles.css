@@ -243,3 +243,38 @@ button:disabled, input:disabled { opacity: .5; cursor: default; }
   .chip { width: 180px; }
   .drawer { position: fixed; top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 78vh; border-left: none; border-top: 2px solid var(--ember); border-radius: 14px 14px 0 0; }
 }
+
+/* Step 3: org chart */
+.org { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
+.org-canvas { flex: 1; min-height: 0; display: flex; }
+.org-svg { width: 100%; height: 100%; display: block; }
+.org-node { cursor: pointer; outline: none; }
+.org-node-box { fill: #211e19; stroke-width: 2; }
+.org-node:hover .org-node-box, .org-node:focus-visible .org-node-box { fill: #2a251e; stroke-width: 3.5; }
+.org-node.on .org-node-box { stroke-width: 4; }
+.org-footer { fill: #1c1915; stroke-dasharray: 6 6; }
+.org-initials { font-size: 12px; font-weight: 800; }
+.org-name { fill: #fff6e6; font-size: 21px; font-weight: 800; }
+.org-resp { fill: #c9c2b5; font-size: 14.5px; }
+.org-chip { font-size: 12.5px; font-weight: 700; }
+.org-status { fill: #a39d92; font-size: 14px; }
+.org-count { fill: #fff4dc; font-weight: 800; font-variant-numeric: tabular-nums; }
+.org-edge { cursor: pointer; outline: none; }
+.org-edge-hit { fill: none; stroke: transparent; stroke-width: 18; }
+.org-edge-line { fill: none; stroke: #a39d92; stroke-width: 2.2; }
+.org-edge-label { fill: #d6cfc2; font-size: 15px; paint-order: stroke; stroke: #1a1815; stroke-width: 5px; stroke-linejoin: round; }
+.org-edge-count { fill: #fff4dc; font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.org-edge-sub { fill: #a39d92; font-size: 13px; }
+.org-edge.zero { opacity: 0.32; }
+.org-edge:hover .org-edge-line, .org-edge:focus-visible .org-edge-line, .org-edge.on .org-edge-line { stroke: var(--ember); stroke-width: 3.5; }
+.org-edge:hover, .org-edge:focus-visible, .org-edge.on { opacity: 1; }
+.org-foot { display: flex; justify-content: space-between; gap: 12px; align-items: center; font-size: 13px; flex: none; }
+.org-card { position: absolute; top: 0; right: 0; bottom: 0; width: min(520px, 46%); background: #1c1915; border-left: 2px solid var(--ember); box-shadow: -18px 0 40px rgba(0, 0, 0, 0.55); padding: 16px 18px; overflow: auto; z-index: 5; border-radius: 0 10px 10px 0; }
+.org-card header { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.org-card h2 { font-size: 20px; margin: 0; display: flex; gap: 8px; align-items: center; }
+.org-card .close { background: none; border: 1px solid var(--line); color: var(--ink); border-radius: 6px; width: 34px; height: 34px; cursor: pointer; font-size: 16px; flex: none; }
+.org-card-resp { margin: 8px 0 0; font-size: 14.5px; color: #ddd6c9; }
+.org-chip-html { border: 1px solid; border-radius: 10px; padding: 0 8px; font-size: 12.5px; font-weight: 700; }
+.org-events { flex: none; overflow: visible; }
+.org-events .feed-row { animation: none; }
+.org-go { margin-top: 12px; background: var(--panel2); color: var(--ink); border: 1px solid var(--ember); border-radius: 6px; padding: 7px 12px; font: inherit; cursor: pointer; }
