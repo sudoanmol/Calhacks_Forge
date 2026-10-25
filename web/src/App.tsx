@@ -7,8 +7,10 @@ import { OfficeTab } from './Office';
 import { microsUsd } from './scene';
 import { ApisTab } from './Apis';
 import { EventsPanel } from './Events';
+import { ApprovalCards, ControlsTab } from './Controls';
+import { EngineeringTab } from './Engineering';
 
-const TABS = ['Office', 'APIs'] as const;
+const TABS = ['Office', 'APIs', 'Controls', 'Engineering'] as const;
 type Tab = (typeof TABS)[number];
 const CHECKED = new Set(['verified', 'stale', 'mismatch', 'unverifiable', 'corrected']);
 
@@ -55,17 +57,22 @@ function Stats({ db }: { db: string }) {
 
 export function App({ db }: { db: string }) {
   const [tab, setTab] = useState<Tab>('Office');
+  const connection = useSpacetimeDB();
+  const [staff] = useTable(tables.staff);
+  const identity = connection.identity;
+  const founder = connection.isActive && identity !== undefined && staff.some((s) => s.role === 'founder' && s.identity.isEqual(identity));
   return (
     <div className="app">
       <Stats db={db} />
       <main>
         <section className="panel mainpanel">
+          <ApprovalCards founder={founder} />
           <nav className="tabs">
             {TABS.map((t) => (
               <button key={t} className={t === tab ? 'on' : ''} onClick={() => setTab(t)}>{t}</button>
             ))}
           </nav>
-          {tab === 'Office' ? <OfficeTab /> : <ApisTab />}
+          {tab === 'Office' ? <OfficeTab /> : tab === 'APIs' ? <ApisTab /> : tab === 'Controls' ? <ControlsTab founder={founder} /> : <EngineeringTab founder={founder} />}
         </section>
         <EventsPanel />
       </main>

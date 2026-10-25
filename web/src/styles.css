@@ -44,6 +44,23 @@ th { font-weight: 600; color: var(--muted); }
 .tabs button { background: none; border: none; color: inherit; padding: 8px 16px; font-size: 16px; cursor: pointer; opacity: 0.6; border-bottom: 3px solid transparent; }
 .tabs button.on { opacity: 1; border-bottom-color: var(--ember); font-weight: 700; }
 
+.approval-cards:empty { display: none; }
+.approval-cards { flex: none; max-height: 35vh; overflow: auto; }
+.approval-card { border: 1px solid var(--gold); border-radius: 8px; padding: 10px; margin-bottom: 10px; background: var(--panel2); }
+.approval-card h3 { margin-top: 0; }
+.approval-card pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+.control-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.control-row label { min-width: 220px; flex: 1; overflow-wrap: anywhere; }
+.control-row input { min-width: 80px; flex: 1; }
+.control-row p { flex-basis: 100%; margin: 0; }
+.control-row input, .control-row button, .approval-card button { background: var(--panel2); color: var(--ink); border: 1px solid var(--line); border-radius: 5px; padding: 7px 10px; font: inherit; }
+.control-row button, .approval-card button { cursor: pointer; border-color: var(--ember); }
+button:disabled, input:disabled { opacity: .5; cursor: default; }
+.engineering details { border: 1px solid var(--line); border-radius: 5px; padding: 8px; margin: 7px 0; }
+.engineering summary { cursor: pointer; overflow-wrap: anywhere; }
+.engineering pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+.engineering select { background: var(--panel2); color: var(--ink); padding: 7px; max-width: 100%; }
+
 .status { padding: 1px 9px; border-radius: 10px; background: #3a3126; font-weight: 600; font-size: 12.5px; white-space: nowrap; }
 .s-delivered { background: #1f6f3f; }
 .s-failed, .s-rejected, .s-rejected_at_desk, .s-audit_rejected { background: #8a2f26; }
