@@ -7,12 +7,14 @@ import { clock, list, payloadObj, short, usd } from './format';
 import { microsUsd } from './scene';
 import { runLink } from './feedText';
 import { Avatar } from './Avatar';
+import { DroidConsole, PatchView } from './DroidConsole';
 import {
-  attemptTests, buildTimeline, compileCost, compileStatusSentence, MESSAGE_KINDS, MONEY_STATUSES, toolChips, triggerSummary,
+  buildTimeline, compileCost, compileStatusSentence, MESSAGE_KINDS, MONEY_STATUSES, toolChips, triggerSummary,
   type Attempt, type Timeline,
 } from './engText';
 
 const RECORDED = new Set(['shipped', 'failed', 'closed']);
+const LIVE_BUILD = new Set(['compiling', 'rework']);
 const CLOSABLE = new Set(['awaiting_cfo', 'awaiting_approval', 'queued', 'ineligible', 'auditing', 'rework', 'ship_pending']);
 
 const str = (v: unknown) => (v === undefined || v === null ? '' : typeof v === 'string' ? v : JSON.stringify(v));
@@ -83,6 +85,7 @@ export function EngineeringTab({ founder, jobId, onJob }: Props) {
         </Step>}
         {timeline.attempts.map((a) => (
           <AttemptStep key={a.n} a={a} auditRun={runOfTask(a.auditTaskId)}
+            live={LIVE_BUILD.has(job.status) && a === timeline.attempts.at(-1)}
             diff={a.verdict?.kind === 'compile_accepted' || (!timeline.attempts.some((x) => x.verdict?.kind === 'compile_accepted') && a === timeline.attempts.at(-1)) ? job.testResults : undefined}
             diffLabel={a.verdict?.kind === 'compile_accepted' ? 'Extractor diff' : 'Latest submitted diff'} />
         ))}
@@ -259,17 +262,20 @@ function CostStep({ cost }: { cost: ReturnType<typeof compileCost> }) {
   </Step>;
 }
 
-function AttemptStep({ a, auditRun, diff, diffLabel }: { a: Attempt; auditRun: Run | undefined; diff?: string; diffLabel: string }) {
-  const tests = attemptTests(a);
-  const chips = toolChips(a);
-  const messages = a.events.filter((e) => MESSAGE_KINDS.has(e.kind));
-  const prompts = a.events.filter((e) => e.kind === 'droid_prompt');
+// Rendered by the Droid console; everything else in the attempt stays a timeline line.
+const CONSOLE_KINDS = new Set(['droid_session_created', 'droid_session_resumed', 'droid_compile_started', 'droid_fixtures_written', 'droid_rework_started',
+  'droid_harness_updated', 'droid_prompt', 'droid_tool_decision', 'droid_tests', 'droid_files_changed', 'droid_compile_finished', ...MESSAGE_KINDS]);
+
+function AttemptStep({ a, auditRun, diff, diffLabel, live }: { a: Attempt; auditRun: Run | undefined; diff?: string; diffLabel: string; live: boolean }) {
+  const [replaying, setReplaying] = useState(false);
+  // Founder approvals for off-list commands are approval rows, not tool decisions; they keep their chips.
+  const chips = toolChips(a).filter((c) => c.key.startsWith('a'));
+  const consoleEvents = a.events.filter((e) => CONSOLE_KINDS.has(e.kind));
   const files = a.events.filter((e) => e.kind === 'droid_files_changed').flatMap((e) => {
     const f = payloadObj(e.payload).files;
     return Array.isArray(f) ? f.map(String) : [];
   });
-  const finished = a.events.filter((e) => e.kind === 'droid_compile_finished');
-  const shown = new Set(['droid_tool_decision', 'droid_tests', 'droid_prompt', 'droid_files_changed', 'droid_compile_finished', 'compile_submitted', 'compile_rejected', 'compile_accepted', 'approval_requested', 'approval_approved', 'approval_rejected', ...MESSAGE_KINDS]);
+  const shown = new Set([...CONSOLE_KINDS, 'compile_submitted', 'compile_rejected', 'compile_accepted', 'approval_requested', 'approval_approved', 'approval_rejected']);
   const verdict = a.verdict;
   const vp = verdict ? payloadObj(verdict.payload) : {};
   const accepted = verdict?.kind === 'compile_accepted';
@@ -284,25 +290,15 @@ function AttemptStep({ a, auditRun, diff, diffLabel }: { a: Attempt; auditRun: R
   return <Step kind="attempt" title={`Attempt ${a.n}`} at={a.events[0]?.at} actor="droid" outcome={outcome}>
     <div data-testid={`attempt-${a.n}`}>
       {a.events.filter((e) => !shown.has(e.kind)).map((e) => <AttemptLine key={String(e.id)} e={e} />)}
-      {prompts.map((e) => <details key={String(e.id)} className="eng-expand"><summary>Prompt sent to Droid · {clock(e.at)}</summary><pre>{str(payloadObj(e.payload).text)}</pre></details>)}
-      {chips.length > 0 && <div className="eng-row"><span className="eng-label">Tool calls</span>
+      <DroidConsole events={consoleEvents} live={live} onReplayChange={setReplaying} />
+      {!replaying && <>
+      {chips.length > 0 && <div className="eng-row"><span className="eng-label">Founder decisions</span>
         <span className="eng-chips">{chips.map((c) => (
           <span key={c.key} className={`tool-chip o-${c.outcome}`} title={c.tip} tabIndex={0} aria-label={`${c.tool} ${c.outcome}. ${c.tip}`}>
             {c.outcome === 'auto-allowed' ? '✓' : c.outcome === 'denied' ? '✕' : c.outcome === 'founder-approved' ? '★' : '!'} {c.tool} · {c.outcome}
           </span>
         ))}</span>
       </div>}
-      {files.length > 0 && <div className="eng-row"><span className="eng-label">Files changed</span><code>{[...new Set(files)].join(', ')}</code></div>}
-      {tests.length > 0 && <div className="eng-row eng-tests"><span className="eng-label">Tests</span>
-        <span className="eng-test-list">{tests.map((t) => (
-          <details key={t.name} className={`eng-test ${t.ok === true ? 't-ok' : t.ok === false ? 't-bad' : ''}`} data-testid={`test-${a.n}-${t.name}`}>
-            <summary>{t.label}{t.ms !== undefined ? ` · ${t.ms < 1000 ? `${t.ms} ms` : `${(t.ms / 1000).toFixed(1)} s`}` : ''}</summary>
-            <pre>{t.output}</pre>
-          </details>
-        ))}</span>
-      </div>}
-      {messages.length > 0 && <Messages events={messages} />}
-      {finished.map((e) => <AttemptLine key={String(e.id)} e={e} />)}
       {a.submitted && <Line e={a.submitted} actor={a.submitted.actor} failure={sp.passed === false}>
         Submitted for audit: tests {sp.passed === true ? 'passed' : 'failed'}
       </Line>}
@@ -314,9 +310,11 @@ function AttemptStep({ a, auditRun, diff, diffLabel }: { a: Attempt; auditRun: R
         </div>
         <blockquote className="eng-quote">{str(vp.reason) || 'no reason recorded'}</blockquote>
       </div>}
-      {diff !== undefined && diffText && <details className="eng-expand eng-diff" data-testid={`diff-${a.n}`}>
-        <summary>{diffLabel} · {diffFiles.join(', ')}</summary><pre>{diffText}</pre>
-      </details>}
+      {diff !== undefined && diffText && <div className="eng-diff" data-testid={`diff-${a.n}`}>
+        <h4 className="eng-diff-title">{diffLabel} · {diffFiles.join(', ')}</h4>
+        <PatchView patch={diffText} />
+      </div>}
+      </>}
     </div>
   </Step>;
 }
@@ -353,21 +351,4 @@ function AttemptLine({ e }: { e: Event }) {
     case 'compile_failed': return <Line e={e} actor={e.actor} failure>Build failed: {str(p.reason)}</Line>;
     default: return <Line e={e} actor={e.actor}>{e.kind.replace(/^droid_/, '').replace(/_/g, ' ')}<RawEvent e={e} /></Line>;
   }
-}
-
-function Messages({ events }: { events: Event[] }) {
-  const types = new Map<string, number>();
-  for (const e of events) {
-    const t = str(payloadObj(e.payload).type) || e.kind.replace(/^droid_/, '');
-    types.set(t, (types.get(t) ?? 0) + 1);
-  }
-  return <details className="eng-expand" data-testid="droid-messages">
-    <summary>{events.length} Droid message{events.length === 1 ? '' : 's'} · {[...types].map(([t, n]) => `${n} ${t.replace(/_/g, ' ')}`).join(', ')}</summary>
-    <ol className="eng-msgs">{events.map((e) => {
-      const p = payloadObj(e.payload);
-      const label = str(p.name) || str(p.toolName);
-      const body = str(p.text) || (p.input !== undefined ? str(p.input) : '') || str(p.content);
-      return <li key={String(e.id)}><span className="eng-time">{clock(e.at)}</span> <b>{str(p.type) || e.kind}</b>{label && ` · ${label}`}{str(p.outcome) && ` · ${str(p.outcome)}`}{body && <span className="muted"> · {body.length > 220 ? `${body.slice(0, 219)}…` : body}</span>}</li>;
-    })}</ol>
-  </details>;
 }

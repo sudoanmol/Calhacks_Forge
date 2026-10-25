@@ -151,31 +151,6 @@ export function buildTimeline(job: CompileJob, all: readonly Event[], tasks: rea
   return tl;
 }
 
-export type TestView = { name: string; status: string; label: string; ok: boolean | undefined; ms?: number; output: string };
-
-// `fixtures ✓ 1/1`, `live ✕ 1 failed`. Prefers the per-test droid_tests events; falls back to the tests map on compile_submitted.
-export function attemptTests(a: Attempt): TestView[] {
-  const fromEvents = a.events.filter((e) => e.kind === 'droid_tests').map((e) => {
-    const p = payloadObj(e.payload);
-    return testView(typeof p.test === 'string' ? p.test : 'test', p);
-  });
-  if (fromEvents.length) return fromEvents;
-  const tests = a.submitted ? payloadObj(a.submitted.payload).tests : undefined;
-  if (!tests || typeof tests !== 'object') return [];
-  return Object.entries(tests as Record<string, unknown>).map(([name, t]) => testView(name, t && typeof t === 'object' ? (t as Record<string, unknown>) : {}));
-}
-
-function testView(name: string, p: Record<string, unknown>): TestView {
-  const status = typeof p.status === 'string' ? p.status : 'unknown';
-  const pass = int(p.pass);
-  const fail = int(p.fail);
-  const ms = int(p.ms);
-  const output = typeof p.output === 'string' && p.output ? p.output : JSON.stringify(p, null, 2);
-  if (status === 'pass') return { name, status, ok: true, ms, output, label: `${name} ✓${pass !== undefined ? ` ${pass}/${pass + (fail ?? 0)}` : ''}` };
-  if (status === 'fail') return { name, status, ok: false, ms, output, label: `${name} ✕${fail ? ` ${fail} failed` : ' failed'}` };
-  return { name, status, ok: undefined, ms, output, label: `${name} · ${status.replace(/_/g, ' ')}` };
-}
-
 export type ToolChip = { key: string; tool: string; outcome: 'auto-allowed' | 'denied' | 'founder-approved' | 'needs-approval' | string; tip: string };
 
 // droid_tool_decision rows, plus droid_action approvals that the worker did not also log as a decision.
