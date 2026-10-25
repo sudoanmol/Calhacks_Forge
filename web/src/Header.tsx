@@ -8,7 +8,7 @@ import { useDecisionCounts } from './NeedsYou';
 
 const CHECKED = new Set(['verified', 'stale', 'mismatch', 'unverifiable', 'corrected']);
 
-export function Header({ scope, founder, onControls }: { scope: Scope; founder: boolean; onControls: () => void }) {
+export function Header({ scope, founder, onControls, replaying }: { scope: Scope; founder: boolean; replaying: boolean; onControls: () => void }) {
   const conn = useSpacetimeDB();
   const [books] = useTable(tables.books);
   const [values, heavyReady] = useTable(tables.valueRecord);
@@ -23,6 +23,8 @@ export function Header({ scope, founder, onControls }: { scope: Scope; founder: 
   const revenue = -books
     .filter((b) => b.account.startsWith('customer:') && visibleIds.has(b.account.slice('customer:'.length)))
     .reduce((s, b) => s + b.balanceCents, 0n);
+  const simulatedIds = new Set(visible.filter((o) => o.stripeSessionId.startsWith('demo-simulated:')).map((o) => String(o.id)));
+  const simulated = -books.filter((b) => b.account.startsWith('customer:') && simulatedIds.has(b.account.slice(9))).reduce((s, b) => s + b.balanceCents, 0n);
   const checked = values.filter((v) => CHECKED.has(v.status) && visibleIds.has(String(v.orderId)));
   const verified = checked.filter((v) => v.status === 'verified').length;
   const gone = new Set(retired.map((r) => r.apiId));
@@ -42,7 +44,7 @@ export function Header({ scope, founder, onControls }: { scope: Scope; founder: 
       </span>
       <span className="badge test">TEST MODE</span>
       <span className="stat-row" title={`Scope: ${scope.label}`}>
-        <span className="stat"><small>revenue · TEST MODE</small><b data-testid="stat-revenue">{usd(revenue)}</b></span>
+        <span className="stat" title="Payments minus ledger refunds on the visible orders, including orders still in progress. TEST MODE."><small>revenue · TEST MODE</small><b data-testid="stat-revenue">{usd(revenue)}</b>{simulated > 0n && <em>incl. {usd(simulated)} SIMULATED</em>}</span>
         <span className="stat"><small>verified</small><b>{!heavyReady ? '…' : checked.length ? `${Math.round((verified / checked.length) * 100)}%` : '—'} {heavyReady && <em>{verified}/{checked.length}</em>}</b></span>
         <span className="stat"><small>cost / call · TEST MODE</small><b>{lo === undefined ? '—' : lo === hi ? microsUsd(lo) : `${microsUsd(lo)}–${microsUsd(hi!)}`}</b></span>
         <span className="stat"><small>APIs for sale</small><b data-testid="stat-apis">{forSale}</b></span>
@@ -53,7 +55,7 @@ export function Header({ scope, founder, onControls }: { scope: Scope; founder: 
       </span>
       <span className="right">
         <span className={`conn-dot ${conn.isActive ? 'ok' : 'bad'}`} data-testid="conn" title={connText} aria-label={connText} role="img" />
-        <span className="badge live">LIVE</span>
+        <span className={`badge ${!conn.isActive ? 'offline' : replaying ? 'replay' : 'live'}`} data-testid="connection-mode">{!conn.isActive ? 'OFFLINE' : replaying ? 'REPLAY' : 'LIVE'}</span>
         {!founder && <span className="who" data-testid="who" title="This browser is not signed in as the founder, so approvals are read-only">Viewer · read-only</span>}
         <button className="gear" onClick={onControls} aria-label="Company rules" title="Company rules" data-testid="gear">⚙</button>
       </span>

@@ -12,6 +12,7 @@ import type { Scope } from './scope';
 import { orderAt, valuesAt } from './replay';
 
 const CHECKED = new Set(['verified', 'stale', 'mismatch', 'unverifiable', 'corrected']);
+const STALLED = new Set(['paid', 'triaging', 'researching', 'auditing']);
 const DEAD_PAID = new Set(['rejected', 'counteroffered', 'audit_rejected', 'failed']);
 
 export const STATUS_TEXT: Record<string, string> = {
@@ -35,6 +36,7 @@ export function OrderHero({ order: liveOrder, scope, founder, cursor = null }: {
   const [apis] = useTable(tables.api);
   const [allValues] = useTable(tables.valueRecord);
   const [customers] = useTable(tables.customer);
+  const [tasks] = useTable(tables.task);
   const [refunds] = useTable(tables.refund);
   const [allEvents] = useTable(tables.event);
   const refundOrder = useSpacetimeReducer(reducers.refundOrder);
@@ -59,13 +61,15 @@ export function OrderHero({ order: liveOrder, scope, founder, cursor = null }: {
     ? durationText(order.createdAt, last?.at ?? order.updatedAt)
     : durationText(order.createdAt, new Timestamp(BigInt(now) * 1000n));
   const elapsedText = terminal ? elapsed : order.status === 'quoted' ? `quoted ${elapsed} ago` : `running for ${elapsed}`;
-  // Refunds on the order as they stand now: a rejected (declined) refund does not count.
-  const orderRefunds = refunds.filter((r) => r.orderId === order.id && r.status !== 'rejected');
+  // Hide refund rows in replay: their current status does not preserve the past approval state.
+  const orderRefunds = refunds.filter((r) => cursor === null && r.orderId === order.id && r.status !== 'rejected');
   const sumOf = (status: string) => orderRefunds.filter((r) => r.status === status).reduce((s, r) => s + r.amountCents, 0);
   const refunded = sumOf('issued');
   const pendingRefund = sumOf('pending_approval');
   const outstanding = order.priceCents - refunded - pendingRefund;
-  const canRefund = founder && cursor === null && DEAD_PAID.has(order.status) && outstanding > 0;
+  const stalled = STALLED.has(order.status) && !tasks.some((t) => t.orderId === order.id && ['queued', 'claimed'].includes(t.status));
+  const declinedChallenge = order.status === 'delivered' && refunds.some((r) => r.orderId === order.id && r.challengeId !== 0n && r.status === 'rejected');
+  const canRefund = founder && cursor === null && (DEAD_PAID.has(order.status) || stalled || declinedChallenge) && outstanding > 0;
 
   async function refundNow() {
     const reason = window.prompt(`Why refund order #${order.id}? (one line)`);
@@ -86,11 +90,11 @@ export function OrderHero({ order: liveOrder, scope, founder, cursor = null }: {
         <span className={`status s-${order.status}`} data-testid="hero-status">{statusText(order.status)}</span>
         {checked.length > 0 && <span className="hero-chip">{verified}/{checked.length} verified</span>}
         <span className="hero-chip">{usd(order.priceCents)} <span className="badge test">TEST MODE</span>{simulated && <> <span className="badge test">SIMULATED PAYMENT</span></>}</span>
-        {refunded > 0 && <span className="hero-chip">Refunded {usd(refunded)} <span className="badge test">TEST MODE</span></span>}
+        {refunded > 0 && <span className="hero-chip" title="Booked treasury → customer in FORGE’s ledger. Test payments (Stripe test card, FET testnet) are not reversed.">Refunded {usd(refunded)} · ledger <span className="badge test">TEST MODE</span></span>}
         {pendingRefund > 0 && <span className="hero-chip">Refund pending approval</span>}
         {canRefund && (
           <button className="hero-refund" disabled={refunding} onClick={refundNow}>
-            Refund {usd(outstanding)} · TEST MODE
+            {stalled ? 'Stop and refund' : 'Refund'} {usd(outstanding)} · TEST MODE
           </button>
         )}
         {elapsed && <span className="hero-chip muted">{elapsedText}</span>}

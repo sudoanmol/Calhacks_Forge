@@ -6,7 +6,7 @@ import { byIdDesc, clock, micros, payloadObj } from './format';
 import { describe, type ActorKey, type FeedCtx, type FeedLink } from './feedText';
 import { Avatar, ROLE_META } from './Avatar';
 import { SPONSOR_COLOR } from './Floor';
-import { useFeedCtx } from './Feed';
+import { useFeedCtx, type FeedFilter } from './Feed';
 import { useScopeRules, type Scope } from './scope';
 import type { StationId } from './scene';
 
@@ -140,8 +140,8 @@ const nodeName = (id: NodeId) => (id === 'rules' ? RULES.name : NODES[id].name);
 
 type Selected = { node: NodeId } | { edge: string } | null;
 
-export function OrgChartTab({ scope, setShowTest, onStation, onEngineering, onControls }: {
-  scope: Scope; setShowTest: (v: boolean) => void; onStation: (id: StationId) => void; onEngineering: () => void; onControls: () => void;
+export function OrgChartTab({ scope, setShowTest, onStation, onEngineering, onControls, onFilter }: {
+  scope: Scope; setShowTest: (v: boolean) => void; onStation: (id: StationId) => void; onEngineering: () => void; onControls: () => void; onFilter: (filter: FeedFilter) => void;
 }) {
   const [events] = useTable(tables.event);
   const [tasks] = useTable(tables.task);
@@ -227,7 +227,7 @@ export function OrgChartTab({ scope, setShowTest, onStation, onEngineering, onCo
           {EDGES.map((edge) => (
             <EdgeView key={edge.id} edge={edge} counts={edgeEvents.get(edge.id)!.map((l) => l.length)}
               challenge={edge.id === 'challenges' ? challengeTip(scoped) : undefined}
-              on={sel !== null && 'edge' in sel && sel.edge === edge.id} onClick={() => setSel({ edge: edge.id })} />
+              on={sel !== null && 'edge' in sel && sel.edge === edge.id} onClick={() => { setSel({ edge: edge.id }); onFilter({ label: `${nodeName(edge.from)} → ${nodeName(edge.to)}`, matches: (event) => edge.parts.some((part) => part.match(event, payloadObj(event.payload))) }); }} />
           ))}
           {(Object.keys(NODES) as Exclude<NodeId, 'rules'>[]).map((id) => (
             <NodeView key={id} id={id} n={NODES[id]} status={status(id)} count={count(id)}

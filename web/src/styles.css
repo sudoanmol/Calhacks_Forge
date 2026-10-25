@@ -398,3 +398,5 @@ button:disabled, input:disabled { opacity: .5; cursor: default; }
   .replay-range { white-space: normal; flex: 1 1 100%; order: 9; font-size: 12px; }
   .replay-scrub { flex-basis: 100%; order: 10; }
 }
+
+.badge.offline { color: var(--muted); border-color: currentColor; }

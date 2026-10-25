@@ -29,3 +29,6 @@ docs/proof/**/*.png
 
 # uAgents local storage
 fetch-agents/*_data.json
+
+# Curated unified-audit screenshots are public proof of local checks.
+!docs/proof/audit-*.png

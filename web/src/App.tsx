@@ -9,7 +9,7 @@ import { EngineeringTab } from './Engineering';
 import { OrgChartTab } from './OrgChart';
 import { Header } from './Header';
 import { OrderHero } from './OrderHero';
-import { Feed } from './Feed';
+import { Feed, type FeedFilter } from './Feed';
 import { NeedsYou } from './NeedsYou';
 import { DroidStrip } from './DroidStrip';
 import { ReplayBar, useReplay } from './ReplayBar';
@@ -23,6 +23,7 @@ export function App() {
   const [tab, setTab] = useState<Tab>('Office');
   const [controls, setControls] = useState(false);
   const [showTest, setShowTest] = useState(false);
+  const [feedFilter, setFeedFilter] = useState<FeedFilter | null>(null);
   const [engJob, setEngJob] = useState<bigint | null>(null);
   const openEngineering = (ticketId: bigint) => { setEngJob(ticketId); setTab('Engineering'); };
   const scope = useScope(showTest);
@@ -41,7 +42,7 @@ export function App() {
   const shown: Tab = tabs.includes(tab) ? tab : 'Office';
   return (
     <div className="app">
-      <Header scope={scope} founder={founder} onControls={() => setControls(true)} />
+      <Header replaying={shown === 'Office' && cursor !== null} scope={scope} founder={founder} onControls={() => setControls(true)} />
       {phone && <NeedsYou scope={scope} founder={founder} />}
       {shown === 'Office' && sel.selected && <OrderHero order={sel.selected} scope={scope} founder={founder} cursor={cursor} />}
       {shown === 'Office' && sel.selected && <ReplayBar replay={replay} />}
@@ -54,12 +55,12 @@ export function App() {
           </nav>
           {shown === 'Office'
             ? <OfficeTab scope={scope} setShowTest={setShowTest} sel={sel} cursor={cursor} />
-            : shown === 'Org chart' ? <OrgChartTab scope={scope} setShowTest={setShowTest} onStation={openStation} onEngineering={() => setTab('Engineering')} onControls={() => setControls(true)} />
+            : shown === 'Org chart' ? <OrgChartTab onFilter={setFeedFilter} scope={scope} setShowTest={setShowTest} onStation={openStation} onEngineering={() => setTab('Engineering')} onControls={() => setControls(true)} />
             : shown === 'Catalog' ? <ApisTab scope={scope} onEngineering={() => setTab('Engineering')} /> : <EngineeringTab founder={founder} jobId={engJob} onJob={setEngJob} />}
         </section>
         <aside className="rail">
           {!phone && <NeedsYou scope={scope} founder={founder} />}
-          <Feed order={sel.selected} scope={scope} onOpen={openStation} cursor={shown === 'Office' ? cursor : null} />
+          <Feed filter={feedFilter} onClearFilter={() => setFeedFilter(null)} order={sel.selected} scope={scope} onOpen={openStation} cursor={shown === 'Office' ? cursor : null} />
           <DroidStrip onOpen={openEngineering} />
         </aside>
       </main>

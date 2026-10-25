@@ -62,7 +62,7 @@ export type SceneData = {
 };
 
 export const DESK_CHECKS = new Set(['layer2', 'personal_data', 'blocked_domain', 'blocked_domains', 'page_cap', 'login_only']);
-const OPEN_TASK = new Set(['queued', 'claimed']);
+const OPEN_TASK = new Set(['queued', 'claimed', 'dispatched']);
 
 const lastEvent = (evs: Event[], pred: (e: Event) => boolean) => {
   for (let i = evs.length - 1; i >= 0; i--) if (pred(evs[i])) return evs[i];
@@ -148,7 +148,7 @@ export function buildScene(d: SceneData): Scene {
     st.coo.start = paid.at;
     st.coo.end = cooDecision.at;
   } else {
-    const claimed = cooTasks.some((t) => t.status === 'claimed');
+    const claimed = cooTasks.some((t) => ['claimed', 'dispatched'].includes(t.status));
     st.coo = { id: 'coo', state: 'working', caption: claimed ? 'CREAO run deciding…' : 'Queued for a CREAO run', start: paid.at };
   }
 
@@ -210,7 +210,7 @@ export function buildScene(d: SceneData): Scene {
   } else if (auditSkipped) {
     st.auditor = { id: 'auditor', state: 'skipped', caption: 'Canary: audit skipped', start: verified?.at, end: auditSkipped.at };
   } else if (verified) {
-    const claimed = d.tasks.some((t) => t.kind === 'audit' && t.status === 'claimed');
+    const claimed = d.tasks.some((t) => t.kind === 'audit' && ['claimed', 'dispatched'].includes(t.status));
     st.auditor = { id: 'auditor', state: 'working', caption: claimed ? 'CREAO run inspecting…' : 'Queued for a CREAO run', start: verified.at };
   } else {
     st.auditor = { id: 'auditor', state: 'idle', caption: '' };

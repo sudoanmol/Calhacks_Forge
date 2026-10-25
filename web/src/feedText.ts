@@ -37,7 +37,7 @@ const PLUMBING = new Set([
 const SYSTEM = new Set(['customer_registered', 'staff_set', 'module_init', 'defaults_ensured', 'canary_orders_backfilled', 'http_smoke', 'route_ping', 'verify_probe']);
 const FAILURE = new Set([
   'admission_rejected', 'apify_task_failed', 'audit_rejected', 'order_failed', 'compile_failed', 'task_lease_expired', 'task_ended_without_decision',
-  'creao_run_start_failed', 'creao_callback_rejected', 'creao_refresh_failed', 'apify_callback_rejected', 'apify_refresh_failed',
+  'task_requeued', 'creao_run_timed_out', 'creao_run_start_failed', 'creao_callback_rejected', 'creao_refresh_failed', 'apify_callback_rejected', 'apify_refresh_failed',
 ]);
 // Decisions made inside a CREAO run; their feed row links to that run.
 const CREAO_DECISIONS = new Set([
@@ -142,9 +142,12 @@ function sentence(e: Event, p: Record<string, unknown>, ctx: FeedCtx): { text: s
     case 'audit_rejected': return { text: `Rejected the deliverable.${quoted(p.reason)}` };
     case 'order_failed': return { text: `Order failed: ${str(p.reason)}` };
     case 'order_refunded':
-      return { text: `Refunded ${cents(p.amountCents)} to the customer${p.status === 'pending_approval' ? " (waiting for the founder's approval)" : ''}` };
+      return { text: `${p.status === 'pending_approval' ? 'Requested a ledger refund of' : 'Refunded'} ${cents(p.amountCents)}${p.status === 'pending_approval' ? " (waiting for the founder's approval)" : ' to the customer in the ledger'}` };
     case 'order_run_retried': return { text: `The run ${str(p.reason)}; retrying (attempt ${str(p.attempt)})` };
-    case 'order_refund_requested': return { text: `Refunded by the founder:${quoted(p.reason)}` };
+    case 'order_refund_requested': return { text: `Founder ${p.status === 'issued' ? 'booked a ledger refund' : 'asked for a refund (waiting for approval)'}:${quoted(p.reason)}` };
+    case 'order_refund_approved': return { text: `Founder approved the ledger refund of ${cents(p.amountCents)}` };
+    case 'order_refund_declined': return { text: `Founder declined the refund of ${cents(p.amountCents)}` };
+    case 'run_share_linked': return { text: 'Linked a public CREAO run', link: runLink(ctx.runById(e.refId)) };
     case 'challenge_opened': return { text: `Customer challenged row ${str(p.row)} (${str(p.metric)} = "${str(p.value)}"): ${str(p.reason)}` };
     case 'challenge_rechecked':
       return {
@@ -169,8 +172,8 @@ function sentence(e: Event, p: Record<string, unknown>, ctx: FeedCtx): { text: s
     }
     case 'config_set': return { text: `Changed ${str(p.key)}: ${str(p.from)} → ${str(p.to)}` };
     case 'ticket_opened':
-      if (str(p.label) !== 'compile') return { text: `Opened a ${str(p.label) || ''} ticket${p.api ? ` for ${str(p.api)}` : ''}` };
-    // falls through: a compile ticket reads the same as the trigger
+      if (str(p.label) === 'compile') return { text: `Compile ticket #${e.refId} created` };
+      return { text: `Opened a ${str(p.label) || ''} ticket${p.api ? ` for ${str(p.api)}` : ''}` };
     case 'compile_triggered': return { text: `Opened a compile ticket for ${str(p.api)}: ${triggerSummary(str(p.trigger), e.payload)}` };
     case 'cfo_proposed': return { text: `Proposed ${str(p.decision)}: ${cents(p.amountCents)}.${quoted(p.rationale)}` };
     case 'budget_reserved': return { text: `Reserved ${cents(p.amountCents)} of the ${cents(p.capCents)} cap for ${str(p.api)}` };
@@ -199,8 +202,10 @@ function sentence(e: Event, p: Record<string, unknown>, ctx: FeedCtx): { text: s
     case 'task_done': return { text: `Task #${e.refId} done` };
     case 'task_cancelled': return { text: `Task #${e.refId} cancelled: ${str(p.reason)}` };
     case 'orphan_dispatch_recovered': return { text: `Recovered an orphaned dispatch for task #${str(p.taskId)}` };
-    case 'task_lease_expired':
-    case 'task_ended_without_decision': return { text: `A CREAO run ended without a decision; task #${e.refId} requeued` };
+    case 'task_lease_expired': return { text: `Task #${e.refId} lease expired; requeued` };
+    case 'task_ended_without_decision': return { text: `A CREAO run ended without a decision (${str(p.why)}); task #${e.refId} failed` };
+    case 'task_requeued': return { text: `Task #${e.refId} gets one more CREAO run (${str(p.why)})` };
+    case 'creao_run_timed_out': return { text: 'A CREAO run timed out after 15 min' };
     case 'creao_run_started': return { text: `CREAO run ${short(str(p.externalId), 8, 0)} started for ${humanize(str(p.role) || ctx.roleOfRun(e.refId) || '?')}`, link: runLink(ctx.runById(e.refId)) };
     case 'creao_run_completed': return { text: `CREAO run ${short(str(p.externalId), 8, 0)} completed (${str(p.resultChars) || '?'} chars)`, link: runLink(ctx.runById(e.refId)) };
     case 'creao_run_start_failed':

@@ -66,7 +66,7 @@ export function ControlsModal({ founder, onClose }: { founder: boolean; onClose:
         effect="Refunds above it need the founder's approval." save={setKey('refund_limit_cents')} />
       <details className="advanced">
         <summary>Advanced</summary>
-        {[...config].filter((c) => !PRIMARY_KEYS.has(c.key)).sort((a, b) => a.key.localeCompare(b.key))
+        {[...config].filter((c) => !PRIMARY_KEYS.has(c.key) && !['markup_pct', 'classify_min_confidence'].includes(c.key)).sort((a, b) => a.key.localeCompare(b.key))
           .map((row) => <ConfigEditor key={row.key} row={row} founder={founder} />)}
       </details>
     </section>

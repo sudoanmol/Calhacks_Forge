@@ -80,7 +80,9 @@ function toItems(events: readonly Event[], ctx: FeedCtx, group: boolean): Item[]
 
 const shown = (it: Item) => it.line.cls === 'story' || it.line.cls === 'failure';
 
-export function Feed({ order, scope, onOpen, cursor = null }: { order?: Order; scope: Scope; onOpen: (id: StationId) => void; cursor?: bigint | null }) {
+export type FeedFilter = { label: string; matches: (event: Event) => boolean };
+
+export function Feed({ order, scope, onOpen, cursor = null, filter = null, onClearFilter }: { order?: Order; scope: Scope; onOpen: (id: StationId) => void; cursor?: bigint | null; filter?: FeedFilter | null; onClearFilter?: () => void }) {
   const [events, eventsReady] = useTable(tables.event);
   const [tasks] = useTable(tables.task);
   const [runs] = useTable(tables.run);
@@ -91,7 +93,7 @@ export function Feed({ order, scope, onOpen, cursor = null }: { order?: Order; s
   const [plumbing, setPlumbing] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [pages, setPages] = useState(1);
-  const mode = order ? view : 'company';
+  const mode = filter ? 'company' : order ? view : 'company';
 
   useEffect(() => setPlumbing(false), [order?.id]);
 
@@ -104,11 +106,11 @@ export function Feed({ order, scope, onOpen, cursor = null }: { order?: Order; s
 
   const companyItems = useMemo(() => {
     if (mode !== 'company') return { items: [], more: false, total: 0 };
-    const all = events.filter(inScope).sort(byIdDesc);
+    const all = events.filter((e) => inScope(e) && (!filter || filter.matches(e))).sort(byIdDesc);
     const filtered = showAll ? all : all.filter((e) => { const c = classOf(e); return c === 'story' || c === 'failure'; });
     const limit = PAGE * pages;
     return { items: toItems(filtered.slice(0, limit), ctx, true), more: filtered.length > limit, total: filtered.length };
-  }, [mode, events, inScope, showAll, pages, ctx]);
+  }, [mode, events, inScope, showAll, pages, ctx, filter]);
 
   const hidden = orderItems.filter((it) => !shown(it)).length;
   const items = mode === 'order' ? (plumbing ? orderItems : orderItems.filter(shown)) : companyItems.items;
@@ -136,6 +138,7 @@ export function Feed({ order, scope, onOpen, cursor = null }: { order?: Order; s
           </div>
         )}
       </header>
+      {filter && <p className="muted" data-testid="feed-edge-filter">{filter.label} <button onClick={onClearFilter}>Clear filter</button></p>}
       {mode === 'company' && (
         <label className="toggle feed-all">
           <input type="checkbox" checked={showAll} onChange={(e) => { setShowAll(e.target.checked); setPages(1); }} data-testid="show-all-events" /> Show all events
