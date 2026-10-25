@@ -260,7 +260,8 @@ async def on_chat(ctx: Context, sender: str, msg: ChatMessage) -> None:
         return
     pending = ctx.storage.get(f"quote:{sender}")
     if text.lower().strip(" .!") in CONFIRM_WORDS:
-        await reply(ctx, sender, f"To pay for order #{pending['order_id']} (${pending['cents'] / 100:.2f} TEST MODE), tap Pay or reply **pay**." if pending else "There is no open quote. Tell me what public data you need first.")
+        button = "Run demo" if demo_pay_enabled() else "Pay"
+        await reply(ctx, sender, f"To approve order #{pending['order_id']} (${pending['cents'] / 100:.2f} TEST MODE), tap {button} or reply **pay**." if pending else "There is no open quote. Tell me what public data you need first.")
         return
     if text.lower().strip(" .!") in PAY_WORDS:
         if pending:

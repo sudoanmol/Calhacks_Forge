@@ -104,15 +104,17 @@ def test_status_excludes_old_challenges_and_details_require_owned_order(monkeypa
 
 
 @pytest.mark.parametrize('word', ['ok', 'yes', 'accept', 'buy'])
-def test_confirmation_never_pays(monkeypatch, word):
+@pytest.mark.parametrize('simulated', [False, True])
+def test_confirmation_never_pays(monkeypatch, word, simulated):
     agent = agent_module()
     payment, reply = AsyncMock(), AsyncMock()
     monkeypatch.setattr(agent, 'request_payment', payment)
     monkeypatch.setattr(agent, 'reply', reply)
+    monkeypatch.setattr(agent, 'demo_pay_enabled', lambda: simulated)
     ctx = SimpleNamespace(send=AsyncMock(), storage=SimpleNamespace(get=lambda _: quote()), logger=SimpleNamespace(info=lambda _: None))
     asyncio.run(agent.on_chat(ctx, 'unit-sender', agent._text(word)))
     payment.assert_not_awaited()
-    assert 'tap Pay' in reply.call_args.args[2]
+    assert ('tap Run demo' if simulated else 'tap Pay') in reply.call_args.args[2]
 
 
 def test_fresh_payment_and_expired_payment(monkeypatch):
