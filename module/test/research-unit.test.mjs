@@ -2,7 +2,7 @@
 // quote matching. The live flow is in research.test.mjs.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { compareTexts, hostOf, looksLikeHtml, quotedOn, robotsUrlFor, robotsVerdict, splitUrl, textHash } from '../src/research.ts';
+import { compareTexts, hostOf, looksLikeHtml, precheckSources, quotedOn, reachabilityProblem, robotsUrlFor, robotsVerdict, splitUrl, textHash } from '../src/research.ts';
 
 // ycombinator.com/robots.txt as fetched through Bright Data on Oct 24.
 const YC = `User-Agent: *
@@ -49,6 +49,14 @@ test('url helpers work without the URL global', () => {
   assert.deepEqual(splitUrl('HTTP://Example.com'), { scheme: 'http', host: 'example.com', path: '/' });
   assert.equal(splitUrl('not a url'), null);
   assert.equal(hostOf('https://www.ycombinator.com/companies/{company}'), 'ycombinator.com');
+});
+
+test('admission extracts explicit sources and recognizes access barriers without rejecting navigation links', () => {
+  assert.deepEqual(precheckSources('{"sources":["https://example.com/data",12]}', 'Read https://example.com/data and https://example.org/list.'), ['https://example.com/data', 'https://example.org/list']);
+  assert.deepEqual(precheckSources('not json', 'public product prices'), []);
+  assert.equal(reachabilityProblem('Product listings\nSign in\n$25'), null);
+  assert.equal(reachabilityProblem('Sign in to continue'), 'Sign in to continue');
+  assert.equal(reachabilityProblem('This article is for subscribers'), 'This article is for subscribers');
 });
 
 test('compareTexts: identical pages are stable, a changed price is volatile, layout churn is not', () => {

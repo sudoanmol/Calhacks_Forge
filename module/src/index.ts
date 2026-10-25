@@ -4,7 +4,7 @@ import { base64, classify, compareChallenge, verifyValue, type Rung } from './te
 import { parseParams, resolveSources, validateApiInputs } from './params';
 import { validateConfigValue } from './config';
 import { droppedFields, evaluateTriggers, parseFields, refitBudget, testsPassed, type RunCounts } from './compile';
-import { compareTexts, hostOf, looksLikeHtml, quotedOn, robotsUrlFor, robotsVerdict, splitUrl, textHash } from './research';
+import { compareTexts, hostOf, looksLikeHtml, precheckSources, quotedOn, reachabilityProblem, robotsUrlFor, robotsVerdict, splitUrl, textHash } from './research';
 
 const LEASE_MS = 10 * 60 * 1000;
 const LEASE_SWEEP_EVERY_MICROS = 15_000_000n;
@@ -593,13 +593,21 @@ const apifyTaskSchedule = table(
   },
 );
 
+const admissionJob = table({ name: 'admission_job', public: true }, {
+  orderId: t.u64().primaryKey(), sources: t.string(), status: t.string(), volatility: t.string(),
+  nextFetchAt: t.timestamp(), reason: t.string(), updatedAt: t.timestamp(),
+});
+const admissionSchedule = table({ name: 'admission_schedule' }, {
+  scheduledId: t.u64().primaryKey().autoInc(), scheduledAt: t.scheduleAt(), orderId: t.u64(), phase: t.u8(),
+});
+
 const spacetimedb = schema(
   {
     config, staff, task, event, run, callbackToken, leaseSweepSchedule,
     customer, api, apiVersion, gateCheck, orders, ticket, valueRecord, evidence, challenge,
     approval, budget, bonus, ledger, books, apiRunSchedule, verifySchedule, dispatchSchedule,
     canaryOrder, apiRetired, runCost, apiCost, costSettleSchedule, challengeCheck, refund, recheckSchedule, compileJob,
-    researchPage, researchPageText, researchFindings, apifyTaskJob, apifyTaskSchedule,
+    researchPage, researchPageText, researchFindings, apifyTaskJob, apifyTaskSchedule, admissionJob, admissionSchedule,
   },
   // Set at publish time from the shell environment (spacetime publish reads declared names).
   {
@@ -944,7 +952,7 @@ export const coo_decide = spacetimedb.reducer(
         throw new SenderError(`order ${orderId} already has a research report; decide ACCEPT, COUNTEROFFER or REJECT on its gate checks`);
       }
       setOrder(ctx, o, { status: 'researching', decisionReason: reason }, 'coo', 'coo_requested_research', { reason });
-      queueTask(ctx, 'research_gate', 'research', orderId, { orderId: orderId.toString() });
+      startAdmission(ctx, o);
     } else {
       const status = decision === 'REJECT' ? 'rejected' : 'counteroffered';
       setOrder(ctx, o, { status, decisionReason: reason }, 'coo', `coo_${status}`, { reason });
@@ -1928,12 +1936,8 @@ function serpResults(body: string): SerpResult[] {
 //                judged in code (RFC 9309, user-agent *).
 //   kind search: target is a search query, run through the Bright Data SERP zone (Google, brd_json=1).
 // Returns JSON with the page text, so forge-cli can print and search it.
-export const research_fetch = spacetimedb.procedure(
-  { orderId: t.u64(), kind: t.string(), target: t.string() },
-  t.string(),
-  (ctx, { orderId, kind, target }) => {
+function fetchResearchPage(ctx: IoCtx, orderId: bigint, kind: string, target: string): string {
     const plan = ctx.withTx((tx) => {
-      requireRole(tx, 'research', 'founder');
       if (!RESEARCH_KINDS.includes(kind)) throw new SenderError(`kind must be one of ${RESEARCH_KINDS.join(', ')}`);
       const o = findOrder(tx, orderId);
       if (o.status !== 'researching') throw new SenderError(`order ${orderId} is ${o.status}; research fetches are only for an order in researching`);
@@ -1999,6 +2003,97 @@ export const research_fetch = spacetimedb.procedure(
         ...summary, text: stored,
       });
     });
+}
+
+export const research_fetch = spacetimedb.procedure(
+  { orderId: t.u64(), kind: t.string(), target: t.string() }, t.string(), (ctx, { orderId, kind, target }) => {
+    ctx.withTx((tx) => requireRole(tx, 'research', 'founder'));
+    return fetchResearchPage(ctx, orderId, kind, target);
+  },
+);
+
+function startAdmission(ctx: Ctx, o: Order) {
+  const sources = precheckSources(o.intent, o.requestText);
+  ctx.db.admissionJob.insert({ orderId: o.id, sources: JSON.stringify(sources), status: sources.length ? 'pending' : 'needs_sources',
+    volatility: 'stable', nextFetchAt: ctx.timestamp, reason: '', updatedAt: ctx.timestamp });
+  if (!sources.length) {
+    queueTask(ctx, 'research_gate', 'research', o.id, { orderId: o.id.toString(), prechecked: false, reason: 'No explicit source URL; discover a source and run all four checks.' });
+  } else {
+    ctx.db.admissionSchedule.insert({ scheduledId: 0n, scheduledAt: ScheduleAt.time(ctx.timestamp.microsSinceUnixEpoch), orderId: o.id, phase: 0 });
+  }
+  logEvent(ctx, 'rules', 'admission_started', 'order', o.id, { sources, discoveryRequired: !sources.length });
+}
+
+type AdmissionFetch = {
+  ok: boolean; url: string; text: string; reason: string; allowed?: boolean; rule?: string | null; note?: string;
+  compare?: { enoughGap: boolean; secondsApart: number; changedLines: number; numbersChanged: number; suggested: string };
+};
+
+function admissionFinding(ctx: Ctx, orderId: bigint, check: string, result: string, url: string, quote: string) {
+  const row = ctx.db.gateCheck.insert({ id: 0n, orderId, ticketId: undefined, check, result,
+    citationUrl: url, citationText: quote.slice(0, 2000), at: ctx.timestamp });
+  logEvent(ctx, 'rules', 'gate_check_recorded', 'order', orderId, { gateCheckId: row.id.toString(), check, result, citationUrl: url, citationText: quote.slice(0, 300), automatic: true });
+}
+
+export const admission_precheck = spacetimedb.procedure(
+  { onSchedule: admissionSchedule }, { arg: admissionSchedule.rowType }, t.unit(), (ctx, { arg }) => {
+    const job = ctx.withTx((tx) => {
+      const j = tx.db.admissionJob.orderId.find(arg.orderId);
+      if (!j || tx.db.orders.id.find(arg.orderId)?.status !== 'researching') return null;
+      if (arg.phase === 0 ? j.status !== 'pending' : j.status !== 'waiting' || tx.timestamp.microsSinceUnixEpoch < j.nextFetchAt.microsSinceUnixEpoch) return null;
+      tx.db.admissionJob.orderId.update({ ...j, status: 'checking', updatedAt: tx.timestamp });
+      return { ...j, pageCap: cfgInt(tx, 'page_cap') };
+    });
+    if (!job) return {};
+    const sources: string[] = JSON.parse(job.sources);
+    let source = sources[0] ?? '';
+    let check = 'reachability';
+    try {
+      // Leave room within the existing per-order fetch cap for terms and discovery.
+      if (sources.length > Math.min(job.pageCap, Math.floor((RESEARCH_MAX_FETCHES - 4) / 3))) throw new Error('Too many source URLs for the admission fetch budget; request fewer sources.');
+      let volatility = job.volatility;
+      for (source of sources) {
+        if (arg.phase === 0) {
+          check = 'robots';
+          const robots: AdmissionFetch = JSON.parse(fetchResearchPage(ctx, arg.orderId, 'robots', source));
+          if (!robots.ok || !robots.allowed) throw new Error(robots.rule ?? robots.reason ?? 'robots.txt could not be checked');
+          ctx.withTx((tx) => admissionFinding(tx, arg.orderId, 'robots', 'pass', robots.url, robots.rule ?? robots.note ?? robots.text.split('\n').find((line) => /user-agent/i.test(line)) ?? 'No matching disallow rule.'));
+        }
+        check = 'reachability';
+        const page: AdmissionFetch = JSON.parse(fetchResearchPage(ctx, arg.orderId, 'page', source));
+        const blocked = reachabilityProblem(page.text);
+        if (!page.ok || blocked) throw new Error(blocked ?? page.reason);
+        if (arg.phase === 0) {
+          ctx.withTx((tx) => admissionFinding(tx, arg.orderId, 'reachability', 'pass', source, page.text.slice(0, 300)));
+        } else {
+          check = 'volatility';
+          if (!page.compare?.enoughGap) throw new Error('The second fetch did not have the required 120-second gap.');
+          if (page.compare.suggested === 'volatile') volatility = 'volatile';
+          const c = page.compare;
+          ctx.withTx((tx) => admissionFinding(tx, arg.orderId, 'volatility', 'pass', source, `Fetched ${c.secondsApart} s apart: ${c.changedLines} changed lines, ${c.numbersChanged} changed numbers; ${c.suggested}`));
+        }
+      }
+      ctx.withTx((tx) => {
+        const j = tx.db.admissionJob.orderId.find(arg.orderId)!;
+        if (tx.db.orders.id.find(arg.orderId)?.status !== 'researching') return;
+        const nextFetchAt = new Timestamp(tx.timestamp.microsSinceUnixEpoch + BigInt(VOLATILITY_MIN_GAP_MS + 1000) * 1000n);
+        tx.db.admissionJob.orderId.update({ ...j, status: arg.phase === 0 ? 'waiting' : 'passed', volatility, nextFetchAt, updatedAt: tx.timestamp });
+        if (arg.phase === 0) tx.db.admissionSchedule.insert({ scheduledId: 0n, scheduledAt: ScheduleAt.time(nextFetchAt.microsSinceUnixEpoch), orderId: arg.orderId, phase: 1 });
+        else queueTask(tx, 'research_gate', 'research', arg.orderId, { orderId: arg.orderId.toString(), prechecked: true, sources, volatility, next: 'Review the requested fields and quoted terms; reuse the mechanical gate checks for these exact sources.' });
+        logEvent(tx, 'rules', arg.phase === 0 ? 'admission_waiting' : 'admission_passed', 'order', arg.orderId, { sources, volatility });
+      });
+    } catch (err) {
+      ctx.withTx((tx) => {
+        const j = tx.db.admissionJob.orderId.find(arg.orderId)!;
+        const o = findOrder(tx, arg.orderId);
+        if (o.status !== 'researching') return;
+        const reason = `Admission ${check}: ${String(err).slice(0, 1800)} (${source})`;
+        admissionFinding(tx, arg.orderId, check, 'fail', check === 'robots' ? robotsUrlFor(source) : source, reason);
+        tx.db.admissionJob.orderId.update({ ...j, status: 'rejected', reason, updatedAt: tx.timestamp });
+        setOrder(tx, o, { status: 'rejected', decisionReason: reason }, 'rules', 'admission_rejected', { check, source, reason });
+      });
+    }
+    return {};
   },
 );
 

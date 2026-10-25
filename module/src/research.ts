@@ -137,3 +137,18 @@ export const quotedOn = (pageText: string, quote: string) => {
   const q = normText(quote);
   return q.length > 0 && normText(pageText).includes(q);
 };
+
+export function precheckSources(intent: string, requestText: string): string[] {
+  let data: unknown;
+  try { data = JSON.parse(intent); } catch { data = {}; }
+  const sources = data && typeof data === 'object' && 'sources' in data && Array.isArray(data.sources) ? data.sources : [];
+  const urls = [...sources.filter((s): s is string => typeof s === 'string'), ...(requestText.match(/https?:\/\/[^\s<>"']+/g) ?? [])]
+    .map((s) => s.replace(/[),.;]+$/, ''));
+  return [...new Set(urls.filter((s) => splitUrl(s) !== null))];
+}
+
+export function reachabilityProblem(text: string): string | null {
+  const start = text.slice(0, 800);
+  const block = /(?:sign in|log in|login) (?:to (?:continue|view|access)|required)|subscribe to (?:continue reading|read (?:this|the full))|this (?:content|article) is (?:for subscribers|behind a paywall)/i.exec(start);
+  return block ? block[0] : null;
+}

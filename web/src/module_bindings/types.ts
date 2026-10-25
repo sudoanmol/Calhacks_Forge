@@ -10,6 +10,25 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
+export const AdmissionJob = __t.object("AdmissionJob", {
+  orderId: __t.u64(),
+  sources: __t.string(),
+  status: __t.string(),
+  volatility: __t.string(),
+  nextFetchAt: __t.timestamp(),
+  reason: __t.string(),
+  updatedAt: __t.timestamp(),
+});
+export type AdmissionJob = __Infer<typeof AdmissionJob>;
+
+export const AdmissionSchedule = __t.object("AdmissionSchedule", {
+  scheduledId: __t.u64(),
+  scheduledAt: __t.scheduleAt(),
+  orderId: __t.u64(),
+  phase: __t.u8(),
+});
+export type AdmissionSchedule = __Infer<typeof AdmissionSchedule>;
+
 export const Api = __t.object("Api", {
   id: __t.u64(),
   name: __t.string(),

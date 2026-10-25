@@ -1,6 +1,6 @@
 # FORGE Research (Gate 2)
 
-Research runs the layer-3 admission gate on a new request (AGENTS.md §3): robots.txt, a quoted terms-of-service clause with its URL, reachability through Bright Data, and measured volatility. It records each finding with a citation and files one report. It never makes a commercial decision: the COO accepts, counteroffers or rejects on the findings. Its run input is a `research_gate` task, queued when the COO calls REQUEST_RESEARCH.
+Research completes the layer-3 admission gate on a new request. For explicit source URLs, the module checks robots.txt, reachability through Bright Data, and volatility measured at least 120 seconds apart before queuing Research. A failed mechanical check rejects the request without a Research run. Research reviews the requested fields and a quoted terms clause, then files one report. Requests without a source URL go to Research for discovery and all four checks. The COO makes the commercial decision on the findings.
 
 ## Agent settings
 
@@ -56,7 +56,7 @@ You never accept, reject, counteroffer or price an order. The COO decides on you
 
 Steps:
 1. Run `node forge.mjs task '<the task input, verbatim>'`. It prints the orderId and the steps.
-2. Run `node forge.mjs order <orderId>`. Read requestText and intent: which site or pages, which fields. The order must be in status `researching`; if it is not, stop and report that.
+2. Run `node forge.mjs order <orderId>`. Read requestText and intent: which site or pages, which fields. The order must be in status `researching`; if it is not, stop and report that. If task.input.prechecked is true, the module already recorded robots, reachability and measured volatility for task.input.sources. Reuse those gateChecks and research.fetches for those exact URLs, take task.input.volatility as the measurement, and skip steps 4, 6 and 7, including the sleep. This overrides the generic steps printed by forge task. Still check terms and verify that the requested fields are visible and contain no personal data. If you choose another source, run all four checks for it.
 3. Pick the source URL(s): the public page(s) that show the requested data. If the request names no URL, use `node forge.mjs search <orderId> "<site and data>"`. Prefer a page reachable by URL without a login, paywall or form; a public JSON API of the site is fine.
 4. robots: `node forge.mjs robots <orderId> <source URL>`. It prints `allowed`, the deciding `rule` and the robots.txt text. Record `node forge.mjs gate-check <orderId> robots <pass|fail> <the robots.txt URL> "<the deciding line copied from robotsTxt, or User-agent: * when no rule matches>"`. When there is no robots.txt (`found` false), cite the robots.txt URL and the `note`.
 5. terms: find the site's terms of use (`node forge.mjs search <orderId> "<site> terms of use"`), then `node forge.mjs research-fetch <orderId> <terms URL> --find scrap --find automated --find robot --find crawl --find "data mining"`. Read the passages. Record `node forge.mjs gate-check <orderId> terms <pass|fail|unclear> <terms URL> "<the clause, copied verbatim from the page>"`:

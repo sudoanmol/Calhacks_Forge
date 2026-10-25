@@ -76,6 +76,7 @@ import * as ResearchFetchProcedure from "./research_fetch_procedure";
 import * as VerifyProbeProcedure from "./verify_probe_procedure";
 
 // Import all table schema definitions
+import AdmissionJobRow from "./admission_job_table";
 import ApiRow from "./api_table";
 import ApiCostRow from "./api_cost_table";
 import ApiRetiredRow from "./api_retired_table";
@@ -109,6 +110,17 @@ import ValueRecordRow from "./value_record_table";
 
 /** The schema information for all tables in this module. This is defined the same was as the tables would have been defined in the server. */
 const tablesSchema = __schema({
+  admissionJob: __table({
+    name: 'admission_job',
+    indexes: [
+      { accessor: 'orderId', name: 'admission_job_order_id_idx_btree', algorithm: 'btree', columns: [
+        'orderId',
+      ] },
+    ],
+    constraints: [
+      { name: 'admission_job_order_id_key', constraint: 'unique', columns: ['orderId'] },
+    ],
+  }, AdmissionJobRow),
   api: __table({
     name: 'api',
     indexes: [
