@@ -53,11 +53,12 @@ The dashboard is a forge floor drawn in React, SVG and Framer Motion. The design
 
 ## Proof
 
-Each row below is a recorded real run. Curated `audit-*.png` screenshots show local SIMULATED QA; other screenshots stay on the founder's machine (`.gitignore`); the JSON records are committed.
+Each row below is a recorded real run. `audit-dataset-206.png` shows the live Maincloud dashboard; the other curated `audit-*.png` screenshots show local SIMULATED QA. Other screenshots stay on the founder's machine (`.gitignore`); the JSON records are committed.
 
 | What | Record | What it shows |
 |---|---|---|
 | Order #202, ASI:One, Stripe test checkout | [docs/proof/asi-challenge-202.json](docs/proof/asi-challenge-202.json) | Paid through real Stripe test checkout, delivered 21 verified values from the Tier 1 Actor in ASI:One |
+| Order #206, Safari ASI:One, SIMULATED PAYMENT | [docs/proof/asi-chat-followup-206.json](docs/proof/asi-chat-followup-206.json) | 21 verified values delivered. Signed dataset export opened anonymously with 21 records; repairing the link left values, books and refunds unchanged |
 | Challenge #14 on order #202 | [docs/proof/asi-challenge-202.json](docs/proof/asi-challenge-202.json) | The customer challenged row 0 `team`. `recheck` read the saved page and a fresh Bright Data fetch in 1000 ms total (saved 161 ms, fresh 838 ms). Both quotes matched. The Auditor rejected the challenge with a reason citing the saved department structure |
 | Order #199, new request through Research | [docs/proof/research-live-199.json](docs/proof/research-live-199.json) | A Wikipedia source passed the gate (two fetches 122 s apart, cited robots and terms). The COO created an Apify Task. The Auditor rejected the result because one of the two requested fields was missing. The API was retired. This is an honest failure, not a delivery |
 | Order #205, SIMULATED PAYMENT | [docs/proof/demo-payment-205.json](docs/proof/demo-payment-205.json) | Payment skipped by `FORGE_DEMO_PAY=true` and labeled SIMULATED PAYMENT. Intent, COO, Apify run, Bright Data verification and Auditor were real: 21 verified values, ledger balanced |

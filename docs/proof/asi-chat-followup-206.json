@@ -1,0 +1,35 @@
+{
+  "at": "2026-10-25T10:20:19.296Z",
+  "orderId": 206,
+  "runId": "ynToYUQy3g9KkTc0A",
+  "dataset": {
+    "urlWithoutSignature": "https://api.apify.com/v2/datasets/37yJWuXUDrPQGN5n8/items",
+    "signed": true,
+    "anonymousHttpStatus": 200,
+    "items": 21
+  },
+  "orderChangedOnlyDatasetUrl": true,
+  "valuesUnchanged": true,
+  "booksUnchanged": true,
+  "refundsUnchanged": true,
+  "moduleCommit": "543510ee95c3803c6294b986e310c2d1de4f4bf6",
+  "frontDeskStartedAt": "2026-10-25T10:19:41Z",
+  "statusTextCharacters": 386,
+  "previewRecords": 3,
+  "oldChallengeHidden": true,
+  "frontDeskHttpStatus": 200,
+  "checks": {
+    "pythonPassed": 132,
+    "pythonCredentialSkips": 24,
+    "localReducerChecksPassed": 55,
+    "realApifyAndBrightDataWorkflowPassed": true,
+    "moduleTypecheckAndBuildPassed": true,
+    "historySecretScanCommits": 91,
+    "historySecretScanLeaks": 0
+  },
+  "notChecked": [
+    "New card rendering on the physical phone",
+    "Native ASI:One mobile app availability"
+  ],
+  "dashboardScreenshot": "audit-dataset-206.png"
+}
