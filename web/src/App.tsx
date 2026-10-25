@@ -33,22 +33,25 @@ export function App() {
   const openStation = (id: StationId) => { setTab('Office'); sel.setDrawer(id); };
   // The phone stacks Needs you above the order headline; the desktop keeps it at the top of the rail.
   const phone = useMedia('(max-width: 800px)');
+  // The phone layout has no org chart (spec §5); a chart left open when the window narrows falls back to Office.
+  const tabs: readonly Tab[] = phone ? TABS.filter((t) => t !== 'Org chart') : TABS;
+  const shown: Tab = tabs.includes(tab) ? tab : 'Office';
   return (
     <div className="app">
       <Header scope={scope} founder={founder} onControls={() => setControls(true)} />
       {phone && <NeedsYou scope={scope} founder={founder} />}
-      {tab === 'Office' && sel.selected && <OrderHero order={sel.selected} scope={scope} />}
+      {shown === 'Office' && sel.selected && <OrderHero order={sel.selected} scope={scope} />}
       <main>
         <section className="panel mainpanel">
           <nav className="tabs" role="tablist">
-            {TABS.map((t) => (
-              <button key={t} role="tab" aria-selected={t === tab} className={t === tab ? 'on' : ''} onClick={() => setTab(t)} data-testid={`tab-${t}`}>{t}</button>
+            {tabs.map((t) => (
+              <button key={t} role="tab" aria-selected={t === shown} className={t === shown ? 'on' : ''} onClick={() => setTab(t)} data-testid={`tab-${t}`}>{t}</button>
             ))}
           </nav>
-          {tab === 'Office'
+          {shown === 'Office'
             ? <OfficeTab scope={scope} setShowTest={setShowTest} sel={sel} />
-            : tab === 'Org chart' ? <OrgChartTab scope={scope} setShowTest={setShowTest} onStation={openStation} onEngineering={() => setTab('Engineering')} onControls={() => setControls(true)} />
-            : tab === 'Catalog' ? <ApisTab scope={scope} onEngineering={() => setTab('Engineering')} /> : <EngineeringTab founder={founder} jobId={engJob} onJob={setEngJob} />}
+            : shown === 'Org chart' ? <OrgChartTab scope={scope} setShowTest={setShowTest} onStation={openStation} onEngineering={() => setTab('Engineering')} onControls={() => setControls(true)} />
+            : shown === 'Catalog' ? <ApisTab scope={scope} onEngineering={() => setTab('Engineering')} /> : <EngineeringTab founder={founder} jobId={engJob} onJob={setEngJob} />}
         </section>
         <aside className="rail">
           {!phone && <NeedsYou scope={scope} founder={founder} />}

@@ -5,31 +5,6 @@ import { reducers, tables } from './module_bindings';
 import type { Config } from './module_bindings/types';
 import { usd } from './format';
 
-export function ApprovalCards({ founder }: { founder: boolean }) {
-  const [approvals] = useTable(tables.approval);
-  const decide = useReducer(reducers.decideApproval);
-  const [busy, setBusy] = useState<bigint>();
-  const [message, setMessage] = useState('');
-  const pending = approvals.filter((a) => a.status === 'pending');
-  async function act(id: bigint, approve: boolean) {
-    setBusy(id); setMessage('');
-    try { await decide({ id, approve }); setMessage(`Approval #${id} ${approve ? 'approved' : 'rejected'}.`); }
-    catch (err) { setMessage(String(err)); }
-    finally { setBusy(undefined); }
-  }
-  return <section className="approval-cards" aria-label="Founder approvals">
-    {pending.map((a) => <article className="approval-card" key={String(a.id)}>
-      <h3>{a.kind.replaceAll('_', ' ')} · #{String(a.id)}</h3>
-      <p>{a.refType} #{String(a.refId)} · {usd(a.amountCents)} <span className="badge test">TEST MODE</span></p>
-      <pre>{a.detail}</pre>
-      <button disabled={!founder || busy !== undefined} onClick={() => act(a.id, true)}>Approve</button>{' '}
-      <button disabled={!founder || busy !== undefined} onClick={() => act(a.id, false)}>Reject</button>
-      {!founder && <p className="muted">Founder identity required.</p>}
-    </article>)}
-    {message && <p role="status">{message}</p>}
-  </section>;
-}
-
 function ConfigEditor({ row, founder }: { row: Config; founder: boolean }) {
   const setConfig = useReducer(reducers.setConfig);
   const [value, setValue] = useState(row.value);

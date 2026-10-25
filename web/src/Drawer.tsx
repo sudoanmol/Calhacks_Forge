@@ -35,7 +35,9 @@ export function StationDrawer({ id, data, scene, onClose }: Props) {
         {v.start && <span className="muted">{clock(v.start)}{v.end ? ` → ${clock(v.end)}` : ''}</span>}
         {dur && <span className="muted">({dur})</span>}
       </p>
-      {!DECISION_ROLES.has(id) && (v.detail || v.caption) && <p className="drawer-cap">{v.detail || v.caption}</p>}
+      {!DECISION_ROLES.has(id) && (v.detail || v.caption) && (
+        <p className="drawer-cap">{v.detail || v.caption}{(v.detail || v.caption).includes('$') && <> <span className="badge test">TEST MODE</span></>}</p>
+      )}
       <Body id={id} d={data} v={v} />
     </aside>
   );

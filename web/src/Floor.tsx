@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useTable } from './db';
-import { tables } from './module_bindings';
-import { droidStationView, shipPipeLit, FLOW, STATION_META, type FlowId, type SState, type Scene, type SceneData, type StationId, type StationView } from './scene';
+import { shipPipeLit, FLOW, STATION_META, type FlowId, type SState, type Scene, type SceneData, type StationId, type StationView } from './scene';
+import { AvatarSvg, STATION_ACTOR } from './Avatar';
 
 const W = 1400;
 const H = 910;
@@ -52,35 +51,14 @@ function route(from: FlowId, to: FlowId): { x: number; y: number }[] {
   return pts;
 }
 
-const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
-
-// Greedy word wrap; the last line is clipped with an ellipsis.
-function wrap(s: string, width: number, maxLines: number): string[] {
-  const words = s.split(/\s+/).filter(Boolean);
-  const lines: string[] = [];
-  let cur = '';
-  for (let i = 0; i < words.length; i++) {
-    const next = cur ? `${cur} ${words[i]}` : words[i];
-    if (next.length <= width || !cur) { cur = next; continue; }
-    if (lines.length === maxLines - 1) return [...lines, clip(`${cur} ${words.slice(i).join(' ')}`, width)];
-    lines.push(cur);
-    cur = words[i];
-  }
-  if (cur) lines.push(clip(cur, width));
-  return lines;
-}
+const CAPTION_MAX = 26;
+const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
 
 type Props = { scene: Scene; data: SceneData; onOpen: (id: StationId) => void; selected: StationId | null };
 
 export function FloorScene({ scene, data, onOpen, selected }: Props) {
-  const [jobs] = useTable(tables.compileJob);
-  const [apis] = useTable(tables.api);
-  const [retiredRows] = useTable(tables.apiRetired);
-  const retired = new Set(retiredRows.map((r) => r.apiId));
-  const droid = droidStationView(jobs, (id) => apis.find((a) => a.id === id)?.name, retired);
-  const shipLit = shipPipeLit(jobs, retired, BigInt(Date.now()) * 1000n);
-  const stations = { ...scene.stations, droid };
-  const { active } = scene;
+  const shipLit = shipPipeLit(data.compileJobs, data.retiredApiIds, BigInt(Date.now()) * 1000n);
+  const { stations, active } = scene;
   const activeIdx = FLOW.indexOf(active);
   const activeState = stations[active].state;
 
@@ -131,6 +109,11 @@ export function FloorScene({ scene, data, onOpen, selected }: Props) {
         {/* return conveyor: delivery goes back to the customer's chat */}
         <Pipe a={anchor('delivered')} b={anchor('customer')} state={delivered ? 'done' : 'idle'} dashed />
         <text x={176} y={520} className="floor-note" transform="rotate(-90 176 520)">BACK TO CHAT</text>
+        {/* Floor captions carry dollar amounts (price, budget, ledger); this tag covers every one of them. */}
+        <g data-testid="floor-test-mode">
+          <rect x={W - 148} y={18} width={128} height={30} rx={6} fill="#3a2a0c" stroke="#e8a93a" strokeWidth={1.5} />
+          <text x={W - 84} y={39} textAnchor="middle" className="floor-test">TEST MODE</text>
+        </g>
 
         {FLOW.slice(1).map((id, k) => {
           const j = k + 1;
@@ -193,7 +176,8 @@ function Station({ id, view, selected, onOpen, side, icon }: { id: StationId; vi
   const right = `${x},${y + bb} ${x + a},${y} ${x + a},${y + h} ${x},${y + bb + h}`;
   const labelY = y + bb + h + 32;
   const caption = view.caption || (view.state === 'idle' ? 'idle' : '');
-  const tip = [meta.name, meta.role, view.detail || view.caption].filter(Boolean).join('\n');
+  const actor = STATION_ACTOR[id];
+  const tip = [meta.name, meta.role, view.caption, view.detail && view.detail !== view.caption ? view.detail : ''].filter(Boolean).join('\n');
 
   return (
     <g
@@ -217,6 +201,7 @@ function Station({ id, view, selected, onOpen, side, icon }: { id: StationId; vi
       <g transform={`translate(${x} ${y - 8})`}>{icon}</g>
       {id === 'droid' && view.state === 'working' && <Sparks x={x} y={y - 20} />}
 
+      {actor && <AvatarSvg actor={actor} x={x - a + 6} y={y - bb + 4} />}
       <StateBadge x={x + a - 6} y={y - bb + 4} state={view.state} />
       <AnimatePresence initial={false}>
         {view.stamp && (view.state === 'rejected' || view.state === 'done' || view.state === 'waiting') && (
@@ -231,9 +216,9 @@ function Station({ id, view, selected, onOpen, side, icon }: { id: StationId; vi
       </AnimatePresence>
 
       <text x={x} y={labelY} textAnchor="middle" className="st-name">{meta.name}</text>
-      <SponsorTag x={x} y={labelY + 10} label={meta.sponsor} />
-      <text x={x} y={labelY + 66} textAnchor="middle" className="st-cap" fill={dim ? '#9a958c' : view.state === 'rejected' || view.state === 'failed' ? '#ff9c8f' : '#ece6da'}>
-        {wrap(caption, 23, side ? 1 : 2).map((line, i) => <tspan key={i} x={x} dy={i ? 27 : 0}>{line}</tspan>)}
+      <text x={x} y={labelY + 24} textAnchor="middle" className="st-sponsor">{meta.sponsor}</text>
+      <text x={x} y={labelY + 54} textAnchor="middle" className="st-cap" data-testid={`caption-${id}`} fill={dim ? '#9a958c' : view.state === 'rejected' || view.state === 'failed' ? '#ff9c8f' : '#ece6da'}>
+        {clip(caption, CAPTION_MAX)}
       </text>
     </g>
   );
@@ -256,17 +241,6 @@ function ShipPipe({ lit }: { lit: boolean }) {
 }
 
 const stampColor = (s: NonNullable<StationView['stamp']>) => (s === 'ACCEPT' ? '#5fe0a0' : s === 'REJECT' ? '#ff5a5a' : '#ffbe4a');
-
-function SponsorTag({ x, y, label }: { x: number; y: number; label: string }) {
-  const w = label.length * 9.6 + 22;
-  const c = SPONSOR_COLOR[label] ?? '#ccc';
-  return (
-    <g>
-      <rect x={x - w / 2} y={y} width={w} height={26} rx={13} fill="#121110" stroke={c} strokeWidth={1.5} />
-      <text x={x} y={y + 19} textAnchor="middle" className="st-sponsor" fill={c}>{label}</text>
-    </g>
-  );
-}
 
 function StateBadge({ x, y, state }: { x: number; y: number; state: SState }) {
   if (state === 'idle' || state === 'skipped') return null;

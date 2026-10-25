@@ -56,11 +56,13 @@ export type SceneData = {
   approvals: readonly Approval[];
   tickets: readonly Ticket[];
   allTasks: readonly Task[];
+  allApis: readonly Api[];
+  compileJobs: readonly CompileJob[];
+  retiredApiIds: ReadonlySet<bigint>;
 };
 
 export const DESK_CHECKS = new Set(['layer2', 'personal_data', 'blocked_domain', 'blocked_domains', 'page_cap', 'login_only']);
 const OPEN_TASK = new Set(['queued', 'claimed']);
-const ENGINEERING_KINDS = new Set(['compile', 'enhancement', 'warranty']);
 
 const lastEvent = (evs: Event[], pred: (e: Event) => boolean) => {
   for (let i = evs.length - 1; i >= 0; i--) if (pred(evs[i])) return evs[i];
@@ -250,15 +252,7 @@ export function buildScene(d: SceneData): Scene {
     detail: cfoTasks.length ? 'CFO run reviewing a compile' : overCap ? `${overCap} spend-over-cap approval pending` : undefined,
   };
 
-  const droidTasks = d.allTasks.filter((t) => t.role === 'droid_runner' && ENGINEERING_KINDS.has(t.kind));
-  const awake = droidTasks.find((t) => t.status === 'claimed');
-  const queued = droidTasks.filter((t) => t.status === 'queued');
-  const compileTickets = d.tickets.filter((t) => ['compile', 'warranty'].includes(t.label) && t.status === 'open');
-  st.droid = awake
-    ? { id: 'droid', state: 'working', caption: `Droid is awake: ${awake.kind} #${awake.id}`, start: awake.updatedAt }
-    : queued.length
-      ? { id: 'droid', state: 'waiting', caption: `${queued.length} ${queued[0].kind} task${queued.length === 1 ? '' : 's'} queued` }
-      : { id: 'droid', state: 'idle', caption: 'No engineering queued', detail: compileTickets.length ? `${compileTickets.length} compile/warranty ticket${compileTickets.length === 1 ? '' : 's'} open, no engineering task claimed` : undefined };
+  st.droid = droidStationView(d.compileJobs, (id) => d.allApis.find((a) => a.id === id)?.name, d.retiredApiIds);
 
   const cost = d.runCosts.reduce((s, r) => s + r.totalMicros, 0n);
   const bonus = d.bonuses.filter((x) => x.status !== 'clawed_back').reduce((s, x) => s + x.amountCents, 0);

@@ -103,6 +103,9 @@ export function OfficeTab({ scope, setShowTest, sel }: { scope: Scope; setShowTe
   const [budgets] = useTable(tables.budget);
   const [approvals] = useTable(tables.approval);
   const [tickets] = useTable(tables.ticket);
+  const [compileJobs] = useTable(tables.compileJob);
+  const [retiredRows] = useTable(tables.apiRetired);
+  const retiredApiIds = useMemo(() => new Set(retiredRows.map((r) => r.apiId)), [retiredRows]);
 
   const phone = useMedia('(max-width: 800px)');
   const now = useNow(15_000);
@@ -138,9 +141,12 @@ export function OfficeTab({ scope, setShowTest, sel }: { scope: Scope; setShowTe
       approvals,
       tickets,
       allTasks: tasks,
+      allApis: apis,
+      compileJobs,
+      retiredApiIds,
     };
     return { data, scene: buildScene(data) };
-  }, [selected, tasks, events, apis, customers, versions, gates, values, evidence, runs, challenges, runCosts, bonuses, books, canaryIds, budgets, approvals, tickets]);
+  }, [selected, tasks, events, apis, customers, versions, gates, values, evidence, runs, challenges, runCosts, bonuses, books, canaryIds, budgets, approvals, tickets, compileJobs, retiredApiIds]);
 
   if (!ready) return <p className="muted">Loading orders…</p>;
 
