@@ -1,0 +1,105 @@
+{
+  "mode": "TEST MODE",
+  "recordedAt": "2026-10-24T22:06:59.840Z",
+  "database": "https://maincloud.spacetimedb.com / forge",
+  "criterion": "order reaches auditing, every source page loads, verified rate >= 0.8 over all value rows",
+  "results": [
+    {
+      "api": "yc-directory",
+      "pass": true,
+      "reasons": [],
+      "orderId": 103,
+      "ref": "canary-yc-directory-2026-10-24T22-06-23-617Z",
+      "finalStatus": "auditing",
+      "decisionReason": "Canary: scripted order on the seeded API yc-directory.",
+      "elapsedMs": 35203,
+      "transitions": [
+        {
+          "status": "accepted",
+          "atMs": 966
+        },
+        {
+          "status": "running",
+          "atMs": 4058
+        },
+        {
+          "status": "verifying",
+          "atMs": 19590
+        },
+        {
+          "status": "auditing",
+          "atMs": 35203
+        }
+      ],
+      "values": 5,
+      "rows": 1,
+      "valuesByStatus": {
+        "verified": 5
+      },
+      "verifiedRate": 1,
+      "failedPages": 0,
+      "apify": {
+        "runId": "XdMrRJ6CGcKBKHFmE",
+        "status": "SUCCEEDED",
+        "runCostCents": 0,
+        "usageTotalUsd": 0.0006333140896608432,
+        "runTimeSecs": 7.233,
+        "datasetUrl": "https://api.apify.com/v2/datasets/fNOWYnnO7f2D1i4Kc/items?clean=1&format=json",
+        "consoleUrl": "https://console.apify.com/view/runs/XdMrRJ6CGcKBKHFmE",
+        "pages": [
+          {
+            "url": "https://www.ycombinator.com/companies/airbnb",
+            "status": "ok",
+            "method": "unlocker",
+            "country": "us",
+            "truncated": false,
+            "error": null,
+            "ladderAttempts": 1
+          }
+        ],
+        "llmUsage": {
+          "inputTokens": 2887,
+          "outputTokens": 260,
+          "pages": 1
+        },
+        "webhookNudges": 0
+      },
+      "brightDataEvidenceRows": 1,
+      "evidence": [
+        {
+          "url": "https://www.ycombinator.com/companies/airbnb",
+          "method": "unlocker",
+          "country": "us",
+          "httpStatus": 200,
+          "attempt": 1,
+          "ms": 15445,
+          "reason": ""
+        }
+      ],
+      "auditTask": [],
+      "sampleValues": [
+        {
+          "row": 0,
+          "metric": "name",
+          "value": "Airbnb",
+          "status": "verified",
+          "excerpt": "Airbnb\nBook accommodations around the world.\nWinter 2009"
+        },
+        {
+          "row": 0,
+          "metric": "one_liner",
+          "value": "Book accommodations around the world.",
+          "status": "verified",
+          "excerpt": "Airbnb\nBook accommodations around the world.\nWinter 2009"
+        },
+        {
+          "row": 0,
+          "metric": "website",
+          "value": "http://airbnb.com",
+          "status": "verified",
+          "excerpt": "News\nhttp://airbnb.com\nBook accommodations around the world."
+        }
+      ]
+    }
+  ]
+}
