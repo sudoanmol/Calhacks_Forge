@@ -163,6 +163,19 @@ This makes engineering part of the running product. Demand and quality rules can
 
 Sessions use Low autonomy and `direct_only` execution. The [policy](workers/droid-runner/src/policy.ts) and [lockdown](workers/droid-runner/src/lockdown.ts) record the restrictions; Engineering displays their outcomes.
 
+#### How a compile works
+
+1. **Setup.** The worker copies `actors/template` into a scratch folder outside the repo, `/tmp/forge-compile/<api>/`, with no secrets. It adds the pages saved by earlier Tier 0 runs and `expected.json`, the values the Auditor already accepted.
+2. **Droid's turn.** Droid reads the saved pages and writes `src/extract.js` using selectors, markup patterns, or the source's JSON. It must not hardcode fixture values or row counts. It runs the fixture and contract tests itself and fixes failures.
+3. **Live test.** After Droid's turn, the worker runs the live test against the real source. At least 80% of values must be anchored, and the row count must stay within 50% of the fixture. The worker then copies the Actor into `actors/<api>/` and records a hash of its `src/` folder.
+4. **Review.** The Auditor accepts or rejects the attempt with a reason. A rejection goes back to the same Droid session and folder for rework.
+5. **Ship.** After the Auditor accepts and the founder approves the ship, the worker checks that `src/` still matches the hash the Auditor accepted, then runs `apify push`. Changed code stops the ship.
+6. **Switch over.** Apify builds the new Actor version, and the worker records it in SpacetimeDB. Every later buyer of that API runs the compiled Actor.
+
+The worker never commits or pushes to Git. Shipped code reaches the repository only when the founder commits `actors/<api>/`, as with `open-roles` in `5d0ff44`.
+
+Droid gets no network access because the pages it reads are untrusted and could carry injected instructions. Working offline also makes it reproduce the audited values from saved pages, and keeps it from fetching around robots.txt, terms, and Bright Data compliance checks. Low autonomy keeps the Droid CLI from running commands on its own judgment. Every command passes through FORGE's policy, which allows tests, denies risky commands, and sends anything else to the founder for approval.
+
 Official reference: [Droid TypeScript SDK](https://docs.factory.com/sdk/typescript).
 
 ### SpacetimeDB
