@@ -36,6 +36,7 @@ export function NeedsYou({ scope, founder }: { scope: Scope; founder: boolean })
   const [apis] = useTable(tables.api);
   const [budgets] = useTable(tables.budget);
   const [refunds] = useTable(tables.refund);
+  const [orders] = useTable(tables.orders);
   const [config] = useTable(tables.config);
   // Pending approvals show whatever the toggle says (the founder has to act on them either way);
   // ones outside the real scope carry the TEST TRAFFIC badge.
@@ -99,10 +100,16 @@ export function NeedsYou({ scope, founder }: { scope: Scope; founder: boolean })
         const orderId = refund ? String(refund.orderId) : str(detail.orderId) || '?';
         const challengeId = refund ? String(refund.challengeId) : str(detail.challengeId) || '?';
         const limit = num(refundLimit) ?? num(detail.limitCents);
-        return {
+        const above = limit !== undefined ? ` The refund is above the ${usd(limit)} limit.` : '';
+        const order = orders.find((o) => String(o.id) === orderId);
+        return detail.cause === 'challenge_upheld' || detail.cause === undefined ? {
           title: `Refund ${usd(refund?.amountCents ?? a.amountCents)} on order #${orderId}?`,
-          body: `Challenge #${challengeId} was upheld.${limit !== undefined ? ` The refund is above the ${usd(limit)} limit.` : ''}`,
+          body: `Challenge #${challengeId} was upheld.${above}`,
           consequence: 'The customer account is credited; the responsible bonus is clawed back.',
+        } : {
+          title: `Refund ${usd(refund?.amountCents ?? a.amountCents)} on order #${orderId}?`,
+          body: `Order #${orderId} ended as ${order ? humanize(order.status) : 'a dead end'} and the refund is above the limit.`,
+          consequence: 'The customer account is credited.',
         };
       }
       default:

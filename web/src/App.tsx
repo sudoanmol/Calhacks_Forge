@@ -43,7 +43,7 @@ export function App() {
     <div className="app">
       <Header scope={scope} founder={founder} onControls={() => setControls(true)} />
       {phone && <NeedsYou scope={scope} founder={founder} />}
-      {shown === 'Office' && sel.selected && <OrderHero order={sel.selected} scope={scope} cursor={cursor} />}
+      {shown === 'Office' && sel.selected && <OrderHero order={sel.selected} scope={scope} founder={founder} cursor={cursor} />}
       {shown === 'Office' && sel.selected && <ReplayBar replay={replay} />}
       <main>
         <section className="panel mainpanel">

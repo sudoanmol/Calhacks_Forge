@@ -26,7 +26,7 @@ const ACTOR_OF: Record<string, ActorKey> = {
   front_desk: 'front_desk', coo: 'coo', research: 'research', cfo: 'cfo', auditor: 'auditor', droid: 'droid', droid_runner: 'droid',
   treasurer: 'treasurer', rules: 'rules', founder: 'founder', canary: 'canary',
 };
-const WAREHOUSE_KINDS = new Set(['api_run_started', 'api_run_ingested', 'api_run_waiting_for_task', 'apify_task_queued', 'apify_task_created', 'apify_task_failed']);
+const WAREHOUSE_KINDS = new Set(['api_run_started', 'api_run_ingested', 'api_run_waiting_for_task', 'apify_task_queued', 'apify_task_created', 'apify_task_failed', 'order_run_retried']);
 const BRIGHTDATA_KINDS = new Set(['values_verified', 'challenge_rechecked', 'research_fetched']);
 
 const PLUMBING = new Set([
@@ -141,6 +141,10 @@ function sentence(e: Event, p: Record<string, unknown>, ctx: FeedCtx): { text: s
     case 'audit_accepted': return { text: `Accepted the deliverable.${quoted(p.reason)}` };
     case 'audit_rejected': return { text: `Rejected the deliverable.${quoted(p.reason)}` };
     case 'order_failed': return { text: `Order failed: ${str(p.reason)}` };
+    case 'order_refunded':
+      return { text: `Refunded ${cents(p.amountCents)} to the customer${p.status === 'pending_approval' ? " (waiting for the founder's approval)" : ''}` };
+    case 'order_run_retried': return { text: `The run ${str(p.reason)}; retrying (attempt ${str(p.attempt)})` };
+    case 'order_refund_requested': return { text: `Refunded by the founder:${quoted(p.reason)}` };
     case 'challenge_opened': return { text: `Customer challenged row ${str(p.row)} (${str(p.metric)} = "${str(p.value)}"): ${str(p.reason)}` };
     case 'challenge_rechecked':
       return {
