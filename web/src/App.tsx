@@ -39,6 +39,7 @@ function Stats({ db }: { db: string }) {
   return (
     <header className="stats" data-testid="stats">
       <span className="badge test">TEST MODE</span>
+      {orders.some((o) => o.stripeSessionId.startsWith('demo-simulated:')) && <span className="badge test">Includes SIMULATED PAYMENTS</span>}
       <span className="stat"><small>revenue</small><b>{usd(revenue)}</b></span>
       <span className="stat"><small>treasury</small><b>{usd(treasury)}</b></span>
       <span className="stat"><small>eng budget cap / reserved / spent</small><b>{eng ? `${usd(eng.capCents)} / ${usd(eng.reservedCents)} / ${usd(eng.spentCents)}` : '—'}</b></span>

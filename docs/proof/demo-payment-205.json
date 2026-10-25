@@ -1,0 +1,139 @@
+{
+  "recordedAt": "2026-10-25T01:28:29.351Z",
+  "mode": "TEST MODE",
+  "payment": "SIMULATED PAYMENT; no Stripe checkout or money transfer",
+  "flag": "FORGE_DEMO_PAY=true",
+  "order": {
+    "id": 205,
+    "ref": "b49b48b9-295a-4659-b6b6-3843c0c72c69",
+    "customer_id": 105,
+    "api_id": [
+      0,
+      3
+    ],
+    "request_text": "I'd like to buy open-roles for Lattice's Greenhouse board: job title, team and location.",
+    "intent": "{\"summary\": \"Open roles at Lattice from its Greenhouse job board\", \"sources\": [\"boards.greenhouse.io/lattice\"], \"fields\": [\"job title\", \"team\", \"location\"], \"estimated_pages\": 1, \"pages\": 1}",
+    "params": "{\"board\":\"lattice\"}",
+    "price_cents": 100,
+    "status": "delivered",
+    "api_version_id": [
+      0,
+      20
+    ],
+    "apify_run_id": "Mk4uZVWh6ONJXlx6L",
+    "dataset_url": "https://api.apify.com/v2/datasets/1Q0ZQSBFDWUUQpWOX/items?clean=1&format=json",
+    "stripe_session_id": "demo-simulated:b49b48b9-295a-4659-b6b6-3843c0c72c69",
+    "decision_reason": "ACCEPT: 21/21 values verified (0 mismatch, 0 unverifiable, 0 stale, no _page rows) against boards-api.greenhouse.io/v1/boards/lattice/departments. 7 postings x 3 fields (title, team, location) exactly as requested; every value appears verbatim in its excerpt. Derived from the verified rows per order.apiDescription: 7 open roles; by team Engineering 3, Product 2, Account Executive 1, Legal 1; by location Remote - Canada 3, Remote - US 3, London, UK 1. Minor note (not blocking): the team value 'Product ' carries a trailing space, and the two Lead Product Manager / Engineering Manager, AI rows are distinct postings (different job IDs), not duplicates.",
+    "created_at": [
+      1792891503959009
+    ],
+    "updated_at": [
+      1792891605076676
+    ]
+  },
+  "verifiedValues": 21,
+  "apiVersionId": [
+    0,
+    20
+  ],
+  "events": [
+    {
+      "id": 1829,
+      "at": [
+        1792891503959009
+      ],
+      "actor": "front_desk",
+      "kind": "order_quoted",
+      "ref_type": "order",
+      "ref_id": 205,
+      "payload": "{\"priceCents\":100,\"customerId\":\"105\",\"canary\":false}"
+    },
+    {
+      "id": 1830,
+      "at": [
+        1792891504584514
+      ],
+      "actor": "front_desk",
+      "kind": "order_params_set",
+      "ref_type": "order",
+      "ref_id": 205,
+      "payload": "{\"status\":\"quoted\",\"params\":{\"board\":\"lattice\"}}"
+    },
+    {
+      "id": 1831,
+      "at": [
+        1792891550729663
+      ],
+      "actor": "front_desk",
+      "kind": "order_paid",
+      "ref_type": "order",
+      "ref_id": 205,
+      "payload": "{\"status\":\"paid\",\"priceCents\":100,\"simulated\":true}"
+    },
+    {
+      "id": 1835,
+      "at": [
+        1792891570067861
+      ],
+      "actor": "coo",
+      "kind": "coo_accepted",
+      "ref_type": "order",
+      "ref_id": 205,
+      "payload": "{\"status\":\"accepted\",\"api\":\"open-roles\",\"reason\":\"Existing catalog API open-roles covers this exactly: source boards-api.greenhouse.io/v1/boards/lattice/departments is the Lattice Greenhouse board the customer named, and its fields title, team and location match the requested job title, team and location; catalog pageCap=1 matches the 1 estimated page and currentVersion 1.0 is runnable. No personal data, job postings only.\"}"
+    },
+    {
+      "id": 1836,
+      "at": [
+        1792891570281855
+      ],
+      "actor": "procedure",
+      "kind": "api_run_started",
+      "ref_type": "order",
+      "ref_id": 205,
+      "payload": "{\"status\":\"running\",\"apifyRunId\":\"Mk4uZVWh6ONJXlx6L\",\"engine\":\"actor\",\"input\":{\"pageCap\":1,\"sources\":[\"https://boards-api.greenhouse.io/v1/boards/lattice/departments\"]},\"params\":{\"board\":\"lattice\"}}"
+    },
+    {
+      "id": 1838,
+      "at": [
+        1792891580807511
+      ],
+      "actor": "route",
+      "kind": "api_run_ingested",
+      "ref_type": "order",
+      "ref_id": 205,
+      "payload": "{\"status\":\"verifying\",\"values\":21,\"extracted\":21,\"costCents\":0}"
+    },
+    {
+      "id": 1840,
+      "at": [
+        1792891584444493
+      ],
+      "actor": "procedure",
+      "kind": "values_verified",
+      "ref_type": "order",
+      "ref_id": 205,
+      "payload": "{\"status\":\"auditing\",\"counts\":{\"verified\":21},\"pages\":1,\"canary\":false}"
+    },
+    {
+      "id": 1844,
+      "at": [
+        1792891605076676
+      ],
+      "actor": "auditor",
+      "kind": "audit_accepted",
+      "ref_type": "order",
+      "ref_id": 205,
+      "payload": "{\"status\":\"delivered\",\"reason\":\"ACCEPT: 21/21 values verified (0 mismatch, 0 unverifiable, 0 stale, no _page rows) against boards-api.greenhouse.io/v1/boards/lattice/departments. 7 postings x 3 fields (title, team, location) exactly as requested; every value appears verbatim in its excerpt. Derived from the verified rows per order.apiDescription: 7 open roles; by team Engineering 3, Product 2, Account Executive 1, Legal 1; by location Remote - Canada 3, Remote - US 3, London, UK 1. Minor note (not blocking): the team value 'Product ' carries a trailing space, and the two Lead Product Manager / Engineering Manager, AI rows are distinct postings (different job IDs), not duplicates.\"}"
+    }
+  ],
+  "ledgerCheck": {
+    "balanced": true,
+    "paymentMemoLabeledSimulated": true
+  },
+  "realServices": [
+    "CREAO COO",
+    "Apify Tier 1 Actor",
+    "Bright Data independent verification",
+    "CREAO Auditor"
+  ]
+}

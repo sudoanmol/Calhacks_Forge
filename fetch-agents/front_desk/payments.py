@@ -14,6 +14,10 @@ RETURN_URL = "https://agentverse.ai/payment-success"
 CHECKOUT_TTL_S = 1800  # Stripe's minimum expires_at window
 
 
+def demo_pay_enabled() -> bool:
+    return os.environ.get("FORGE_DEMO_PAY", "false").lower() == "true"
+
+
 def _stripe():
     key = os.environ["STRIPE_SECRET_KEY"]
     if not key.startswith("sk_test_"):

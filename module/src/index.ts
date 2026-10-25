@@ -877,7 +877,7 @@ export const reject_at_desk = spacetimedb.reducer(
   },
 );
 
-// The Front Desk calls this only after Stripe reports the checkout session as paid.
+// The Front Desk records a verified test payment, or an explicitly labeled demo simulation.
 export const record_payment = spacetimedb.reducer(
   { ref: t.string(), stripeSessionId: t.string() },
   (ctx, { ref, stripeSessionId }) => {
@@ -885,8 +885,9 @@ export const record_payment = spacetimedb.reducer(
     const o = ctx.db.orders.ref.find(ref);
     if (!o) throw new SenderError(`no order ref ${ref}`);
     if (o.status !== 'quoted') throw new SenderError(`order ${o.id} is ${o.status}, not quoted`);
-    const paid = setOrder(ctx, o, { status: 'paid', stripeSessionId }, 'front_desk', 'order_paid', { priceCents: o.priceCents });
-    postTx(ctx, `payment order ${o.id} (TEST MODE)`, [['treasury', BigInt(o.priceCents)], [`customer:${o.id}`, -BigInt(o.priceCents)]]);
+    const simulated = stripeSessionId.startsWith('demo-simulated:');
+    const paid = setOrder(ctx, o, { status: 'paid', stripeSessionId }, 'front_desk', 'order_paid', { priceCents: o.priceCents, simulated });
+    postTx(ctx, `payment order ${o.id} (${simulated ? 'SIMULATED PAYMENT, ' : ''}TEST MODE)`, [['treasury', BigInt(o.priceCents)], [`customer:${o.id}`, -BigInt(o.priceCents)]]);
     queueTask(ctx, 'coo_triage', 'coo', paid.id, { orderId: paid.id.toString() });
   },
 );

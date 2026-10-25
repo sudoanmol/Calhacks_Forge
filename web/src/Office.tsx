@@ -133,6 +133,7 @@ export function OfficeTab() {
       />
       {scene ? (
         <>
+          {selected?.stripeSessionId.startsWith('demo-simulated:') && <p className="badge test">SIMULATED PAYMENT · TEST MODE · real extraction and verification</p>}
           {phone
             ? <Pipeline scene={scene.scene} onOpen={setDrawer} />
             : <FloorScene key={String(scene.data.order.id)} scene={scene.scene} data={scene.data} onOpen={setDrawer} selected={drawer} />}

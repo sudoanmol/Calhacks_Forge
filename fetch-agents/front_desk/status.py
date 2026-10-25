@@ -83,6 +83,8 @@ def format_order(o: dict, values: list[dict] | None = None, api: str | None = No
     st = o["status"]
     head = f"**Order #{o['id']}**: {_cell(_title(o), 90)}" + (f" · API `{api}`" if api else "")
     parts = [head, f"Status: {PLAIN.get(st, st)}."]
+    if o.get("stripe_session_id", "").startswith("demo-simulated:"):
+        parts.append("**SIMULATED PAYMENT · TEST MODE.** No money was charged; extraction and verification use real services.")
     if o.get("price_cents"):
         parts[-1] += f" Price ${o['price_cents'] / 100:.2f} (TEST MODE)."
     if st in REASON_STATUSES and o.get("decision_reason"):

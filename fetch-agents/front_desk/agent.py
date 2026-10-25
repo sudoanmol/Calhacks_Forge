@@ -32,7 +32,7 @@ from front_desk.challenge import Challenge, format_challenge, parse_challenge, p
 from front_desk.gate import run_layer2
 from front_desk.intent import NotARequest, parse_intent, strip_mentions
 from front_desk.params import Resolution, resolve as resolve_params
-from front_desk.payments import create_checkout, is_paid, payment_request
+from front_desk.payments import create_checkout, demo_pay_enabled, is_paid, payment_request
 from front_desk.status import format_status, is_status_request
 
 QUOTE_CENTS = 100  # Flat test price until the COO prices orders.
@@ -248,7 +248,8 @@ async def on_chat(ctx: Context, sender: str, msg: ChatMessage) -> None:
         *([resolved.note] if resolved.note else []),
         f"Scope: {scope}." + (f" {result.reason}" if result.counteroffer_pages else ""),
         "Every value will come with a verbatim quote from the source page.",
-        f"Quote: ${QUOTE_CENTS / 100:.2f} (TEST MODE). Reply **pay** to accept.",
+        f"Quote: ${QUOTE_CENTS / 100:.2f} (TEST MODE). Reply **pay** to accept."
+        + (" **SIMULATED PAYMENT:** demo mode skips checkout; no money is charged." if demo_pay_enabled() else ""),
     ]
     await reply(ctx, sender, "\n\n".join(lines))
 
@@ -260,6 +261,13 @@ async def on_ack(ctx: Context, sender: str, msg: ChatAcknowledgement) -> None:
 
 async def request_payment(ctx: Context, sender: str, quote: dict) -> None:
     reference = quote["ref"]
+    if demo_pay_enabled():
+        await _record_payment(reference, f"demo-simulated:{reference}")
+        ctx.storage.remove(f"quote:{sender}")
+        await reply(ctx, sender, f"**SIMULATED PAYMENT · TEST MODE.** No money was charged. "
+                                 f"**Order #{quote['order_id']}** ({quote['summary']}) is queued for the COO. "
+                                 "Reply **status** to follow the real extraction and verification.")
+        return
     checkout = await asyncio.to_thread(
         create_checkout, amount_cents=quote["cents"], description=quote["summary"], reference=reference, customer=sender)
     record = {"sender": sender, "quote": quote, "reference": reference,

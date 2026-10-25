@@ -75,7 +75,7 @@ function Body({ id, d }: { id: StationId; d: SceneData }) {
           <Section title="Instant gate checks (layer 2)"><GateTable gates={d.gates.filter((g) => DESK_CHECKS.has(g.check))} /></Section>
           <dl className="decisions">
             <dt>Quote</dt><dd>{usd(o.priceCents)} <span className="badge test">TEST MODE</span></dd>
-            <dt>Payment</dt><dd>{o.stripeSessionId ? `Stripe test session ${short(o.stripeSessionId, 10, 4)}` : d.orderEvents.some((e) => e.kind === 'order_paid') ? 'recorded' : 'not paid'}</dd>
+            <dt>Payment</dt><dd>{o.stripeSessionId.startsWith('demo-simulated:') ? 'SIMULATED PAYMENT · TEST MODE · no money charged' : o.stripeSessionId ? `Test payment ${short(o.stripeSessionId, 10, 4)}` : d.orderEvents.some((e) => e.kind === 'order_paid') ? 'recorded' : 'not paid'}</dd>
           </dl>
         </>
       );
