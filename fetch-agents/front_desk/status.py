@@ -80,12 +80,12 @@ def _title(o: dict) -> str:
 
 
 def format_order(o: dict, values: list[dict] | None = None, api: str | None = None,
-                 refunds: list[dict] | None = None) -> str:
+                 refunds: list[dict] | None = None, *, preview: bool = True) -> str:
     st = o["status"]
     head = f"**Order #{o['id']}**: {_cell(_title(o), 90)}" + (f" · API `{api}`" if api else "")
     parts = [head, f"Status: {PLAIN.get(st, st)}."]
     if o.get("stripe_session_id", "").startswith("demo-simulated:"):
-        parts.append("**SIMULATED PAYMENT · TEST MODE.** No money was charged; extraction and verification use real services.")
+        parts.append("**SIMULATED PAYMENT · TEST MODE.** No money was charged; data uses real services.")
     if o.get("price_cents"):
         parts[-1] += f" Price ${o['price_cents'] / 100:.2f} (TEST MODE)."
     if st in REASON_STATUSES and o.get("decision_reason"):
@@ -102,7 +102,7 @@ def format_order(o: dict, values: list[dict] | None = None, api: str | None = No
     values = values or []
     if st in VALUE_STATUSES and values:
         parts.append(f"Values: {len(values)} ({_counts(values)}).")
-        if st == "delivered":
+        if st == "delivered" and preview:
             parts.append(_table(values))
     if st == "delivered" and o.get("dataset_url"):
         parts.append(f"Dataset: {o['dataset_url']}")
@@ -110,17 +110,8 @@ def format_order(o: dict, values: list[dict] | None = None, api: str | None = No
 
 
 def format_status(orders: list[dict], latest_values: list[dict] | None = None, latest_api: str | None = None,
-                  latest_refunds: list[dict] | None = None, refunds_by_order: dict[int, list[dict]] | None = None) -> str:
-    """`orders` newest first; the newest one is shown in full, up to three older ones in one line each."""
+                  latest_refunds: list[dict] | None = None) -> str:
+    """Current order only; its card supplies the data preview."""
     if not orders:
         return "You have no orders yet. Tell me which public site and which fields you want."
-    out = format_order(orders[0], latest_values, latest_api, latest_refunds)
-    older = orders[1:4]
-    def earlier(o):
-        refunds = (refunds_by_order or {}).get(int(o['id']), [])
-        issued = sum(int(r['amount_cents']) for r in refunds if r['status'] == 'issued')
-        suffix = f" (refunded ${issued / 100:.2f} in ledger, TEST MODE)" if issued else " (refund pending)" if any(r['status'] == 'pending_approval' for r in refunds) else " (refund declined)" if refunds else ""
-        return f"#{o['id']} {o['status'].replace('_', ' ')}{suffix}"
-    if older:
-        out += "\n\nEarlier: " + " · ".join(earlier(o) for o in older)
-    return out
+    return format_order(orders[0], latest_values, latest_api, latest_refunds, preview=False)

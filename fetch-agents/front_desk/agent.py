@@ -8,6 +8,7 @@ the module drives the order. ASI:One doesn't show agent-initiated messages, so p
 import asyncio
 import json
 import os
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
@@ -95,10 +96,22 @@ def _status_data(sender: str) -> tuple[str, dict[str, str] | None]:
     latest = orders[0]
     values = stdb.value_records(latest["id"])
     api = stdb.api_name(latest["api_id"]) if latest["api_id"] is not None else None
-    refunds = stdb.refunds_for_orders([o["id"] for o in orders])
-    out = format_status(orders, values, api, refunds[latest["id"]], refunds)
-    challenges = stdb.challenges_for_orders([o["id"] for o in orders])[:SHOWN_CHALLENGES]
-    return "\n\n".join([out, *(_challenge_text(c) for c in challenges)]), order_card(latest, values, api, refunds[latest["id"]])
+    refunds = stdb.refunds_for_order(latest["id"])
+    out = format_status(orders, values, api, refunds)
+    challenges = stdb.challenges_for_orders([latest["id"]])[:SHOWN_CHALLENGES]
+    if challenges:
+        out += "\n\n" + " · ".join(f"Challenge #{c['id']}: {c['status']}" for c in challenges)
+        out += ". Reply **challenge details** for the saved quote, fresh fetch, and ruling."
+    return out, order_card(latest, values, api, refunds)
+
+
+def _challenge_details(sender: str, order_id: int | None) -> str:
+    orders = stdb.orders_for_sender(sender)
+    order = next((o for o in orders if order_id is None or o['id'] == order_id), None)
+    if order is None:
+        return "I can't find that order among your orders."
+    challenges = stdb.challenges_for_orders([order['id']])[:SHOWN_CHALLENGES]
+    return "\n\n".join(_challenge_text(c) for c in challenges) or f"No challenges on order #{order['id']}."
 
 
 def _open_challenge(sender: str, ch: Challenge) -> tuple[str, int | None]:
@@ -234,6 +247,13 @@ async def on_chat(ctx: Context, sender: str, msg: ChatMessage) -> None:
         return
     if is_status_request(text):
         await reply_status(ctx, sender)
+        return
+    if details := re.fullmatch(r"challenge details(?: (?:for )?order #?(\d+))?[?.! ]*", text, re.IGNORECASE):
+        try:
+            await reply(ctx, sender, await asyncio.to_thread(_challenge_details, sender, int(details[1]) if details[1] else None))
+        except Exception:
+            ctx.logger.exception("challenge details read failed")
+            await reply(ctx, sender, "I couldn't read the challenge details right now. Please try again.")
         return
     if challenge := parse_challenge(text):
         await handle_challenge(ctx, sender, challenge)

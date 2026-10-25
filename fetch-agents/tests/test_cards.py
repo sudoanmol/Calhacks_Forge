@@ -40,6 +40,8 @@ def test_metadata_and_review():
     assert meta['card_kind'] == 'review'
     assert payload['approve_cta']['selection'] == {"action": "forge:pay:3"}
     assert 'SIMULATED PAYMENT' in payload['summary_rows'][3]['value']
+    assert payload['approve_cta']['label'] == 'Run demo'
+    assert json.loads(quote_card(quote(), '1 page', False)['card_payload'])['approve_cta']['label'] == 'Pay'
     with pytest.raises(ValueError):
         card_metadata('detail', {'x': 'a' * 60_001})
 
@@ -50,6 +52,16 @@ def test_large_order_is_bounded_and_unverified_values_are_not_facts():
     assert len(meta['card_payload'].encode()) < 60_000
     assert 'unproven' not in meta['card_payload']
     assert '0/500 verified' in meta['card_payload']
+
+
+def test_order_card_groups_fields_into_records():
+    values = [{'row': row, 'metric': metric, 'value': f'{metric}-{row}', 'status': 'verified'}
+              for row in range(7) for metric in ['title', 'team', 'location']]
+    payload = json.loads(order_card({'id': 3, 'status': 'delivered', 'price_cents': 100}, values, 'open-roles', [])['card_payload'])
+    preview = [r for r in payload['summary_rows'] if r['label'].startswith('Row ')]
+    assert len(preview) == 3
+    assert preview[0]['label'] == 'Row 0'
+    assert all(f'{metric}: {metric}-0' in preview[0]['value'] for metric in ['title', 'team', 'location'])
 
 
 @pytest.mark.parametrize('text,expected', [
@@ -72,6 +84,23 @@ def agent_module():
     os.environ.setdefault('FRONT_DESK_SEED', 'unit-test-card-handler-only')
     from front_desk import agent
     return agent
+
+
+def test_status_excludes_old_challenges_and_details_require_owned_order(monkeypatch):
+    agent = agent_module()
+    orders = [{'id': 206, 'status': 'running', 'price_cents': 100, 'api_id': None}, {'id': 202}]
+    monkeypatch.setattr(agent.stdb, 'orders_for_sender', lambda _: orders)
+    monkeypatch.setattr(agent.stdb, 'value_records', lambda _: [])
+    monkeypatch.setattr(agent.stdb, 'refunds_for_order', lambda _: [])
+    def challenges(ids):
+        assert ids in ([206], [202])
+        return [{'id': 14, 'status': 'rejected'}] if ids == [202] else []
+    monkeypatch.setattr(agent.stdb, 'challenges_for_orders', challenges)
+    monkeypatch.setattr(agent, '_challenge_text', lambda c: 'saved quote and ruling')
+    body, _ = agent._status_data('sender')
+    assert 'Challenge' not in body and '#202' not in body
+    assert agent._challenge_details('sender', 202) == 'saved quote and ruling'
+    assert "can't find" in agent._challenge_details('sender', 999)
 
 
 @pytest.mark.parametrize('word', ['ok', 'yes', 'accept', 'buy'])

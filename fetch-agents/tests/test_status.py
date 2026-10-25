@@ -95,9 +95,9 @@ def test_counteroffer_says_what_to_do_next():
     assert "Refund booked: $1.00" in out
 
 
-def test_older_orders_are_listed_briefly():
+def test_status_only_shows_current_order():
     out = format_status([order(id=3, status="paid"), order(id=2, status="delivered"), order(id=1, status="rejected_at_desk")])
-    assert out.startswith("**Order #3**") and "Earlier: #2 delivered · #1 rejected at desk" in out
+    assert out.startswith("**Order #3**") and "#2" not in out and "#1" not in out
 
 
 def test_counteroffer_without_refund_never_claims_money_moved():
@@ -110,6 +110,7 @@ def test_issued_refund_is_explicitly_ledger_only_and_hides_old_declines():
     assert "declined" not in out
 
 
-def test_older_orders_include_refund_state():
-    out = format_status([order(id=13), order(id=12, status="rejected")], refunds_by_order={12: [refund("issued")]})
-    assert "#12 rejected (refunded $1.00 in ledger, TEST MODE)" in out
+def test_status_keeps_counts_and_link_without_duplicating_card_preview():
+    out = format_status([order(status="delivered", dataset_url="https://example.com/export")], [value(0)])
+    assert "Values: 1 (1 verified)" in out and "Dataset: https://example.com/export" in out
+    assert "| entity |" not in out

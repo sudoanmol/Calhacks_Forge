@@ -60,7 +60,7 @@ def quote_card(quote: dict, scope: str, simulated: bool) -> dict[str, str]:
                          {"label": "Fields", "value": ", ".join(quote['fields'])[:1500]},
                          {"label": "Scope", "value": scope}, {"label": "Price", "value": price},
                          {"label": "Proof", "value": "Every value has a verbatim quote from the saved source page"}],
-        "approve_cta": {"label": f"Pay {price}", "selection": {"action": f"forge:pay:{quote['order_id']}"}},
+        "approve_cta": {"label": "Run demo" if simulated else "Pay", "selection": {"action": f"forge:pay:{quote['order_id']}"}},
         "reject_cta": {"label": "Cancel", "selection": {"action": f"forge:cancel:{quote['order_id']}"}},
     })
 
@@ -73,7 +73,10 @@ def order_card(order: dict, values: list[dict], api: str | None, refunds: list[d
         rows.append({"label": "Payment", "value": "SIMULATED PAYMENT · TEST MODE"})
     if order['status'] == 'delivered':
         rows.append({"label": "Verified", "value": f"{sum(v['status'] == 'verified' for v in facts)}/{len(facts)} verified by independent Bright Data re-fetch"})
-        rows += [{"label": f"Row {v['row']} · {v['metric'][:100]}", "value": f"{_shown_value(v)[:200]} · {v['status']}"} for v in facts[:6]]
+        preview_rows = list(dict.fromkeys(v['row'] for v in facts))[:3]
+        for row in preview_rows:
+            fields = [v for v in facts if v['row'] == row][:6]
+            rows.append({"label": f"Row {row}", "value": " · ".join(f"{v['metric'][:40]}: {_shown_value(v)[:120]} ({v['status']})" for v in fields)})
         if order.get('dataset_url'):
             rows.append({"label": "Dataset", "value": order['dataset_url']})
     issued = sum(int(r['amount_cents']) for r in refunds if r['status'] == 'issued')
