@@ -78,7 +78,8 @@ function toItems(events: readonly Event[], ctx: FeedCtx, group: boolean): Item[]
   return out;
 }
 
-const shown = (it: Item) => it.line.cls === 'story' || it.line.cls === 'failure';
+const BACKGROUND_ACTORS = new Set(['system', 'rules', 'canary']);
+const shown = (it: Item) => it.line.cls === 'failure' || (it.line.cls === 'story' && !BACKGROUND_ACTORS.has(it.line.actor));
 
 export type FeedFilter = { label: string; matches: (event: Event) => boolean };
 

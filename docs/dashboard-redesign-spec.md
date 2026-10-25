@@ -67,7 +67,7 @@ Default views show real orders only. A **Show test traffic** toggle (off by defa
 Desktop (primary target 1920×1080, projector; must also hold at 1440×900):
 
 ```
-┌ FORGE · a one-person company  [TEST MODE] [SIMULATED PAYMENTS?]   Revenue $67.00 · Verified 99% · Cost/call $0.004–0.03 · 3 APIs for sale · Agent decisions 23 : Founder approvals 3   ● LIVE  ⚙ ┐
+┌ FORGE · a one-person company  [TEST MODE] [SIMULATED PAYMENTS?]   Revenue $67.00 · Verified 99% · Agent decisions 23 : Founder approvals 3   ● LIVE  ⚙ ┐
 │ #205 · open-roles for Lattice   [Delivered]  21/21 verified  $1.00 TEST MODE · SIMULATED PAYMENT  2m 10s  customer agent1q25…                                                                      │
 ├──────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────┤
 │ Orders  ● 1 running · 4 unpaid quotes   [#205 ▣][#202][#199][#196][#131]…   │ NEEDS YOU                                                                 │
@@ -89,7 +89,7 @@ Desktop (primary target 1920×1080, projector; must also hold at 1440×900):
 
 Grid: `main { grid-template-columns: 7fr 3fr }`. The right rail is three stacked sections with fixed order; Needs you grows with content (max 40% of the rail), the feed takes the rest, the Droid strip is one row pinned at the bottom.
 
-Phone (390×844, the founder's second device): header (4 numbers, wrap), Needs you, order headline, the existing `Pipeline` list instead of the floor, the feed. No floor, no org chart, no catalog grid (the catalog becomes a vertical list). The drawer stays a bottom sheet.
+Phone (390×844, the founder's second device): header (3 numbers, wrap), Needs you, order headline, the existing `Pipeline` list instead of the floor, the feed. No floor, no org chart, no catalog grid (the catalog becomes a vertical list). The drawer stays a bottom sheet.
 
 ## 6. Components
 
@@ -98,14 +98,12 @@ File names are suggestions; keep components small and keep `scene.ts` pure. Reus
 ### 6.1 Header (`App.tsx` → `Header.tsx`)
 
 - Left: wordmark `FORGE`, subtitle `a one-person company`, `TEST MODE` badge, and `SIMULATED PAYMENTS` badge only when a visible order has `stripeSessionId` starting `demo-simulated:`.
-- Center, four numbers plus the decisions pair, all `tabular-nums`:
+- Center, two numbers plus the decisions pair, all `tabular-nums`:
   - **Revenue**: as today (negated sum of `books` balances for `customer:*` accounts), label "revenue · TEST MODE".
   - **Verified**: as today (`value_record` statuses in `CHECKED`), shown as `99%` with `1258/1274` small.
-  - **Cost / call**: as today (range over `api_cost` rows with runs > 0 for non-retired APIs).
-  - **APIs for sale**: count of `api` rows not in `api_retired`.
   - **Agent decisions N · Founder approvals M**: per §4, with a `title` tooltip stating the scope ("real orders and live APIs" or "all traffic"). This is the One-Person Company number; it goes in step 4, not step 1.
 - Right: connection dot (green `ok`, red `bad`, tooltip has the full status text), `LIVE` badge (`REPLAY` only if a replay view is ever open), a `Founder` or `Viewer` chip based on the staff check already in `App.tsx`, and a gear button that opens the Controls modal (§6.9).
-- Removed: treasury, eng budget triple, open orders, `db forge`, identity hash, the word "connected".
+- Removed: cost per call and APIs for sale (the Catalog tab shows both), treasury, eng budget triple, open orders, `db forge`, identity hash, the word "connected".
 
 ### 6.2 Order headline (`OrderHero.tsx`)
 

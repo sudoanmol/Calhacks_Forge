@@ -70,6 +70,14 @@ export function ReplayBar({ replay }: { replay: Replay }) {
   const cursor = state.cursor ?? end;
   const maxS = Math.max(1, Math.ceil(Number(end - start) / 1e6));
   const valueS = Math.min(maxS, Math.floor(Number(cursor - start) / 1e6));
+  if (!inReplay) {
+    return (
+      <div className="replay-bar compact" role="toolbar" aria-label="Replay" data-testid="replay-bar">
+        <button className="replay-play" onClick={replay.play} data-testid="replay-play">▶ Replay this order</button>
+        <span className="muted">recorded run, {durationText(ts(start), ts(end)) || '0 s'}</span>
+      </div>
+    );
+  }
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
     // Buttons already activate on space; everywhere else in the bar space toggles play.
     if (e.key !== ' ' || (e.target as HTMLElement).tagName === 'BUTTON') return;

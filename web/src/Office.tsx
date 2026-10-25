@@ -166,6 +166,7 @@ export function OfficeTab({ scope, setShowTest, sel, cursor }: { scope: Scope; s
       />
       {!historyReady ? <p className="muted">Loading order history…</p> : scene ? (
         <>
+          {!phone && <p className="floor-caption" data-testid="floor-caption">Follow order #{String(scene.data.order.id)} from the customer's chat to verified delivery. Click any station to see its evidence.</p>}
           {phone
             ? <Pipeline scene={scene.scene} onOpen={setDrawer} />
             : <FloorScene key={String(scene.data.order.id)} scene={scene.scene} data={scene.data} onOpen={setDrawer} selected={drawer} />}
