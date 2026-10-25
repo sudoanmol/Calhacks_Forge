@@ -1,0 +1,114 @@
+{
+  "sourceCommit": "8bb3ef437c144fedca9d7713ea0c14d6a1a74908",
+  "target": "maincloud/forge",
+  "verifiedAt": "2026-10-25T09:34:57.850Z",
+  "migrationPlan": "empty",
+  "dataReset": false,
+  "environmentReplacement": false,
+  "callbackUrlVerifiedFromDeployedEnvironment": "https://maincloud.spacetimedb.com/v1/database/forge/route",
+  "schema": {
+    "tablesBefore": 40,
+    "tablesAfter": 40,
+    "reducersBefore": 34,
+    "reducersAfter": 36
+  },
+  "before": {
+    "at": "2026-10-25T09:30:42.309Z",
+    "orders": 205,
+    "orderStatuses": {
+      "audit_rejected": 4,
+      "auditing": 24,
+      "delivered": 19,
+      "failed": 6,
+      "paid": 2,
+      "quoted": 60,
+      "rejected": 72,
+      "rejected_at_desk": 18
+    },
+    "runs": 87,
+    "activeRuns": [],
+    "activeTasks": [],
+    "queuedKinds": {
+      "test-1792860011121-coo": 1,
+      "web-live-1792860429032": 1,
+      "test-1792863581378-coo": 1,
+      "test-1792875096552-coo": 1,
+      "test-1792876736444-coo": 1,
+      "test-1792877273615-coo": 1,
+      "test-1792881839987-coo": 1,
+      "test-1792882086811-coo": 1
+    },
+    "refunds": 6,
+    "refundStatuses": {
+      "issued": 6
+    },
+    "pendingApprovals": [],
+    "booksSum": "0",
+    "treasury": 5918,
+    "apis": 18,
+    "versions": 21
+  },
+  "after": {
+    "at": "2026-10-25T09:34:57.850Z",
+    "orders": 205,
+    "orderStatuses": {
+      "audit_rejected": 4,
+      "auditing": 24,
+      "delivered": 19,
+      "failed": 6,
+      "paid": 2,
+      "quoted": 60,
+      "rejected": 72,
+      "rejected_at_desk": 18
+    },
+    "runs": 87,
+    "activeRuns": [],
+    "activeTasks": [],
+    "queuedKinds": {
+      "test-1792860011121-coo": 1,
+      "web-live-1792860429032": 1,
+      "test-1792863581378-coo": 1,
+      "test-1792875096552-coo": 1,
+      "test-1792876736444-coo": 1,
+      "test-1792877273615-coo": 1,
+      "test-1792881839987-coo": 1,
+      "test-1792882086811-coo": 1
+    },
+    "refunds": 6,
+    "refundStatuses": {
+      "issued": 6
+    },
+    "pendingApprovals": [],
+    "booksSum": "0",
+    "treasury": 5918,
+    "apis": 18,
+    "versions": 21
+  },
+  "unchangedTables": [
+    "orders",
+    "books",
+    "refund",
+    "api",
+    "api_version",
+    "config"
+  ],
+  "frontDesk": {
+    "address": "agent1qwxszhvaegkq6lsu8n0aks5sqz0l4h63janfx0xgrgcnvxgkl6n6uafetjq",
+    "startedAt": "2026-10-25T09:35:00Z",
+    "agentInfoHttpStatus": 200,
+    "chatManifestPublished": true,
+    "paymentManifestPublished": true,
+    "registrationActive": true,
+    "almanacApiRegistered": true,
+    "mailboxStarted": true,
+    "onChainRegistrationWarning": "Insufficient funds for Almanac contract registration; Agentverse API registration succeeded."
+  },
+  "dashboard": {
+    "url": "http://localhost:5180/",
+    "laptopVerified": "LIVE, order 205 delivered, 21/21 verified",
+    "connectedClientsReloadBroadcast": true,
+    "physicalPhoneObserved": false
+  },
+  "newCustomerOrderTested": false,
+  "order199RefundedInThisRelease": false
+}

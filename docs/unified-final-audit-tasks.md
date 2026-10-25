@@ -61,13 +61,13 @@ These images show SIMULATED QA on a local scratch database, not real customer or
 - [Founder-issued ledger refund](proof/audit-refund-issued.png).
 - [Phone layout](proof/audit-phone.png). Catalog → Office preserved the selected order; the reported persistent loading state did not reproduce.
 
-## Remaining founder release tasks
+## Founder release tasks
 
-These are open tasks, not completed checkboxes. The original hackathon audit §0.4 says, "Prepare the commands and verify afterwards; do not perform them yourself." AGENTS.md §2.7 requires founder approvals through the dashboard identity.
+The user subsequently authorized deployment, Front Desk restart and dashboard reload. Those steps are complete below; other account and submission tasks remain open. AGENTS.md §2.7 still requires founder approvals through the dashboard identity.
 
 1. Check current Maincloud state and vendor balances. The original audits' order counts, run counts, prices and snapshot ages are historical.
-2. With no runs or claimed/dispatched tasks in flight, publish this branch without deleting data: `spacetime publish -s maincloud -p module forge`. Supply the existing module environment privately. Confirm the migration is empty/additive and books/counts stay unchanged.
-3. Restart Front Desk, reload both dashboards, verify the Agentverse README/badges, and complete a real ASI:One quote → Pay → status card → delivery → challenge form. Check the actual inbound card envelope and one Pay request per quote. Do not treat unit-model validation as phone rendering proof.
+2. DONE: published source commit `8bb3ef4` to Maincloud `forge` on October 25 at approximately 02:35 PDT, without a reset. The migration plan was empty. All 205 orders and the orders/books/refund/API/version/config rows were unchanged; books sum stayed zero. The schema remains 40 tables, with reducers increasing from 34 to 36. [Release evidence](proof/maincloud-release-20261025.json).
+3. Front Desk STARTED from the published branch; it had not been running. Both protocol manifests published, Agentverse API registration is active and `/agent_info` returns 200 for the expected address. A reload was broadcast to connected dashboards, and the laptop dashboard was verified LIVE. The physical phone was not observable. Still verify the Agentverse README/badges and complete a real ASI:One quote → Pay → status card → delivery → challenge form. Check the actual inbound card envelope and one Pay request per quote. Do not treat unit-model validation as phone rendering proof.
 4. If #199 remains unrefunded, refund it from the founder dashboard. Verify one issued 100-cent ledger credit and zero customer balance. Do not issue it twice or claim a payment-rail reversal.
 5. Create public CREAO shares for COO, Research and Auditor. Match the historical runs to tasks/orders before sharing; then call `set_run_share_url` as founder and add verified links to the README decision table. The existing CFO link is in `creao/deployment.md` and expires November 23, 2026.
 6. Push this branch after reviewing the commits; make the repository public only after the final full-history secret scan. No push or visibility change was performed here. The exact false-positive fingerprints are in `.gitleaksignore`; public Apify run IDs, an environment-variable expression and the public Cloudflare beacon are not project credentials. Public-file export triage used the same file/line matches in a temporary ignore file; only historical commit fingerprints are committed.
@@ -78,3 +78,12 @@ These are open tasks, not completed checkboxes. The original hackathon audit §0
 ## Deferred as both audits direct
 
 Browser API live rollout, retained CREAO threads, iteration/warranty orchestration, pricing/classification thresholds, CI canaries, actor-identity schema additions, scoped subscriptions, daily CFO reports and x402 remain in [after-hackathon.md](after-hackathon.md). The build contract's stale future requirements were not silently rewritten as completed work.
+
+
+## Production release follow-up
+
+The user authorized task 1 after the implementation handoff. [Maincloud release evidence](proof/maincloud-release-20261025.json) and the [refreshed laptop dashboard](proof/release-maincloud-dashboard.png) record the result. No new customer order, refund, config change or approval was issued as part of this release. The observed order #205 is the existing SIMULATED PAYMENT order, not a new transaction.
+
+Automatic approval review initially refused a publish while the callback URL was unverified locally. The deployed `PUBLIC_ROUTE_BASE` was then read through owner-authenticated `st_env`, validated against Maincloud's forge route, and supplied unchanged. The subsequent publish succeeded. No credentials are included in this proof.
+
+The Front Desk log warns that its wallet lacks funds for on-chain Almanac contract registration. Its Agentverse API registration succeeded and its mailbox started. No funds were transferred or network settings changed. The detached process state and private log path are recorded locally in `/tmp/forge-front-desk-release.json`; a full ASI:One customer round trip remains task 2.

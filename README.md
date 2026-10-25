@@ -268,7 +268,7 @@ Module env values are declared in the schema and supplied at publish time (`KEY=
 
 The dispatch schedule checks old CREAO runs for missed webhooks. An undecided task gets one additional run; a second undecided run fails it and refunds eligible paid orders. Runs time out after 15 minutes. Start failures retry at least 30 seconds apart and stop after five minutes. Customer-order tasks take priority over compile reviews. Founder rescue refuses work still in flight. A delivered order needs a rejected challenge refund before a refund can be requested again.
 
-These changes are branch code verified locally. Maincloud publishing and a complete ASI:One smoke test remain founder release steps.
+These changes were deployed to Maincloud from source commit `8bb3ef4`; [release evidence](docs/proof/maincloud-release-20261025.json) confirms the no-reset publish preserved orders and books. Front Desk is running and the refreshed laptop dashboard is LIVE. A complete ASI:One smoke test remains a release check.
 
 ## Not built
 

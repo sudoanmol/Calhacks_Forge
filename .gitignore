@@ -32,3 +32,5 @@ fetch-agents/*_data.json
 
 # Curated unified-audit screenshots are public proof of local checks.
 !docs/proof/audit-*.png
+
+!docs/proof/release-maincloud-dashboard.png
