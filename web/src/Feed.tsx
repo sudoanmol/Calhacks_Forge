@@ -1,13 +1,15 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Timestamp } from 'spacetimedb';
 import { useTable } from './db';
 import { tables } from './module_bindings';
 import type { Event, Orders as Order, Run } from './module_bindings/types';
-import { byIdAsc, byIdDesc, clock, micros, payloadObj } from './format';
+import { byIdDesc, clock, micros, payloadObj } from './format';
 import { TERMINAL } from './flow';
 import { classOf, describe, groupSentence, type FeedCtx, type FeedLine, type FeedLink } from './feedText';
 import { Avatar, ROLE_META } from './Avatar';
 import { useEventScope, type Scope } from './scope';
 import type { StationId } from './scene';
+import { orderAt, orderTimeline } from './replay';
 
 const PAGE = 100;
 const GROUPED = new Set(['research_fetched', 'droid_droid_message']);
@@ -78,7 +80,7 @@ function toItems(events: readonly Event[], ctx: FeedCtx, group: boolean): Item[]
 
 const shown = (it: Item) => it.line.cls === 'story' || it.line.cls === 'failure';
 
-export function Feed({ order, scope, onOpen }: { order?: Order; scope: Scope; onOpen: (id: StationId) => void }) {
+export function Feed({ order, scope, onOpen, cursor = null }: { order?: Order; scope: Scope; onOpen: (id: StationId) => void; cursor?: bigint | null }) {
   const [events, eventsReady] = useTable(tables.event);
   const [tasks] = useTable(tables.task);
   const [runs] = useTable(tables.run);
@@ -95,20 +97,10 @@ export function Feed({ order, scope, onOpen }: { order?: Order; scope: Scope; on
 
   const orderItems = useMemo(() => {
     if (!order) return [];
-    const id = order.id;
-    const taskIds = new Set(tasks.filter((t) => t.orderId === id).map((t) => t.id));
-    const runIds = new Set(runs.filter((r) => (r.taskId !== undefined && taskIds.has(r.taskId)) || (r.provider === 'apify' && r.threadId === String(id))).map((r) => r.id));
-    // An API created for this order (after research) tells part of the order's story.
-    const newApi = order.apiId !== undefined ? apis.find((a) => a.id === order.apiId && micros(a.createdAt) >= micros(order.createdAt)) : undefined;
-    const mine = events.filter((e) =>
-      (e.refType === 'order' && e.refId === id)
-      || (newApi !== undefined && e.refType === 'api' && e.refId === newApi.id && micros(e.at) >= micros(order.createdAt))
-      || (e.refType === 'challenge' && payloadObj(e.payload).orderId === String(id))
-      || (e.refType === 'task' && taskIds.has(e.refId))
-      || (e.refType === 'run' && runIds.has(e.refId)),
-    ).sort(byIdAsc);
-    return toItems(mine, ctx, true);
-  }, [order, events, tasks, runs, apis, ctx]);
+    const mine = orderTimeline(order, events, tasks, runs, apis);
+    return toItems(cursor === null ? mine : mine.filter((e) => micros(e.at) <= cursor), ctx, true);
+  }, [order, events, tasks, runs, apis, ctx, cursor]);
+  const statusNow = order && cursor !== null ? orderAt(order, events.filter((e) => e.refType === 'order' && e.refId === order.id), cursor).status : order?.status;
 
   const companyItems = useMemo(() => {
     if (mode !== 'company') return { items: [], more: false, total: 0 };
@@ -120,7 +112,7 @@ export function Feed({ order, scope, onOpen }: { order?: Order; scope: Scope; on
 
   const hidden = orderItems.filter((it) => !shown(it)).length;
   const items = mode === 'order' ? (plumbing ? orderItems : orderItems.filter(shown)) : companyItems.items;
-  const live = mode === 'order' && order !== undefined && !TERMINAL.has(order.status);
+  const live = mode === 'order' && statusNow !== undefined && !TERMINAL.has(statusNow);
 
   // Follow the newest row in the order view unless the reader has scrolled up.
   const listRef = useRef<HTMLOListElement>(null);
@@ -136,6 +128,7 @@ export function Feed({ order, scope, onOpen }: { order?: Order; scope: Scope; on
     <section className="panel feed" data-testid="feed" aria-label="Feed">
       <header className="feed-head">
         <h2 className="picker-title">{mode === 'order' && order ? `Order #${order.id}` : 'Company'}</h2>
+        {mode === 'order' && cursor !== null && <span className="badge replay" data-testid="feed-replay">REPLAY · {clock(new Timestamp(cursor))}</span>}
         {order && (
           <div className="seg" role="tablist" aria-label="Feed scope">
             <button role="tab" aria-selected={mode === 'order'} className={mode === 'order' ? 'on' : ''} onClick={() => setView('order')} data-testid="feed-order">This order</button>

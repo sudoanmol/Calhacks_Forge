@@ -2,11 +2,12 @@ import { Timestamp } from 'spacetimedb';
 import { useTable } from './db';
 import { tables } from './module_bindings';
 import type { Orders as Order } from './module_bindings/types';
-import { byIdAsc, parseJson, usd } from './format';
+import { byIdAsc, micros, parseJson, usd } from './format';
 import { TERMINAL } from './flow';
 import { durationText } from './scene';
 import { useNow } from './Office';
 import type { Scope } from './scope';
+import { orderAt, valuesAt } from './replay';
 
 const CHECKED = new Set(['verified', 'stale', 'mismatch', 'unverifiable', 'corrected']);
 
@@ -27,12 +28,18 @@ function paramSummary(params: string): string {
   return entries.slice(0, 2).map(([k, x]) => ` · ${k}: ${s(x)}`).join('');
 }
 
-export function OrderHero({ order, scope }: { order: Order; scope: Scope }) {
+export function OrderHero({ order: liveOrder, scope, cursor = null }: { order: Order; scope: Scope; cursor?: bigint | null }) {
   const [apis] = useTable(tables.api);
-  const [values] = useTable(tables.valueRecord);
+  const [allValues] = useTable(tables.valueRecord);
   const [customers] = useTable(tables.customer);
-  const [events] = useTable(tables.event);
-  const now = useNow(1000);
+  const [allEvents] = useTable(tables.event);
+  const tick = useNow(1000);
+  // In replay every chip reads as of the cursor: the order row, its values and its events up to then.
+  const orderEvents = allEvents.filter((e) => e.refType === 'order' && e.refId === liveOrder.id);
+  const order = cursor === null ? liveOrder : orderAt(liveOrder, orderEvents, cursor);
+  const events = cursor === null ? orderEvents : orderEvents.filter((e) => micros(e.at) <= cursor);
+  const values = cursor === null ? allValues : valuesAt(allValues.filter((v) => v.orderId === liveOrder.id), cursor);
+  const now = cursor === null ? tick : Number(cursor / 1000n);
   const api = order.apiId !== undefined ? apis.find((a) => a.id === order.apiId) : undefined;
   const title = api?.name ?? (order.requestText.length > 60 ? `${order.requestText.slice(0, 60)}…` : order.requestText || '(no request text)');
   const checked = values.filter((v) => v.orderId === order.id && CHECKED.has(v.status));
@@ -40,7 +47,7 @@ export function OrderHero({ order, scope }: { order: Order; scope: Scope }) {
   const simulated = order.stripeSessionId.startsWith('demo-simulated:');
   const customer = customers.find((c) => c.id === order.customerId);
   const terminal = TERMINAL.has(order.status);
-  const last = terminal ? events.filter((e) => e.refType === 'order' && e.refId === order.id).sort(byIdAsc).at(-1) : undefined;
+  const last = terminal ? [...events].sort(byIdAsc).at(-1) : undefined;
   const elapsed = terminal
     ? durationText(order.createdAt, last?.at ?? order.updatedAt)
     : durationText(order.createdAt, new Timestamp(BigInt(now) * 1000n));
@@ -52,6 +59,7 @@ export function OrderHero({ order, scope }: { order: Order; scope: Scope }) {
         <span className="hero-id">#{String(order.id)}</span> · {title}{api ? paramSummary(order.params) : ''}
       </h1>
       <div className="hero-chips">
+        {cursor !== null && <span className="badge replay" data-testid="hero-replay">REPLAY</span>}
         <span className={`status s-${order.status}`} data-testid="hero-status">{statusText(order.status)}</span>
         {checked.length > 0 && <span className="hero-chip">{verified}/{checked.length} verified</span>}
         <span className="hero-chip">{usd(order.priceCents)} <span className="badge test">TEST MODE</span>{simulated && <> <span className="badge test">SIMULATED PAYMENT</span></>}</span>
